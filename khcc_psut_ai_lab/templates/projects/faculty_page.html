@@ -1,204 +1,40 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Faculty - KHCC_PSUT AI Lab{% endblock %}
-
 {% block content %}
-<!-- Hero Section -->
-<section class="hero bg-primary text-white py-5 mb-5">
+<!-- Faculty Header -->
+<div class="bg-primary text-white py-5 mb-5">
     <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-8 mx-auto text-center">
-                <h1 class="display-4 fw-bold mb-4">Our Faculty</h1>
-                <p class="lead mb-0">
-                    Meet our distinguished team of researchers, clinicians, and educators 
-                    leading the advancement of AI in healthcare.
-                </p>
-            </div>
-        </div>
+        <h1 class="display-4">Our Faculty</h1>
+        <p class="lead">Meet our distinguished team of researchers and educators</p>
     </div>
-</section>
+</div>
 
-<!-- Leadership Section -->
-<section class="leadership mb-5">
+<!-- Core Faculty Section -->
+<section class="core-faculty mb-5">
     <div class="container">
-        <h2 class="h3 text-center mb-5">Leadership Team</h2>
+        <h2 class="h3 text-center mb-5">Core Faculty</h2>
         
         <div class="row g-4">
-            <!-- Lab Director -->
+            {% for faculty in faculty_members %}
             <div class="col-md-6 col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card h-100 shadow-sm">
                     <div class="card-body text-center">
-                        <img src="{% static 'images/faculty/director.jpg' %}" 
-                             alt="Lab Director" 
-                             class="rounded-circle mb-4" 
-                             style="width: 200px; height: 200px; object-fit: cover;">
-                        <h3 class="h4 mb-2">Prof. Ahmad Abdullah</h3>
-                        <p class="text-primary mb-3">Lab Director</p>
-                        <p class="text-muted mb-4">
-                            Ph.D. in Artificial Intelligence<br>
-                            20+ years experience in medical AI
-                        </p>
-                        <div class="d-flex justify-content-center gap-3 mb-4">
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-linkedin"></i>
-                            </a>
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-google"></i>
-                            </a>
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-envelope"></i>
-                            </a>
-                        </div>
-                        <button class="btn btn-outline-primary" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#directorModal">
-                            View Profile
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Deputy Director -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <img src="{% static 'images/faculty/deputy.jpg' %}" 
-                             alt="Deputy Director" 
-                             class="rounded-circle mb-4" 
-                             style="width: 200px; height: 200px; object-fit: cover;">
-                        <h3 class="h4 mb-2">Dr. Sarah Smith</h3>
-                        <p class="text-primary mb-3">Deputy Director</p>
-                        <p class="text-muted mb-4">
-                            Ph.D. in Medical Informatics<br>
-                            Lead Researcher, Cancer Imaging AI
-                        </p>
-                        <div class="d-flex justify-content-center gap-3 mb-4">
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-linkedin"></i>
-                            </a>
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-google"></i>
-                            </a>
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-envelope"></i>
-                            </a>
-                        </div>
-                        <button class="btn btn-outline-primary" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#deputyModal">
-                            View Profile
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Research Director -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <img src="{% static 'images/faculty/research.jpg' %}" 
-                             alt="Research Director" 
-                             class="rounded-circle mb-4" 
-                             style="width: 200px; height: 200px; object-fit: cover;">
-                        <h3 class="h4 mb-2">Dr. Mohammed Hassan</h3>
-                        <p class="text-primary mb-3">Research Director</p>
-                        <p class="text-muted mb-4">
-                            Ph.D. in Computer Science<br>
-                            Expert in Machine Learning for Healthcare
-                        </p>
-                        <div class="d-flex justify-content-center gap-3 mb-4">
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-linkedin"></i>
-                            </a>
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-google"></i>
-                            </a>
-                            <a href="#" class="text-dark fs-5">
-                                <i class="bi bi-envelope"></i>
-                            </a>
-                        </div>
-                        <button class="btn btn-outline-primary" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#researchModal">
-                            View Profile
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Research Faculty Section -->
-<section class="research-faculty bg-light py-5 mb-5">
-    <div class="container">
-        <h2 class="h3 text-center mb-5">Research Faculty</h2>
-        
-        <div class="row g-4">
-            <!-- Faculty Members -->
-            {% for faculty in research_faculty %}
-            <div class="col-md-6 col-lg-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <img src="{{ faculty.image.url }}" 
-                             alt="{{ faculty.name }}" 
+                        <img src="{{ faculty.avatar.url|default:'https://via.placeholder.com/150' }}" 
+                             alt="{{ faculty.user.get_full_name }}" 
                              class="rounded-circle mb-3" 
                              style="width: 150px; height: 150px; object-fit: cover;">
-                        <h3 class="h5 mb-2">{{ faculty.name }}</h3>
-                        <p class="text-primary small mb-2">{{ faculty.title }}</p>
-                        <p class="text-muted small mb-3">{{ faculty.specialization }}</p>
-                        <div class="d-flex justify-content-center gap-2">
-                            {% if faculty.linkedin_url %}
-                            <a href="{{ faculty.linkedin_url }}" class="text-dark">
-                                <i class="bi bi-linkedin"></i>
-                            </a>
-                            {% endif %}
-                            {% if faculty.google_scholar %}
-                            <a href="{{ faculty.google_scholar }}" class="text-dark">
-                                <i class="bi bi-google"></i>
-                            </a>
-                            {% endif %}
-                            {% if faculty.email %}
-                            <a href="mailto:{{ faculty.email }}" class="text-dark">
-                                <i class="bi bi-envelope"></i>
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-
-<!-- Clinical Faculty Section -->
-<section class="clinical-faculty mb-5">
-    <div class="container">
-        <h2 class="h3 text-center mb-5">Clinical Faculty</h2>
-        
-        <div class="row g-4">
-            <!-- Clinical Faculty Members -->
-            {% for faculty in clinical_faculty %}
-            <div class="col-md-6 col-lg-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <img src="{{ faculty.image.url }}" 
-                             alt="{{ faculty.name }}" 
-                             class="rounded-circle mb-3" 
-                             style="width: 150px; height: 150px; object-fit: cover;">
-                        <h3 class="h5 mb-2">{{ faculty.name }}</h3>
+                        <h3 class="h5 mb-2">{{ faculty.user.get_full_name }}</h3>
                         <p class="text-primary small mb-2">{{ faculty.title }}</p>
                         <p class="text-muted small mb-3">{{ faculty.department }}</p>
                         <div class="d-flex justify-content-center gap-2">
                             {% if faculty.linkedin_url %}
-                            <a href="{{ faculty.linkedin_url }}" class="text-dark">
+                            <a href="{{ faculty.linkedin_url }}" class="text-dark" target="_blank">
                                 <i class="bi bi-linkedin"></i>
                             </a>
                             {% endif %}
                             {% if faculty.website %}
-                            <a href="{{ faculty.website }}" class="text-dark">
+                            <a href="{{ faculty.website }}" class="text-dark" target="_blank">
                                 <i class="bi bi-globe"></i>
                             </a>
                             {% endif %}
@@ -211,84 +47,39 @@
                     </div>
                 </div>
             </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">No faculty members found.</p>
+            </div>
             {% endfor %}
         </div>
     </div>
 </section>
 
-<!-- Faculty Modals -->
-{% for faculty in all_faculty %}
-<div class="modal fade" id="modal{{ faculty.id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header border-0">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center px-4 pb-5">
-                <img src="{{ faculty.image.url }}" 
-                     alt="{{ faculty.name }}" 
-                     class="rounded-circle mb-4" 
-                     style="width: 200px; height: 200px; object-fit: cover;">
-                <h2 class="h4 mb-2">{{ faculty.name }}</h2>
-                <p class="text-primary mb-4">{{ faculty.title }}</p>
-                
-                <div class="row mb-4">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <h3 class="h6 text-uppercase mb-3">Education</h3>
-                        <ul class="list-unstyled text-muted">
-                            {% for education in faculty.education.all %}
-                            <li class="mb-2">{{ education.degree }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h3 class="h6 text-uppercase mb-3">Research Interests</h3>
-                        <ul class="list-unstyled text-muted">
-                            {% for interest in faculty.research_interests.all %}
-                            <li class="mb-2">{{ interest.name }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <h3 class="h6 text-uppercase mb-3">Biography</h3>
-                    <p class="text-muted">{{ faculty.bio }}</p>
-                </div>
-                
-                <div class="mb-4">
-                    <h3 class="h6 text-uppercase mb-3">Selected Publications</h3>
-                    <ul class="list-unstyled text-muted">
-                        {% for publication in faculty.selected_publications.all %}
-                        <li class="mb-2">{{ publication.citation }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                
+<!-- Contact Section -->
+<section class="contact-us bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h2 class="h3 mb-4">Contact Us</h2>
+                <p class="mb-4">
+                    Have questions about our research or collaboration opportunities? 
+                    We'd love to hear from you.
+                </p>
                 <div class="d-flex justify-content-center gap-3">
-                    {% if faculty.linkedin_url %}
-                    <a href="{{ faculty.linkedin_url }}" class="btn btn-outline-primary">
-                        <i class="bi bi-linkedin"></i> LinkedIn
+                    <a href="mailto:contact@example.com" class="btn btn-outline-primary">
+                        <i class="bi bi-envelope me-2"></i>Email Us
                     </a>
-                    {% endif %}
-                    {% if faculty.google_scholar %}
-                    <a href="{{ faculty.google_scholar }}" class="btn btn-outline-primary">
-                        <i class="bi bi-google"></i> Google Scholar
+                    <a href="{% url 'projects:faculty_page' %}#faculty" class="btn btn-primary">
+                        <i class="bi bi-people me-2"></i>Meet the Team
                     </a>
-                    {% endif %}
-                    {% if faculty.email %}
-                    <a href="mailto:{{ faculty.email }}" class="btn btn-outline-primary">
-                        <i class="bi bi-envelope"></i> Email
-                    </a>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endfor %}
+</section>
 
-<!-- Join Us Section -->
+<!-- Join Us Section - Modified to remove careers link -->
 <section class="join-us bg-light py-5">
     <div class="container">
         <div class="row justify-content-center">
@@ -298,8 +89,9 @@
                     We're always looking for talented researchers and clinicians to join our team. 
                     If you're passionate about advancing AI in healthcare, we'd love to hear from you.
                 </p>
-                <a href="{% url 'careers' %}" class="btn btn-primary">
-                    View Open Positions
+                <!-- Replace careers link with contact information -->
+                <a href="mailto:careers@example.com" class="btn btn-primary">
+                    <i class="bi bi-envelope me-2"></i>Contact About Opportunities
                 </a>
             </div>
         </div>

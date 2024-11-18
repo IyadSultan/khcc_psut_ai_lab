@@ -1027,3 +1027,9 @@ def faculty_page(request):
         'active_tab': 'faculty'
     }
     return render(request, 'projects/faculty_page.html', context)
+
+def careers_page(request):
+    return render(request, 'projects/careers.html', {
+        'page_title': 'Careers',
+        'active_tab': 'careers'
+    })
