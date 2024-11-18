@@ -3,6 +3,8 @@
 {% load static %}
 {% load humanize %}
 {% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load project_tags %}
 
 {% block extra_css %}
 <style>
@@ -300,10 +302,10 @@
                                         </button>
                                         
                                         {% if user == comment.user or user == project.author %}
-                                        <button class="btn btn-sm btn-light text-danger delete-comment-btn"
-                                                data-comment-id="{{ comment.id }}">
-                                            Delete
-                                        </button>
+                                        <button class="btn btn-sm btn-light text-danger delete-comment-btn" 
+        data-comment-id="{{ comment.id }}">
+    Delete
+</button>
                                         {% endif %}
                                     </div>
                                     {% endif %}
@@ -349,7 +351,6 @@
                                         <p class="mb-2">{{ reply.content }}</p>
                                         
                                         {% if reply.image %}
-                                        {% if reply.image %}
                                         <img src="{{ reply.image.url }}" 
                                              alt="Reply image" 
                                              class="comment-image mb-2"
@@ -358,10 +359,10 @@
                                         {% endif %}
                                         
                                         {% if user == reply.user or user == project.author %}
-                                        <button class="btn btn-sm btn-light text-danger delete-comment-btn"
-                                                data-comment-id="{{ reply.id }}">
-                                            Delete
-                                        </button>
+                                        <button class="btn btn-sm btn-light text-danger delete-comment-btn" 
+        data-comment-id="{{ comment.id }}">
+    Delete
+</button>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -606,7 +607,7 @@ $(document).ready(function() {
     // Handle clap button
     $('#clap-btn').click(function() {
         const btn = $(this);
-        $.post("{% url 'projects:clap_project' %}", {
+        $.post("{% url 'projects:clap_project' project.pk %}", {
             project_id: {{ project.id }},
             csrfmiddlewaretoken: '{{ csrf_token }}'
         })
@@ -636,24 +637,23 @@ $(document).ready(function() {
     });
     
     // Handle comment deletion
-    let commentToDelete = null;
-    
-    $('.delete-comment-btn').click(function() {
-        commentToDelete = $(this).data('comment-id');
-        $('#deleteCommentModal').modal('show');
-    });
-    
-    $('#confirmDeleteComment').click(function() {
-        if (commentToDelete) {
-            $.post("{% url 'projects:delete_comment' %}", {
-                comment_id: commentToDelete,
-                csrfmiddlewaretoken: '{{ csrf_token }}'
-            })
-            .done(function() {
-                location.reload();
-            });
-        }
-    });
+let commentToDelete = null;
+
+$('.delete-comment-btn').click(function() {
+    commentToDelete = $(this).data('comment-id');
+    $('#deleteCommentModal').modal('show');
+});
+
+$('#confirmDeleteComment').click(function() {
+    if (commentToDelete) {
+        const url = `/comment/${commentToDelete}/delete/`;
+        $.post(url, {
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        }).done(function() {
+            location.reload();
+        });
+    }
+});
     
     // Handle bookmark toggle
     $('.bookmark-btn').click(function() {
@@ -670,6 +670,25 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Handle comment deletion
+    let commentToDelete = null;
+
+    $('.delete-comment-btn').click(function() {
+        commentToDelete = $(this).data('comment-id');
+        $('#deleteCommentModal').modal('show');
+    });
+
+    $('#confirmDeleteComment').click(function() {
+        if (commentToDelete) {
+            $.post(`/comment/${commentToDelete}/delete/`, {
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            })
+            .done(function() {
+                location.reload();
+            });
+        }
+});
     
     // Handle share link copying
     $('.copy-link').click(function() {

@@ -160,26 +160,26 @@ class UserProfile(models.Model):
     bio = models.TextField(max_length=500, blank=True)
     location = models.CharField(max_length=100, blank=True)
     website = models.URLField(blank=True)
-    github_username = models.CharField(max_length=39, blank=True)
+    github_username = models.CharField(max_length=39, blank=True) 
     linkedin_url = models.URLField(blank=True)
+    twitter_username = models.CharField(max_length=100, blank=True)
     avatar = models.ImageField(
         upload_to=avatar_upload_path,
         null=True,
         blank=True
     )
+    
+    # Notification settings
+    email_on_comment = models.BooleanField(default=True)
+    email_on_follow = models.BooleanField(default=True)
+    email_on_clap = models.BooleanField(default=False)
+    email_on_bookmark = models.BooleanField(default=False)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def __str__(self):
         return f"{self.user.username}'s profile"
-    
-    @property
-    def project_count(self):
-        return self.user.project_set.count()
-    
-    @property
-    def total_claps_received(self):
-        return sum(project.claps for project in self.user.project_set.all())
 
 class Clap(models.Model):
     project = models.ForeignKey(
@@ -360,20 +360,3 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
 
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bio = models.TextField(max_length=500, blank=True)
-    location = models.CharField(max_length=100, blank=True)
-    website = models.URLField(blank=True)
-    github_username = models.CharField(max_length=100, blank=True)
-    twitter_username = models.CharField(max_length=100, blank=True)
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    
-    # Notification settings
-    email_on_comment = models.BooleanField(default=True)
-    email_on_follow = models.BooleanField(default=True)
-    email_on_clap = models.BooleanField(default=False)
-    email_on_bookmark = models.BooleanField(default=False)
-    
-    def __str__(self):
-        return f"{self.user.username}'s profile"

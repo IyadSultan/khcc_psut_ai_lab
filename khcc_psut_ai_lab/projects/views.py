@@ -922,3 +922,12 @@ def profile_settings(request):
         'form': form,
         'active_tab': 'settings'
     })
+
+
+
+# Add to projects/views.py
+def custom_404(request, exception):
+    return render(request, 'errors/404.html', status=404)
+
+def custom_500(request):
+    return render(request, 'errors/500.html', status=500)

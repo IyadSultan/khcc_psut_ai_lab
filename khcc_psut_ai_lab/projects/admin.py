@@ -107,35 +107,24 @@ class CommentAdmin(admin.ModelAdmin):
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = [
         'user_link', 'location', 'github_username',
-        'project_count', 'total_claps_received', 'avatar_preview'
+        'get_project_count', 'get_total_claps',
+        'avatar_preview'
     ]
     list_filter = ['location', 'created_at']
     search_fields = ['user__username', 'bio', 'location', 'github_username']
     readonly_fields = [
         'created_at', 'updated_at', 'avatar_preview',
-        'project_count', 'total_claps_received'
+        'get_project_count', 'get_total_claps'
     ]
     
-    fieldsets = (
-        ('User Information', {
-            'fields': ('user', 'avatar', 'avatar_preview', 'bio')
-        }),
-        ('Contact Information', {
-            'fields': ('location', 'website')
-        }),
-        ('Social Links', {
-            'fields': ('github_username', 'linkedin_url')
-        }),
-        ('Statistics', {
-            'fields': ('project_count', 'total_claps_received'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
+    def get_project_count(self, obj):
+        return obj.user.project_set.count()
+    get_project_count.short_description = 'Projects'
+
+    def get_total_claps(self, obj):
+        return sum(project.claps for project in obj.user.project_set.all())
+    get_total_claps.short_description = 'Total Claps'
+
     def user_link(self, obj):
         url = reverse('admin:auth_user_change', args=[obj.user.id])
         return format_html('<a href="{}">{}</a>', url, obj.user.username)
@@ -149,6 +138,26 @@ class UserProfileAdmin(admin.ModelAdmin):
             )
         return 'No avatar'
     avatar_preview.short_description = 'Avatar Preview'
+
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user', 'avatar', 'avatar_preview', 'bio')
+        }),
+        ('Contact Information', {
+            'fields': ('location', 'website')
+        }),
+        ('Social Links', {
+            'fields': ('github_username', 'linkedin_url')
+        }),
+        ('Statistics', {
+            'fields': ('get_project_count', 'get_total_claps'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
