@@ -1,0 +1,49 @@
+{% block content %}
+<!-- Add this where appropriate in your project_detail.html -->
+<div class="social-share my-4">
+    <h6 class="text-muted mb-3">Share this project</h6>
+    <div class="d-flex gap-2">
+        <!-- Twitter -->
+        <a href="https://twitter.com/intent/tweet?text={{ project.title|urlencode }}&url={{ request.build_absolute_uri|urlencode }}"
+           target="_blank"
+           class="btn btn-outline-primary">
+            <i class="bi bi-twitter"></i>
+        </a>
+        
+        <!-- LinkedIn -->
+        <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri|urlencode }}&title={{ project.title|urlencode }}&summary={{ project.description|truncatewords:30|urlencode }}"
+           target="_blank"
+           class="btn btn-outline-primary">
+            <i class="bi bi-linkedin"></i>
+        </a>
+        
+        <!-- Facebook -->
+        <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri|urlencode }}"
+           target="_blank"
+           class="btn btn-outline-primary">
+            <i class="bi bi-facebook"></i>
+        </a>
+        
+        <!-- Copy Link -->
+        <button class="btn btn-outline-primary copy-link" 
+                data-url="{{ request.build_absolute_uri }}">
+            <i class="bi bi-link-45deg"></i>
+        </button>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+$(document).ready(function() {
+    $('.copy-link').click(function() {
+        const url = $(this).data('url');
+        navigator.clipboard.writeText(url).then(function() {
+            // Show success toast
+            const toast = new bootstrap.Toast($('#copy-toast'));
+            toast.show();
+        });
+    });
+});
+</script>
+{% endblock %}

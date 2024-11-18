@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'projects:edit_profile' %}" 
+                       class="list-group-item list-group-item-action {% if active_tab == 'profile' %}active{% endif %}">
+                        <i class="bi bi-person"></i> Profile
+                    </a>
+                    <a href="{% url 'projects:profile_settings' %}" 
+                       class="list-group-item list-group-item-action {% if active_tab == 'settings' %}active{% endif %}">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                    <a href="{% url 'account_email' %}" 
+                       class="list-group-item list-group-item-action">
+                        <i class="bi bi-envelope"></i> Email
+                    </a>
+                    <a href="{% url 'account_change_password' %}" 
+                       class="list-group-item list-group-item-action">
+                        <i class="bi bi-shield-lock"></i> Password
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Form -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">Notification Settings</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="form-check mb-3">
+                                {{ field }}
+                                <label class="form-check-label" for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

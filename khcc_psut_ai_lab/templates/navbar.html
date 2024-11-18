@@ -1,0 +1,131 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light"></nav>
+    <div class="container">
+        <!-- Brand -->
+        <a class="navbar-brand" href="{% url 'projects:project_list' %}">
+            <i class="bi bi-code-square"></i> AI Lab Projects
+        </a>
+
+        <!-- Toggle Button -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Navbar Content -->
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <!-- Projects -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="projectsDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-folder"></i> Projects
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'projects:project_list' %}">Browse All</a></li>
+                        <li><a class="dropdown-item" href="{% url 'projects:search_projects' %}">Search Projects</a></li>
+                        <li><a class="dropdown-item" href="{% url 'projects:leaderboard' %}">Leaderboard</a></li>
+                        {% if user.is_authenticated %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'projects:submit_project' %}">Submit Project</a></li>
+                        {% endif %}
+                    </ul>
+                </li>
+
+                <!-- Community -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'projects:leaderboard' %}">
+                        <i class="bi bi-trophy"></i> Leaderboard
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Search Form -->
+            <form class="d-flex me-3" action="{% url 'projects:search_projects' %}" method="GET">
+                <div class="input-group">
+                    <input class="form-control" type="search" name="query" placeholder="Search projects...">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+
+            <!-- User Menu -->
+            {% if user.is_authenticated %}
+                <ul class="navbar-nav">
+                    <!-- Notifications -->
+                    <li class="nav-item dropdown me-2">
+                        <a class="nav-link position-relative" href="#" id="notificationsDropdown" 
+                           role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-bell"></i>
+                            {% if unread_notifications_count %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    {{ unread_notifications_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header">Notifications</h6></li>
+                            {% if notifications %}
+                                {% for notification in notifications|slice:":5" %}
+                                    <li><a class="dropdown-item" href="#">{{ notification.message }}</a></li>
+                                {% endfor %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-center" href="{% url 'projects:notifications' %}">
+                                        View All
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li><span class="dropdown-item-text">No new notifications</span></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+
+                    <!-- User Profile -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            {% if user.profile.avatar %}
+                                <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" 
+                                     class="rounded-circle" style="width: 24px; height: 24px;">
+                            {% else %}
+                                <i class="bi bi-person-circle"></i>
+                            {% endif %}
+                            {{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'projects:user_profile' user.username %}">
+                                    <i class="bi bi-person"></i> My Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'projects:user_projects' user.username %}">
+                                    <i class="bi bi-folder"></i> My Projects
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'projects:notifications' %}">
+                                    <i class="bi bi-bell"></i> Notifications
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'projects:edit_profile' %}">
+                                    <i class="bi bi-gear"></i> Settings
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'account_logout' %}">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            {% else %}
+                <div class="navbar-nav">
+                    <a class="nav-link" href="{% url 'account_login' %}">Sign In</a>
+                    <a class="nav-link" href="{% url 'account_signup' %}">Sign Up</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</nav>

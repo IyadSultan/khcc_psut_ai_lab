@@ -1,0 +1,73 @@
+import React from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Star, Users, ChevronUp, ChevronDown } from 'lucide-react';
+
+const LeaderboardCard = ({ rank, user, contributions, change }) => {
+  return (
+    <div className="flex items-center mb-4 p-4 bg-white rounded-lg shadow-sm">
+      <div className={`flex items-center justify-center w-10 h-10 rounded-full mr-4 
+        ${rank <= 3 ? 'bg-yellow-100' : 'bg-gray-100'}`}>
+        <span className={`font-bold ${rank <= 3 ? 'text-yellow-600' : 'text-gray-600'}`}>
+          {rank}
+        </span>
+      </div>
+      
+      <div className="flex-1">
+        <div className="flex items-center">
+          <h3 className="font-medium">{user}</h3>
+          {rank <= 3 && <Star className="w-4 h-4 ml-2 text-yellow-500" />}
+        </div>
+        <div className="text-sm text-gray-600">
+          {contributions} contributions
+        </div>
+      </div>
+      
+      <div className={`flex items-center ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+        {change > 0 ? (
+          <ChevronUp className="w-4 h-4" />
+        ) : (
+          <ChevronDown className="w-4 h-4" />
+        )}
+        <span className="ml-1">{Math.abs(change)}</span>
+      </div>
+    </div>
+  );
+};
+
+const LeaderboardComponent = () => {
+  return (
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader className="border-b">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-semibold">
+            Monthly Contributions
+          </CardTitle>
+          <div className="flex items-center text-sm text-gray-600">
+            <Users className="w-4 h-4 mr-2" />
+            <span>Active Contributors: 142</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        {/* Example leaderboard data */}
+        {[
+          { rank: 1, user: "Sarah Chen", contributions: 47, change: 5 },
+          { rank: 2, user: "Alex Kim", contributions: 42, change: -2 },
+          { rank: 3, user: "Maria Garcia", contributions: 38, change: 3 },
+          { rank: 4, user: "John Smith", contributions: 35, change: 1 },
+          { rank: 5, user: "David Lee", contributions: 31, change: -1 }
+        ].map((entry) => (
+          <LeaderboardCard key={entry.rank} {...entry} />
+        ))}
+        
+        <div className="mt-6 text-center">
+          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+            View Full Leaderboard
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default LeaderboardComponent;

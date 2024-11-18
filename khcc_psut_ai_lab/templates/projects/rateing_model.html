@@ -1,0 +1,442 @@
+<!-- templates/projects/includes/rating_modal.html -->
+<div class="modal fade" id="ratingModal" tabindex="-1" aria-labelledby="ratingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ratingModalLabel">Rate this project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="ratingForm" method="post">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="rating-stars mb-3">
+                        {% for value, label in rating_form.score.field.choices %}
+                        <input type="radio" name="score" value="{{ value }}" id="star{{ value }}"
+                               class="btn-check" autocomplete="off">
+                        <label for="star{{ value }}" class="btn btn-outline-warning">
+                            <i class="bi bi-star-fill"></i>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {{ rating_form.review|as_crispy_field }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Rating</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- templates/projects/bookmarks.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="mb-4">Your Bookmarks</h2>
+            {% for bookmark in bookmarks %}
+            <div class="card mb-3 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-3">
+                            <a href="{% url 'project_detail' bookmark.project.pk %}" 
+                               class="text-decoration-none text-dark">
+                                {{ bookmark.project.title }}
+                            </a>
+                        </h5>
+                        <button class="btn btn-sm btn-outline-danger remove-bookmark" 
+                                data-project-id="{{ bookmark.project.pk }}">
+                            <i class="bi bi-bookmark-x"></i>
+                        </button>
+                    </div>
+                    
+                    <p class="card-text text-muted mb-3">
+                        {{ bookmark.project.description|truncatewords:30 }}
+                    </p>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Bookmarked on: {{ bookmark.created_at|date }}</small>
+                    </div>
+                    
+                    <form class="bookmark-notes-form">
+                        <div class="form-group">
+                            <label class="form-label">Your Notes:</label>
+                            <textarea class="form-control" rows="2" 
+                                      placeholder="Add personal notes about this project...">{{ bookmark.notes }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary mt-2">
+                            Save Notes
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <i class="bi bi-bookmark display-1 text-muted"></i>
+                <h3 class="mt-3">No bookmarks yet</h3>
+                <p class="text-muted">Start bookmarking projects you'd like to revisit later</p>
+                <a href="{% url 'project_list' %}" class="btn btn-primary">
+                    Browse Projects
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- templates/projects/analytics.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Analytics for {{ project.title }}</h2>
+                <a href="{% url 'project_detail' project.pk %}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+            </div>
+            
+            <!-- Overview Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Views</h6>
+                            <h2 class="mb-0">{{ analytics.view_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Unique Visitors</h6>
+                            <h2 class="mb-0">{{ analytics.unique_visitors }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">GitHub Clicks</h6>
+                            <h2 class="mb-0">{{ analytics.github_clicks }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Avg. Time Spent</h6>
+                            <h2 class="mb-0">{{ analytics.avg_time_spent|time:"i:s" }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Weekly vs Monthly Stats -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Last 7 Days</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="weeklyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Last 30 Days</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Engagement Metrics -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">User Engagement</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Metric</th>
+                                            <th>Last 7 Days</th>
+                                            <th>Last 30 Days</th>
+                                            <th>Trend</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Comments</td>
+                                            <td>{{ weekly_stats.comments }}</td>
+                                            <td>{{ monthly_stats.comments }}</td>
+                                            <td>
+                                                {% if weekly_stats.comments > monthly_stats.comments %}
+                                                <span class="text-success">
+                                                    <i class="bi bi-arrow-up"></i>
+                                                    {{ weekly_stats.comments|percentage:monthly_stats.comments }}%
+                                                </span>
+                                                {% else %}
+                                                <span class="text-danger">
+                                                    <i class="bi bi-arrow-down"></i>
+                                                    {{ monthly_stats.comments|percentage:weekly_stats.comments }}%
+                                                </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Claps</td>
+                                            <td>{{ weekly_stats.claps }}</td>
+                                            <td>{{ monthly_stats.claps }}</td>
+                                            <td>
+                                                {% if weekly_stats.claps > monthly_stats.claps %}
+                                                <span class="text-success">
+                                                    <i class="bi bi-arrow-up"></i>
+                                                    {{ weekly_stats.claps|percentage:monthly_stats.claps }}%
+                                                </span>
+                                                {% else %}
+                                                <span class="text-danger">
+                                                    <i class="bi bi-arrow-down"></i>
+                                                    {{ monthly_stats.claps|percentage:weekly_stats.claps }}%
+                                                </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Ratings</td>
+                                            <td>{{ weekly_stats.ratings }}</td>
+                                            <td>{{ monthly_stats.ratings }}</td>
+                                            <td>
+                                                {% if weekly_stats.ratings > monthly_stats.ratings %}
+                                                <span class="text-success">
+                                                    <i class="bi bi-arrow-up"></i>
+                                                    {{ weekly_stats.ratings|percentage:monthly_stats.ratings }}%
+                                                </span>
+                                                {% else %}
+                                                <span class="text-danger">
+                                                    <i class="bi bi-arrow-down"></i>
+                                                    {{ monthly_stats.ratings|percentage:weekly_stats.ratings }}%
+                                                </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Bookmarks</td>
+                                            <td>{{ weekly_stats.bookmarks }}</td>
+                                            <td>{{ monthly_stats.bookmarks }}</td>
+                                            <td>
+                                                {% if weekly_stats.bookmarks > monthly_stats.bookmarks %}
+                                                <span class="text-success">
+                                                    <i class="bi bi-arrow-up"></i>
+                                                    {{ weekly_stats.bookmarks|percentage:monthly_stats.bookmarks }}%
+                                                </span>
+                                                {% else %}
+                                                <span class="text-danger">
+                                                    <i class="bi bi-arrow-down"></i>
+                                                    {{ monthly_stats.bookmarks|percentage:weekly_stats.bookmarks }}%
+                                                </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Traffic Sources</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="trafficSourcesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visitor Demographics -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Visitor Demographics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <canvas id="locationChart"></canvas>
+                                </div>
+                                <div class="col-md-4">
+                                    <canvas id="deviceChart"></canvas>
+                                </div>
+                                <div class="col-md-4">
+                                    <canvas id="browserChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Weekly Stats Chart
+    new Chart(document.getElementById('weeklyChart'), {
+        type: 'line',
+        data: {
+            labels: {{ weekly_labels|safe }},
+            datasets: [{
+                label: 'Views',
+                data: {{ weekly_views|safe }},
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Daily Views (Last 7 Days)'
+                }
+            }
+        }
+    });
+
+    // Monthly Stats Chart
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: {{ monthly_labels|safe }},
+            datasets: [{
+                label: 'Views',
+                data: {{ monthly_views|safe }},
+                borderColor: 'rgb(153, 102, 255)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Daily Views (Last 30 Days)'
+                }
+            }
+        }
+    });
+
+    // Traffic Sources Chart
+    new Chart(document.getElementById('trafficSourcesChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Direct', 'Social', 'Search', 'Referral'],
+            datasets: [{
+                data: {{ traffic_sources|safe }},
+                backgroundColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(54, 162, 235)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+
+    // Demographics Charts
+    const demographicsOptions = {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    };
+
+    new Chart(document.getElementById('locationChart'), {
+        type: 'pie',
+        data: {
+            labels: {{ locations|safe }},
+            datasets: [{
+                data: {{ location_data|safe }},
+                backgroundColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(54, 162, 235)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)',
+                    'rgb(153, 102, 255)'
+                ]
+            }]
+        },
+        options: demographicsOptions
+    });
+
+    new Chart(document.getElementById('deviceChart'), {
+        type: 'pie',
+        data: {
+            labels: ['Desktop', 'Mobile', 'Tablet'],
+            datasets: [{
+                data: {{ device_data|safe }},
+                backgroundColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(54, 162, 235)',
+                    'rgb(255, 205, 86)'
+                ]
+            }]
+        },
+        options: demographicsOptions
+    });
+
+    new Chart(document.getElementById('browserChart'), {
+        type: 'pie',
+        data: {
+            labels: ['Chrome', 'Firefox', 'Safari', 'Edge', 'Other'],
+            datasets: [{
+                data: {{ browser_data|safe }},
+                backgroundColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(54, 162, 235)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)',
+                    'rgb(153, 102, 255)'
+                ]
+            }]
+        },
+        options: demographicsOptions
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Profile Info -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <img src="{% if profile_user.profile.avatar %}{{ profile_user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ profile_user.username }}{% endif %}" 
+                         alt="{{ profile_user.username }}" 
+                         class="rounded-circle mb-3" 
+                         style="width: 150px; height: 150px; object-fit: cover;">
+                    
+                    <h4 class="card-title">{{ profile_user.username }}</h4>
+                    {% if profile_user.profile.bio %}
+                        <p class="text-muted">{{ profile_user.profile.bio }}</p>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-center gap-3 mb-3">
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ projects.count }}</h6>
+                            <small class="text-muted">Projects</small>
+                        </div>
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ followers_count }}</h6>
+                            <small class="text-muted">Followers</small>
+                        </div>
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ following_count }}</h6>
+                            <small class="text-muted">Following</small>
+                        </div>
+                    </div>
+                    
+                    {% if user != profile_user %}
+                        {% if user.is_authenticated %}
+                            {% if is_following %}
+                                <form action="{% url 'projects:unfollow_user' profile_user.username %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-primary">Unfollow</button>
+                                </form>
+                            {% else %}
+                                <form action="{% url 'projects:follow_user' profile_user.username %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary">Follow</button>
+                                </form>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Projects -->
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">Projects</h4>
+                {% if user == profile_user %}
+                    <a href="{% url 'projects:submit_project' %}" class="btn btn-primary btn-sm">
+                        New Project
+                    </a>
+                {% endif %}
+            </div>
+            
+            {% for project in projects %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <a href="{% url 'projects:project_detail' project.pk %}" 
+                               class="text-decoration-none text-dark">
+                                {{ project.title }}
+                            </a>
+                        </h5>
+                        
+                        <p class="card-text text-muted">
+                            {{ project.description|truncatewords:30 }}
+                        </p>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="small text-muted">
+                                <i class="bi bi-calendar"></i> {{ project.created_at|date:"M d, Y" }}
+                                <i class="bi bi-hand-thumbs-up ms-3"></i> {{ project.claps }}
+                                <i class="bi bi-chat ms-3"></i> {{ project.comments.count }}
+                            </div>
+                            <div>
+                                {% for tag in project.tag_list %}
+                                    <span class="badge bg-light text-dark">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-folder2-open display-4"></i>
+                    <p class="mt-3">No projects yet</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

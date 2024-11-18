@@ -1,0 +1,250 @@
+<!-- templates/projects/edit_project.html -->
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}Edit {{ project.title }} - KHCC_PSUT AI Lab{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">Edit Project</h2>
+                    
+                    <form method="post" enctype="multipart/form-data" id="editProjectForm">
+                        {% csrf_token %}
+                        
+                        <!-- Current Featured Image Preview -->
+                        {% if project.featured_image %}
+                        <div class="mb-4">
+                            <label class="form-label">Current Featured Image</label>
+                            <div class="position-relative">
+                                <img src="{{ project.featured_image.url }}" 
+                                     alt="Current featured image" 
+                                     class="img-fluid rounded">
+                                <button type="button" 
+                                        class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2"
+                                        id="removeFeaturedImage">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Form Fields -->
+                        {{ form|crispy }}
+                        
+                        <!-- Current Files -->
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Current Files</h5>
+                                
+                                {% if project.pdf_file %}
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <i class="bi bi-file-pdf text-danger me-2"></i>
+                                        Documentation.pdf
+                                        <span class="text-muted ms-2">
+                                            ({{ project.pdf_file.size|filesizeformat }})
+                                        </span>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger" 
+                                            id="removePdfFile">
+                                        Remove
+                                    </button>
+                                </div>
+                                {% endif %}
+                                
+                                {% if project.additional_files %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-file-earmark me-2"></i>
+                                        {{ project.additional_files.name|split:'/'|last }}
+                                        <span class="text-muted ms-2">
+                                            ({{ project.additional_files.size|filesizeformat }})
+                                        </span>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger" 
+                                            id="removeAdditionalFiles">
+                                        Remove
+                                    </button>
+                                </div>
+                                {% endif %}
+                                
+                                {% if not project.pdf_file and not project.additional_files %}
+                                <p class="text-muted mb-0">No files currently uploaded</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Preview Section -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Preview</h5>
+                            </div>
+                            <div class="card-body">
+                                <h3 id="previewTitle"></h3>
+                                <p id="previewDescription" class="text-muted"></p>
+                                <div id="previewTags"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="button" 
+                                    class="btn btn-light" 
+                                    onclick="history.back()">
+                                Cancel
+                            </button>
+                            <div class="d-flex gap-2">
+                                <button type="button" 
+                                        class="btn btn-danger" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#deleteProjectModal">
+                                    Delete Project
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Project Modal -->
+<div class="modal fade" id="deleteProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h6 class="alert-heading">Warning!</h6>
+                    <p class="mb-0">This action cannot be undone. All project data, including:</p>
+                    <ul class="mb-0">
+                        <li>Comments and ratings</li>
+                        <li>Uploaded files</li>
+                        <li>Analytics data</li>
+                        <li>Associated notifications</li>
+                    </ul>
+                    <p class="mb-0">will be permanently deleted.</p>
+                </div>
+                <p>Please type <strong>{{ project.title }}</strong> to confirm deletion:</p>
+                <input type="text" 
+                       class="form-control" 
+                       id="confirmProjectTitle" 
+                       placeholder="Type project title">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <form method="post" action="{% url 'projects:delete_project' project.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            class="btn btn-danger" 
+                            id="confirmDeleteBtn" 
+                            disabled>
+                        Delete Project
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Live preview functionality
+    function updatePreview() {
+        $('#previewTitle').text($('#id_title').val());
+        $('#previewDescription').text($('#id_description').val());
+        
+        const tags = $('#id_tags').val().split(',').map(tag => tag.trim()).filter(Boolean);
+        $('#previewTags').html(
+            tags.map(tag => 
+                `<span class="badge bg-light text-dark me-1">${tag}</span>`
+            ).join('')
+        );
+    }
+    
+    $('#id_title, #id_description, #id_tags').on('input', updatePreview);
+    updatePreview();  // Initial preview
+    
+    // Handle file removals
+    $('#removeFeaturedImage').click(function() {
+        if (confirm('Remove featured image?')) {
+            // Add hidden input to indicate image removal
+            $('<input>').attr({
+                type: 'hidden',
+                name: 'remove_featured_image',
+                value: 'true'
+            }).appendTo('#editProjectForm');
+            
+            $(this).closest('.mb-4').remove();
+        }
+    });
+    
+    $('#removePdfFile').click(function() {
+        if (confirm('Remove PDF file?')) {
+            $('<input>').attr({
+                type: 'hidden',
+                name: 'remove_pdf',
+                value: 'true'
+            }).appendTo('#editProjectForm');
+            
+            $(this).closest('.d-flex').remove();
+        }
+    });
+    
+    $('#removeAdditionalFiles').click(function() {
+        if (confirm('Remove additional files?')) {
+            $('<input>').attr({
+                type: 'hidden',
+                name: 'remove_additional_files',
+                value: 'true'
+            }).appendTo('#editProjectForm');
+            
+            $(this).closest('.d-flex').remove();
+        }
+    });
+    
+    // Handle delete confirmation
+    $('#confirmProjectTitle').on('input', function() {
+        const deleteBtn = $('#confirmDeleteBtn');
+        if ($(this).val() === '{{ project.title }}') {
+            deleteBtn.prop('disabled', false);
+        } else {
+            deleteBtn.prop('disabled', true);
+        }
+    });
+    
+    // File upload preview
+    function handleFileSelect(event, previewId) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $(`#${previewId}`).attr('src', e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    $('#id_featured_image').change(function(e) {
+        handleFileSelect(e, 'featuredImagePreview');
+    });
+});
+</script>
+{% endblock %}

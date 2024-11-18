@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">Share Your Project</h2>
+                    
+                    <form method="post" class="mb-4">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        
+                        <!-- Preview Section -->
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                Preview
+                            </div>
+                            <div class="card-body">
+                                <div class="preview-content">
+                                    <h3 id="preview-title">Project title will appear here...</h3>
+                                    <p id="preview-description" class="text-muted">Project description will appear here...</p>
+                                    <div id="preview-tags" class="tag-cloud"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                Submit Project
+                            </button>
+                            <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Live preview functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const titleInput = document.getElementById('id_title');
+        const descInput = document.getElementById('id_description');
+        const tagsInput = document.getElementById('id_tags');
+        
+        const previewTitle = document.getElementById('preview-title');
+        const previewDesc = document.getElementById('preview-description');
+        const previewTags = document.getElementById('preview-tags');
+        
+        function updatePreview() {
+            previewTitle.textContent = titleInput.value || 'Project title will appear here...';
+            previewDesc.textContent = descInput.value || 'Project description will appear here...';
+            
+            // Update tags
+            const tags = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+            previewTags.innerHTML = tags.map(tag => 
+                `<span class="badge bg-light text-dark me-1">${tag}</span>`
+            ).join('');
+        }
+        
+        titleInput.addEventListener('input', updatePreview);
+        descInput.addEventListener('input', updatePreview);
+        tagsInput.addEventListener('input', updatePreview);
+    });
+</script>
+{% endblock %}
