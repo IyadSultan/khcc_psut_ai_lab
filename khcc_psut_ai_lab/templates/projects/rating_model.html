@@ -4,30 +4,124 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="ratingModalLabel">Rate this project</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="ratingForm" method="post">
+            <form id="ratingForm" method="post" action="{% url 'projects:rate_project' project.pk %}">
                 <div class="modal-body">
                     {% csrf_token %}
-                    <div class="rating-stars mb-3">
-                        {% for value, label in rating_form.score.field.choices %}
-                        <input type="radio" name="score" value="{{ value }}" id="star{{ value }}"
-                               class="btn-check" autocomplete="off">
-                        <label for="star{{ value }}" class="btn btn-outline-warning">
-                            <i class="bi bi-star-fill"></i>
-                        </label>
-                        {% endfor %}
+                    <div class="rating-stars text-center mb-3">
+                        <div class="stars">
+                            {% for i in "12345" %}
+                            <i class="bi bi-star star-rating" data-rating="{{ forloop.counter }}"></i>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" name="score" id="selected-rating" value="">
                     </div>
-                    {{ rating_form.review|as_crispy_field }}
+                    <div class="mb-3">
+                        <label for="review" class="form-label">Review (optional)</label>
+                        <textarea class="form-control" id="review" name="review" rows="3"></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Submit Rating</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<style>
+.rating-stars .stars {
+    font-size: 2rem;
+    color: #ffc107;
+    cursor: pointer;
+}
+
+.rating-stars .stars i {
+    margin: 0 2px;
+}
+
+.rating-stars .stars i.active {
+    color: #ffc107;
+}
+
+.rating-stars .stars i:not(.active) {
+    color: #e4e5e9;
+}
+
+.rating-stars .stars i:hover,
+.rating-stars .stars i:hover ~ i {
+    color: #ffc107;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    // Handle star rating selection
+    $('.star-rating').hover(
+        function() {
+            var rating = $(this).data('rating');
+            highlightStars(rating);
+        },
+        function() {
+            var selectedRating = $('#selected-rating').val();
+            highlightStars(selectedRating);
+        }
+    );
+
+    $('.star-rating').click(function() {
+        var rating = $(this).data('rating');
+        $('#selected-rating').val(rating);
+        highlightStars(rating);
+    });
+
+    function highlightStars(rating) {
+        $('.star-rating').each(function() {
+            var starRating = $(this).data('rating');
+            $(this).toggleClass('active', starRating <= rating);
+        });
+    }
+
+    // Handle form submission
+    $('#ratingForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (!$('#selected-rating').val()) {
+            alert('Please select a rating');
+            return;
+        }
+
+        $.ajax({
+            url: $(this).attr('action'),
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.status === 'success') {
+                    // Update the rating display
+                    const stars = $('.project-rating .stars i');
+                    stars.removeClass('bi-star-fill').addClass('bi-star');
+                    stars.slice(0, Math.floor(response.rating)).removeClass('bi-star').addClass('bi-star-fill');
+                    
+                    // Update the rating text
+                    $('.project-rating span').text(
+                        `${response.rating.toFixed(1)} (${response.total_ratings} rating${response.total_ratings !== 1 ? 's' : ''})`
+                    );
+                    
+                    // Close modal and show toast
+                    $('#ratingModal').modal('hide');
+                    const toast = new bootstrap.Toast($('#ratingToast'));
+                    $('#ratingMessage').text('Thank you for your rating!');
+                    toast.show();
+                }
+            },
+            error: function() {
+                alert('Error submitting rating. Please try again.');
+            }
+        });
+    });
+});
+</script>
 
 <!-- templates/projects/bookmarks.html -->
 {% extends 'base.html' %}

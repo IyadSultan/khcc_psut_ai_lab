@@ -7,7 +7,7 @@ from django.views.generic import TemplateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('projects.urls')),
+    path('', include('projects.urls', namespace='projects')),
     
     # Django AllAuth URLs (preferred way)
     path('accounts/', include('allauth.urls')),

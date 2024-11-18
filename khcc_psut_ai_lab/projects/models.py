@@ -9,6 +9,8 @@ from datetime import timedelta
 import os
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import uuid
+from django.db.models import Avg
 
 # File Upload Path Functions
 def validate_github_url(value):
@@ -34,9 +36,9 @@ def comment_image_upload_path(instance, filename):
 # Models
 class Project(models.Model):
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(unique=True, max_length=255, blank=True)
     description = models.TextField()
-    github_link = models.URLField(validators=[URLValidator(), validate_github_url])
+    github_link = models.URLField(validators=[URLValidator(), validate_github_url], blank=True, null=True)
     tags = models.CharField(
         max_length=100, 
         blank=True, 
@@ -75,6 +77,9 @@ class Project(models.Model):
         help_text="Upload additional files (PDF, DOC, TXT, ZIP - max 10MB)"
     )
     
+    rating_total = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    rating_count = models.PositiveIntegerField(default=0)
+    
     class Meta:
         ordering = ['-created_at']
         
@@ -83,15 +88,17 @@ class Project(models.Model):
         
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)
-        
-        # Create upload directory if it doesn't exist
-        if not self.pk:  # Only for new instances
-            super().save(*args, **kwargs)
-            upload_dir = os.path.dirname(project_file_upload_path(self, ''))
-            os.makedirs(os.path.join('media', upload_dir), exist_ok=True)
-        else:
-            super().save(*args, **kwargs)
+            # Generate base slug from title
+            base_slug = slugify(self.title)
+            
+            # Check if the base slug exists
+            if Project.objects.filter(slug=base_slug).exists():
+                # If it exists, append a UUID to make it unique
+                base_slug = f"{base_slug}-{str(uuid.uuid4())[:8]}"
+            
+            self.slug = base_slug
+            
+        super().save(*args, **kwargs)
     
     @property
     def tag_list(self):
@@ -106,10 +113,9 @@ class Project(models.Model):
     
     @property
     def average_rating(self):
-        ratings = self.ratings.all()
-        if not ratings:
-            return None
-        return sum(r.score for r in ratings) / len(ratings)
+        if self.rating_count == 0:
+            return 0
+        return round(float(self.rating_total) / self.rating_count, 1)
 
     def clean(self):
         super().clean()
@@ -120,6 +126,27 @@ class Project(models.Model):
             raise ValidationError({'additional_files': 'File must be smaller than 10MB'})
         if self.featured_image and self.featured_image.size > 5 * 1024 * 1024:  # 5MB
             raise ValidationError({'featured_image': 'Image must be smaller than 5MB'})
+
+    def update_rating_stats(self):
+        """Update the rating statistics"""
+        ratings = self.ratings.all()
+        count = ratings.count()
+        if count > 0:
+            total = sum(r.score for r in ratings)
+            self.rating_total = total
+            self.rating_count = count
+        else:
+            self.rating_total = 0
+            self.rating_count = 0
+        self.save()
+
+    def get_featured_image_url(self):
+        """Get the featured image URL or return None"""
+        return self.featured_image.url if self.featured_image else None
+        
+    def get_pdf_url(self):
+        """Get the PDF file URL or return None"""
+        return self.pdf_file.url if self.pdf_file else None
 
 class Comment(models.Model):
     project = models.ForeignKey(

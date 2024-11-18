@@ -430,21 +430,19 @@ def submit_project(request):
     if request.method == 'POST':
         form = ProjectForm(request.POST, request.FILES)
         if form.is_valid():
-            project = form.save(commit=False)
-            project.author = request.user
-            
-            # Handle featured image
-            if 'featured_image' in request.FILES:
-                project.featured_image = form.cleaned_data['featured_image']
-            
-            project.save()
-            
-            # Create project directory
-            project_dir = f'uploads/user_{request.user.id}/project_{project.id}'
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, project_dir), exist_ok=True)
-            
-            messages.success(request, 'Project submitted successfully!')
-            return redirect('project_detail', pk=project.pk)
+            try:
+                project = form.save(commit=False)
+                project.author = request.user
+                project.save()
+                
+                # Create project directory
+                project_dir = f'uploads/user_{request.user.id}/project_{project.id}'
+                os.makedirs(os.path.join(settings.MEDIA_ROOT, project_dir), exist_ok=True)
+                
+                messages.success(request, 'Project submitted successfully!')
+                return redirect('projects:project_detail', pk=project.pk)
+            except Exception as e:
+                messages.error(request, f'Error saving project: {str(e)}')
     else:
         form = ProjectForm()
     
@@ -462,6 +460,13 @@ def project_detail(request, pk):
             comment = form.save(commit=False)
             comment.project = project
             comment.user = request.user
+            
+            # Handle replies
+            parent_id = request.POST.get('parent_id')
+            if parent_id:
+                parent_comment = get_object_or_404(Comment, id=parent_id)
+                comment.parent = parent_comment
+            
             comment.save()
             
             # Create notification for project author
@@ -475,14 +480,19 @@ def project_detail(request, pk):
                 )
             
             messages.success(request, 'Comment added successfully!')
-            return redirect('project_detail', pk=pk)
+            return redirect('projects:project_detail', pk=pk)
+        else:
+            messages.error(request, 'Error posting comment. Please check your input.')
     else:
         form = CommentForm()
     
     context = {
         'project': project,
         'comments': comments,
-        'form': form,
+        'comment_form': form,
+        'featured_image_url': project.get_featured_image_url(),
+        'pdf_url': project.get_pdf_url(),
+        'rating_form': RatingForm(),
     }
     return render(request, 'projects/project_detail.html', context)
 
@@ -492,30 +502,46 @@ def project_detail(request, pk):
 def rate_project(request, pk):
     if request.method == 'POST':
         project = get_object_or_404(Project, pk=pk)
-        form = RatingForm(request.POST)
+        score = request.POST.get('score')
+        review = request.POST.get('review', '')
         
-        if form.is_valid():
+        try:
+            score = int(score)
+            if not (1 <= score <= 5):
+                return JsonResponse({'status': 'error', 'message': 'Invalid rating'}, status=400)
+                
             rating, created = Rating.objects.update_or_create(
                 project=project,
                 user=request.user,
                 defaults={
-                    'score': form.cleaned_data['score'],
-                    'review': form.cleaned_data['review']
+                    'score': score,
+                    'review': review
                 }
             )
             
-            # Update project rating cache
-            avg_rating = project.ratings.aggregate(Avg('score'))['score__avg']
-            cache.set(f'project_rating_{project.id}', avg_rating, timeout=3600)
+            # Update project rating stats
+            project.update_rating_stats()
             
-            messages.success(request, 'Thank you for your rating!')
+            # Create notification for project author if it's a new rating
+            if created and project.author != request.user:
+                Notification.objects.create(
+                    recipient=project.author,
+                    sender=request.user,
+                    project=project,
+                    notification_type='rating',
+                    message=f"{request.user.username} rated your project"
+                )
+            
             return JsonResponse({
                 'status': 'success',
-                'rating': avg_rating,
-                'total_ratings': project.ratings.count()
+                'rating': project.average_rating,
+                'total_ratings': project.rating_count
             })
-    
-    return JsonResponse({'status': 'error'}, status=400)
+            
+        except (ValueError, TypeError) as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 @login_required
 def toggle_bookmark(request, pk):
@@ -555,19 +581,22 @@ def bookmarks(request):
 def edit_profile(request):
     try:
         profile = request.user.profile
-    except UserProfile.DoesNotExist:
-        profile = UserProfile(user=request.user)
-    
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=request.user)
+
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, request.FILES, instance=profile)
+        form = ProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
-            profile = form.save()
+            form.save()
             messages.success(request, 'Profile updated successfully!')
-            return redirect('user_profile', username=request.user.username)
+            return redirect('projects:user_profile', username=request.user.username)
     else:
-        form = UserProfileForm(instance=profile)
-    
-    return render(request, 'projects/edit_profile.html', {'form': form})
+        form = ProfileForm(instance=profile)
+
+    return render(request, 'projects/edit_profile.html', {
+        'form': form,
+        'active_tab': 'profile'
+    })
 
 @login_required
 def user_profile(request, username):
@@ -854,14 +883,29 @@ def edit_comment(request, pk):
 @login_required
 def delete_comment(request, pk):
     comment = get_object_or_404(Comment, pk=pk)
-    if comment.user != request.user and comment.project.author != request.user:
-        return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
     
-    project_pk = comment.project.pk
-    comment.delete()
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'status': 'success'})
-    return redirect('projects:project_detail', pk=project_pk)
+    # Check permissions
+    if comment.user != request.user and comment.project.author != request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+        messages.error(request, 'You do not have permission to delete this comment.')
+        return redirect('projects:project_detail', pk=comment.project.pk)
+    
+    try:
+        project_pk = comment.project.pk
+        comment.delete()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'success'})
+        
+        messages.success(request, 'Comment deleted successfully.')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        messages.error(request, f'Error deleting comment: {str(e)}')
+        return redirect('projects:project_detail', pk=comment.project.pk)
 
 @login_required
 def mark_all_notifications_read(request):

@@ -95,13 +95,14 @@ class ProjectForm(forms.ModelForm):
     def clean_github_link(self):
         """Validate GitHub repository URL"""
         url = self.cleaned_data['github_link']
-        if not url.startswith(('https://github.com/', 'http://github.com/')):
-            raise ValidationError('Please enter a valid GitHub repository URL')
-        
-        try:
-            URLValidator()(url)
-        except ValidationError:
-            raise ValidationError('Please enter a valid URL')
+        if url:  # Only validate if URL is provided
+            if not url.startswith(('https://github.com/', 'http://github.com/')):
+                raise ValidationError('Please enter a valid GitHub repository URL')
+            
+            try:
+                URLValidator()(url)
+            except ValidationError:
+                raise ValidationError('Please enter a valid URL')
         
         return url
 
@@ -363,13 +364,14 @@ class ProjectForm(forms.ModelForm, FileValidationMixin):
 
     def clean_github_link(self):
         url = self.cleaned_data['github_link']
-        if not url.startswith(('https://github.com/', 'http://github.com/')):
-            raise ValidationError('Please enter a valid GitHub repository URL')
-        
-        try:
-            URLValidator()(url)
-        except ValidationError:
-            raise ValidationError('Please enter a valid URL')
+        if url:  # Only validate if URL is provided
+            if not url.startswith(('https://github.com/', 'http://github.com/')):
+                raise ValidationError('Please enter a valid GitHub repository URL')
+            
+            try:
+                URLValidator()(url)
+            except ValidationError:
+                raise ValidationError('Please enter a valid URL')
         
         return url
 

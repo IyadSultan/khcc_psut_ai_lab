@@ -51,6 +51,32 @@
         50% { transform: scale(1.2); }
         100% { transform: scale(1); }
     }
+    
+    .featured-image-container img {
+        max-height: 500px;
+        width: 100%;
+        object-fit: cover;
+        transition: transform 0.2s;
+    }
+    
+    .featured-image-container img:hover {
+        transform: scale(1.01);
+    }
+    
+    .pdf-container iframe {
+        border: none;
+        background: #f8f9fa;
+    }
+    
+    #imageModal .modal-body {
+        padding: 0;
+        background: #000;
+    }
+    
+    #imageModal img {
+        max-height: 90vh;
+        object-fit: contain;
+    }
 </style>
 {% endblock %}
 
@@ -125,6 +151,46 @@
                         {{ project.description|linebreaks }}
                     </div>
                     
+                    <!-- Project Media -->
+                    <div class="project-media mb-4">
+                        <!-- Featured Image -->
+                        {% if project.featured_image %}
+                        <div class="featured-image-container mb-4">
+                            <img src="{{ project.featured_image.url }}" 
+                                 alt="{{ project.title }}" 
+                                 class="img-fluid rounded shadow-sm"
+                                 style="max-width: 100%; cursor: pointer;"
+                                 data-bs-toggle="modal"
+                                 data-bs-target="#imageModal">
+                        </div>
+                        {% endif %}
+
+                        <!-- PDF Viewer -->
+                        {% if project.pdf_file %}
+                        <div class="pdf-container mb-4">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title mb-3">
+                                        <i class="bi bi-file-pdf text-danger me-2"></i>Project Documentation
+                                    </h5>
+                                    <div class="ratio ratio-16x9 mb-3">
+                                        <iframe src="{{ project.pdf_file.url }}#toolbar=0" 
+                                                class="rounded"
+                                                allowfullscreen></iframe>
+                                    </div>
+                                    <div class="d-flex justify-content-end">
+                                        <a href="{{ project.pdf_file.url }}" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           target="_blank">
+                                            <i class="bi bi-download me-1"></i>Download PDF
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
                     <!-- Tags -->
                     <div class="mb-4">
                         {% for tag in project.tag_list %}
@@ -181,11 +247,13 @@
                     <!-- Action Buttons -->
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex gap-2">
+                            {% if project.github_link %}
                             <a href="{{ project.github_link }}" 
                                target="_blank" 
                                class="btn btn-dark">
                                 <i class="bi bi-github me-2"></i>View on GitHub
                             </a>
+                            {% endif %}
                             
                             {% if user.is_authenticated %}
                             <button id="clap-btn" 
@@ -193,12 +261,6 @@
                                     data-project-id="{{ project.id }}">
                                 <i class="bi bi-hand-thumbs-up{% if user_has_clapped %}-fill{% endif %} me-1"></i>
                                 <span id="clap-count">{{ project.claps }}</span>
-                            </button>
-                            
-                            <button class="btn btn-outline-primary" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#ratingModal">
-                                <i class="bi bi-star me-1"></i>Rate
                             </button>
                             
                             <button class="btn btn-outline-primary bookmark-btn" 
@@ -245,7 +307,7 @@
                 </div>
                 <div class="card-body">
                     {% if user.is_authenticated %}
-                    <form method="post" enctype="multipart/form-data" class="mb-4">
+                    <form method="post" action="{% url 'projects:project_detail' project.pk %}" enctype="multipart/form-data" class="mb-4">
                         {% csrf_token %}
                         {{ comment_form|crispy }}
                         <div class="d-flex justify-content-between align-items-center mt-3">
@@ -303,7 +365,8 @@
                                         
                                         {% if user == comment.user or user == project.author %}
                                         <button class="btn btn-sm btn-light text-danger delete-comment-btn" 
-        data-comment-id="{{ comment.id }}">
+        data-comment-id="{{ comment.id }}"
+        data-url="{% url 'projects:delete_comment' comment.id %}">
     Delete
 </button>
                                         {% endif %}
@@ -314,7 +377,7 @@
                             
                             <!-- Reply Form (hidden by default) -->
                             <div class="reply-form ms-4 mt-2" id="reply-form-{{ comment.id }}" style="display: none;">
-                                <form method="post" enctype="multipart/form-data">
+                                <form method="post" action="{% url 'projects:project_detail' project.pk %}" enctype="multipart/form-data">
                                     {% csrf_token %}
                                     <input type="hidden" name="parent_id" value="{{ comment.id }}">
                                     {{ comment_form|crispy }}
@@ -360,7 +423,8 @@
                                         
                                         {% if user == reply.user or user == project.author %}
                                         <button class="btn btn-sm btn-light text-danger delete-comment-btn" 
-        data-comment-id="{{ comment.id }}">
+        data-comment-id="{{ comment.id }}"
+        data-url="{% url 'projects:delete_comment' comment.id %}">
     Delete
 </button>
                                         {% endif %}
@@ -512,36 +576,15 @@
 </div>
 
 <!-- Modals -->
-<!-- Rating Modal -->
-<div class="modal fade" id="ratingModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Rate this Project</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'projects:rate_project' project.pk %}">
-                <div class="modal-body">
-                    {% csrf_token %}
-                    {{ rating_form|crispy }}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit Rating</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body p-0">
-                <button type="button" class="btn-close position-absolute top-0 end-0 m-2" 
+                <button type="button" 
+                        class="btn-close position-absolute top-0 end-0 m-2 bg-white" 
                         data-bs-dismiss="modal"></button>
-                <img src="" class="img-fluid" id="modalImage">
+                <img src="" class="img-fluid w-100" id="modalImage">
             </div>
         </div>
     </div>
@@ -631,29 +674,39 @@ $(document).ready(function() {
         $(this).closest('.reply-form').hide();
     });
     
-    // Handle image modal
-    $('.comment-image').click(function() {
+    // Handle image modal for both featured image and comment images
+    $('.comment-image, .project-media img').click(function() {
         $('#modalImage').attr('src', $(this).attr('src'));
     });
     
     // Handle comment deletion
-let commentToDelete = null;
+    let commentToDelete = null;
+    let deleteUrl = null;
 
-$('.delete-comment-btn').click(function() {
-    commentToDelete = $(this).data('comment-id');
-    $('#deleteCommentModal').modal('show');
-});
+    $('.delete-comment-btn').click(function() {
+        commentToDelete = $(this).data('comment-id');
+        deleteUrl = $(this).data('url');
+        $('#deleteCommentModal').modal('show');
+    });
 
-$('#confirmDeleteComment').click(function() {
-    if (commentToDelete) {
-        const url = `/comment/${commentToDelete}/delete/`;
-        $.post(url, {
-            'csrfmiddlewaretoken': '{{ csrf_token }}'
-        }).done(function() {
-            location.reload();
-        });
-    }
-});
+    $('#confirmDeleteComment').click(function() {
+        if (commentToDelete && deleteUrl) {
+            $.post(deleteUrl, {
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            })
+            .done(function(response) {
+                if (response.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error deleting comment');
+                }
+            })
+            .fail(function() {
+                alert('Error deleting comment');
+            });
+            $('#deleteCommentModal').modal('hide');
+        }
+    });
     
     // Handle bookmark toggle
     $('.bookmark-btn').click(function() {
@@ -670,25 +723,6 @@ $('#confirmDeleteComment').click(function() {
             }
         });
     });
-
-    // Handle comment deletion
-    let commentToDelete = null;
-
-    $('.delete-comment-btn').click(function() {
-        commentToDelete = $(this).data('comment-id');
-        $('#deleteCommentModal').modal('show');
-    });
-
-    $('#confirmDeleteComment').click(function() {
-        if (commentToDelete) {
-            $.post(`/comment/${commentToDelete}/delete/`, {
-                csrfmiddlewaretoken: '{{ csrf_token }}'
-            })
-            .done(function() {
-                location.reload();
-            });
-        }
-});
     
     // Handle share link copying
     $('.copy-link').click(function() {
@@ -697,6 +731,11 @@ $('#confirmDeleteComment').click(function() {
             const toast = new bootstrap.Toast($('#linkCopiedToast'));
             toast.show();
         });
+    });
+    
+    // Handle image modal
+    $('.featured-image-container img').click(function() {
+        $('#modalImage').attr('src', $(this).attr('src'));
     });
 });
 </script>
