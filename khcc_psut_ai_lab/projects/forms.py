@@ -210,12 +210,16 @@ class ProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
         fields = [
-            'bio', 
-            'location', 
-            'website', 
+            'avatar',
+            'bio',
+            'location',
+            'website',
             'github_username',
             'linkedin_url',
-            'avatar'
+            'title',
+            'department',
+            'research_interests',
+            
         ]
         widgets = {
             'bio': forms.Textarea(attrs={

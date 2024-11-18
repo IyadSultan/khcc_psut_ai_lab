@@ -786,23 +786,34 @@ class RegisterView(CreateView):
     template_name = 'registration/register.html'
 
 def get_monthly_contributions():
-    """Calculate monthly contributions for all users"""
-    now = timezone.now()
-    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    """Get users sorted by their contributions in the current month"""
+    start_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     return User.objects.annotate(
-        projects_count=Count(
+        monthly_projects=Count(
             'project',
-            filter=models.Q(project__created_at__gte=start_of_month)
+            filter=Q(project__created_at__gte=start_of_month)
         ),
-        claps_received=Sum(
-            'project__claps',
-            filter=models.Q(project__created_at__gte=start_of_month)
+        monthly_comments=Count(
+            'comment',
+            filter=Q(comment__created_at__gte=start_of_month)
         ),
-        total_contributions=models.F('projects_count') + models.F('claps_received')
-    ).filter(
-        models.Q(projects_count__gt=0) | models.Q(claps_received__gt=0)
-    ).order_by('-total_contributions')[:10]
+        monthly_claps=Count(
+            'user_claps',
+            filter=Q(user_claps__created_at__gte=start_of_month)
+        ),
+        # Calculate total directly in the same annotation
+        total_contributions=Count(
+            'project',
+            filter=Q(project__created_at__gte=start_of_month)
+        ) + Count(
+            'comment',
+            filter=Q(comment__created_at__gte=start_of_month)
+        ) + Count(
+            'user_claps',
+            filter=Q(user_claps__created_at__gte=start_of_month)
+        )
+    ).order_by('-total_contributions')
 
 def leaderboard_view(request):
     """View for the leaderboard page"""
@@ -975,3 +986,44 @@ def custom_404(request, exception):
 
 def custom_500(request):
     return render(request, 'errors/500.html', status=500)
+
+def homepage(request):
+    """Homepage view showing featured projects and recent activity"""
+    # Get recent projects
+    recent_projects = Project.objects.select_related('author').prefetch_related('comments').order_by('-created_at')[:6]
+    
+    # Get trending projects (most claps in last 7 days)
+    week_ago = timezone.now() - timedelta(days=7)
+    trending_projects = Project.objects.annotate(
+        recent_claps=Count('claps', filter=Q(claps__created_at__gte=week_ago))
+    ).order_by('-recent_claps', '-created_at')[:3]
+    
+    # Get top contributors
+    top_contributors = get_monthly_contributions()[:5]
+    
+    # Get latest comments
+    latest_comments = Comment.objects.select_related('user', 'project').order_by('-created_at')[:5]
+    
+    context = {
+        'recent_projects': recent_projects,
+        'trending_projects': trending_projects,
+        'top_contributors': top_contributors,
+        'latest_comments': latest_comments,
+        'total_projects': Project.objects.count(),
+        'total_users': User.objects.count(),
+    }
+    
+    return render(request, 'projects/homepage.html', context)
+
+def faculty_page(request):
+    """View for the faculty page"""
+    faculty_members = UserProfile.objects.filter(
+        user__groups__name='Faculty'
+    ).select_related('user').order_by('user__first_name')
+    
+    context = {
+        'faculty_members': faculty_members,
+        'page_title': 'Faculty Members',
+        'active_tab': 'faculty'
+    }
+    return render(request, 'projects/faculty_page.html', context)

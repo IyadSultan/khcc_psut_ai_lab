@@ -6,8 +6,11 @@ from . import views
 app_name = 'projects'
 
 urlpatterns = [
+    # Homepage and Project List
+    path('', views.homepage, name='homepage'),
+    path('projects/', views.project_list, name='project_list'),
+    
     # Project Management
-    path('', views.project_list, name='project_list'),
     path('submit/', views.submit_project, name='submit_project'),
     path('search/', views.search_projects, name='search_projects'),
     path('leaderboard/', views.leaderboard_view, name='leaderboard'),
@@ -49,4 +52,5 @@ urlpatterns = [
     path('api/projects/', views.ProjectListAPI.as_view(), name='api_project_list'),
     path('api/projects/<int:pk>/', views.ProjectDetailAPI.as_view(), name='api_project_detail'),
     path('api/projects/<int:pk>/analytics/', views.ProjectAnalyticsAPI.as_view(), name='api_project_analytics'),
+    path('faculty/', views.faculty_page, name='faculty_page'),
 ]

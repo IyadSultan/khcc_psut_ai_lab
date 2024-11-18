@@ -21,6 +21,12 @@
                        href="{% url 'projects:submit_project' %}">Share Project</a>
                 </li>
                 {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'faculty' %}active{% endif %}" 
+                       href="{% url 'projects:faculty_page' %}">
+                        <i class="bi bi-mortarboard me-1"></i>Faculty
+                    </a>
+                </li>
             </ul>
             <ul class="navbar-nav">
                 {% if user.is_authenticated %}

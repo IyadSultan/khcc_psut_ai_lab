@@ -45,7 +45,7 @@ class Project(models.Model):
         help_text="Enter tags separated by commas"
     )
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    claps = models.IntegerField(default=0)
+    clap_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -109,7 +109,7 @@ class Project(models.Model):
         return self.comments.count()
         
     def user_has_clapped(self, user):
-        return self.claps_set.filter(user=user).exists()
+        return self.claps.filter(user=user).exists()
     
     @property
     def average_rating(self):
@@ -195,6 +195,14 @@ class UserProfile(models.Model):
         null=True,
         blank=True
     )
+    title = models.CharField(max_length=100, blank=True)
+    department = models.CharField(max_length=100, blank=True)
+    research_interests = models.TextField(blank=True)
+    
+    
+    @property
+    def is_faculty(self):
+        return self.user.groups.filter(name='Faculty').exists()
     
     # Notification settings
     email_on_comment = models.BooleanField(default=True)
@@ -211,10 +219,14 @@ class UserProfile(models.Model):
 class Clap(models.Model):
     project = models.ForeignKey(
         Project, 
-        related_name='claps_set', 
+        related_name='claps', 
         on_delete=models.CASCADE
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User,
+        related_name='user_claps', 
+        on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

@@ -77,6 +77,22 @@
         max-height: 90vh;
         object-fit: contain;
     }
+    
+    .pdf-viewer-container {
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    
+    .pdf-viewer-container object {
+        border: none;
+    }
+    
+    @media (max-width: 768px) {
+        .pdf-viewer-container {
+            height: 400px !important;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -165,30 +181,6 @@
                         </div>
                         {% endif %}
 
-                        <!-- PDF Viewer -->
-                        {% if project.pdf_file %}
-                        <div class="pdf-container mb-4">
-                            <div class="card shadow-sm">
-                                <div class="card-body">
-                                    <h5 class="card-title mb-3">
-                                        <i class="bi bi-file-pdf text-danger me-2"></i>Project Documentation
-                                    </h5>
-                                    <div class="ratio ratio-16x9 mb-3">
-                                        <iframe src="{{ project.pdf_file.url }}#toolbar=0" 
-                                                class="rounded"
-                                                allowfullscreen></iframe>
-                                    </div>
-                                    <div class="d-flex justify-content-end">
-                                        <a href="{{ project.pdf_file.url }}" 
-                                           class="btn btn-sm btn-outline-primary" 
-                                           target="_blank">
-                                            <i class="bi bi-download me-1"></i>Download PDF
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
                     </div>
                     
                     <!-- Tags -->
@@ -209,7 +201,7 @@
                             <div class="card h-100 file-card">
                                 <div class="card-body text-center">
                                     <i class="bi bi-file-pdf text-danger file-icon"></i>
-                                    <h5 class="card-title">Documentation</h5>
+                                    <h5 class="card-title">PDF File</h5>
                                     <p class="text-muted small mb-3">
                                         PDF - {{ project.pdf_file.size|filesizeformat }}
                                     </p>
