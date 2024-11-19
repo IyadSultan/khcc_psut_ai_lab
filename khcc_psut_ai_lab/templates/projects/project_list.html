@@ -50,80 +50,88 @@
                 {% endif %}
             </div>
 
-            <div class="row row-cols-1 row-cols-md-2 g-4">
+            <div class="row g-4">
                 {% for project in page_obj %}
-                <div class="col">
-                    <article class="card h-100 shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ project.author.username }}{% endif %}" 
-                                     alt="{{ project.author.username }}" 
-                                     class="rounded-circle me-2" 
-                                     style="width: 32px; height: 32px; object-fit: cover;">
-                                <div>
-                                    <a href="{% url 'projects:user_profile' project.author.username %}" 
-                                       class="text-decoration-none text-dark">
-                                        {{ project.author.username }}
-                                    </a>
-                                    <div class="text-muted small">
-                                        {{ project.created_at|date:"M d, Y" }}
-                                    </div>
-                                </div>
-                            </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm">
+                        {% if project.is_gold and project.token_reward %}
+                        <div class="card-badge position-absolute top-0 end-0 m-2">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-trophy-fill me-1"></i>
+                                {{ project.token_reward }} Tokens
+                            </span>
+                        </div>
+                        {% endif %}
 
-                            <h3 class="h5 card-title mb-3">
-                                <a href="{% url 'projects:project_detail' project.pk %}" 
-                                   class="text-decoration-none text-dark">
+                        {% if project.featured_image %}
+                        <img src="{{ project.featured_image.url }}" 
+                             class="card-img-top" 
+                             alt="{{ project.title }}"
+                             style="height: 200px; object-fit: cover;">
+                        {% endif %}
+
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{% url 'projects:project_detail' project.pk %}" class="text-decoration-none text-dark">
                                     {{ project.title }}
                                 </a>
-                            </h3>
+                            </h5>
+                            
+                            {% if project.is_gold and project.deadline %}
+                            <div class="mb-2 text-muted small">
+                                <i class="bi bi-clock-fill me-1"></i>
+                                Deadline: {{ project.deadline|date:"F d, Y" }}
+                            </div>
+                            {% endif %}
 
-                            <p class="card-text text-muted mb-3">
+                            <p class="card-text text-muted small">
                                 {{ project.description|truncatewords:30 }}
                             </p>
 
-                            <div class="tag-cloud mb-3">
-                                {% for tag in project.tag_list %}
-                                <a href="?tags={{ tag }}" 
-                                   class="badge bg-light text-dark text-decoration-none me-1">
-                                    {{ tag }}
-                                </a>
+                            <!-- Project Tags -->
+                            <div class="mb-2">
+                                {% for tag in project.tags.split|slice:":3" %}
+                                <span class="badge bg-light text-dark me-1">{{ tag }}</span>
                                 {% endfor %}
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center">
-                                    <span class="me-3" title="Claps">
-                                        <i class="bi bi-hand-thumbs-up"></i>
-                                        {{ project.clap_count }}
-                                    </span>
-                                    <span title="Comments">
-                                        <i class="bi bi-chat"></i>
-                                        {{ project.comment_count }}
-                                    </span>
+                            <!-- Project Stats -->
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="small text-muted">
+                                    <i class="bi bi-hand-thumbs-up me-1"></i>{{ project.clap_count }}
+                                    <i class="bi bi-chat ms-2 me-1"></i>{{ project.comment_count }}
+                                    {% if project.average_rating > 0 %}
+                                    <i class="bi bi-star-fill ms-2 me-1 text-warning"></i>{{ project.average_rating }}
+                                    {% endif %}
                                 </div>
-                                {% if project.github_link %}
-                                <a href="{{ project.github_link }}" 
-                                   target="_blank" 
-                                   class="btn btn-sm btn-outline-dark">
-                                    <i class="bi bi-github"></i>
-                                </a>
-                                {% endif %}
+                                <small class="text-muted">
+                                    {{ project.created_at|timesince }} ago
+                                </small>
                             </div>
                         </div>
-                    </article>
+
+                        <div class="card-footer bg-transparent">
+                            <div class="d-flex align-items-center">
+                                <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}https://via.placeholder.com/32{% endif %}" 
+                                     class="rounded-circle me-2" 
+                                     alt="{{ project.author.username }}"
+                                     style="width: 32px; height: 32px; object-fit: cover;">
+                                <div class="small">
+                                    <a href="{% url 'projects:user_profile' username=project.author.username %}" 
+                                       class="text-decoration-none text-dark">
+                                        {{ project.author.get_full_name|default:project.author.username }}
+                                    </a>
+                                    {% if project.author.profile.is_faculty %}
+                                    <span class="badge bg-primary ms-1">Faculty</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% empty %}
-                <div class="col-12">
-                    <div class="text-center py-5">
-                        <h3>No projects found</h3>
-                        <p class="text-muted">Try adjusting your search criteria</p>
-                        {% if user.is_authenticated %}
-                        <a href="{% url 'projects:submit_project' %}" class="btn btn-primary">
-                            Share Your Seed
-                        </a>
-                        {% endif %}
-                    </div>
+                <div class="col-12 text-center py-5">
+                    <p class="text-muted">No projects found.</p>
                 </div>
                 {% endfor %}
             </div>
@@ -171,4 +179,11 @@
         </div>
     </div>
 </div>
+
+<!-- Add this CSS to your stylesheet or in a style tag -->
+<style>
+.card-badge {
+    z-index: 2;
+}
+</style>
 {% endblock %}
