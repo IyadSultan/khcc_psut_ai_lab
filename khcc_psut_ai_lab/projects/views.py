@@ -1190,11 +1190,11 @@ def talents_page(request):
     ).filter(
         ~Q(groups__name='Faculty'),
         is_active=True
-    )
+    ).select_related('profile')
     
     # Apply talent type filter if selected
     if talent_type:
-        talents = talents.filter(userprofile__talent_type=talent_type)
+        talents = talents.filter(profile__talent_type=talent_type)
     
     talents = talents.order_by('-project_count')
     

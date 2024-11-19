@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% load static %}
-{% load humanize %}
 
 {% block content %}
 <div class="container py-5">
@@ -31,10 +30,9 @@
         {% for talent in talents %}
         <div class="col">
             <div class="card h-100 shadow-sm hover-card">
-                <!-- Profile Header -->
                 <div class="card-body text-center">
                     <!-- Avatar -->
-                    <img src="{% if talent.userprofile.avatar %}{{ talent.userprofile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ talent.username }}{% endif %}" 
+                    <img src="{% if talent.profile.avatar %}{{ talent.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ talent.username }}{% endif %}" 
                          alt="{{ talent.username }}" 
                          class="rounded-circle mb-3"
                          style="width: 100px; height: 100px; object-fit: cover;">
@@ -43,12 +41,19 @@
                     <h5 class="card-title mb-1">
                         {{ talent.get_full_name|default:talent.username }}
                     </h5>
-                    <p class="text-muted small mb-3">@{{ talent.username }}</p>
+                    <p class="text-muted small mb-2">@{{ talent.username }}</p>
+                    
+                    <!-- Talent Type -->
+                    {% if talent.profile.talent_type %}
+                        <span class="badge bg-primary mb-3">
+                            {{ talent.profile.get_talent_display }}
+                        </span>
+                    {% endif %}
                     
                     <!-- Bio -->
-                    {% if talent.userprofile.bio %}
+                    {% if talent.profile.bio %}
                     <p class="card-text small mb-3">
-                        {{ talent.userprofile.bio|truncatechars:100 }}
+                        {{ talent.profile.bio|truncatechars:100 }}
                     </p>
                     {% endif %}
                     
@@ -70,24 +75,24 @@
                     
                     <!-- Social Links -->
                     <div class="d-flex justify-content-center gap-2 mb-3">
-                        {% if talent.userprofile.github_username %}
-                        <a href="https://github.com/{{ talent.userprofile.github_username }}" 
+                        {% if talent.profile.github_username %}
+                        <a href="https://github.com/{{ talent.profile.github_username }}" 
                            class="btn btn-sm btn-outline-dark" 
                            target="_blank">
                             <i class="bi bi-github"></i>
                         </a>
                         {% endif %}
                         
-                        {% if talent.userprofile.twitter_username %}
-                        <a href="https://twitter.com/{{ talent.userprofile.twitter_username }}" 
+                        {% if talent.profile.twitter_username %}
+                        <a href="https://twitter.com/{{ talent.profile.twitter_username }}" 
                            class="btn btn-sm btn-outline-primary" 
                            target="_blank">
                             <i class="bi bi-twitter"></i>
                         </a>
                         {% endif %}
                         
-                        {% if talent.userprofile.website %}
-                        <a href="{{ talent.userprofile.website }}" 
+                        {% if talent.profile.website %}
+                        <a href="{{ talent.profile.website }}" 
                            class="btn btn-sm btn-outline-secondary" 
                            target="_blank">
                             <i class="bi bi-globe"></i>
