@@ -352,3 +352,5 @@ admin_site.register(UserProfile, UserProfileAdmin)
 admin_site.register(Notification, NotificationAdmin)
 admin_site.register(ProjectAnalytics, ProjectAnalyticsAdmin)
 admin_site.register(Follow, FollowAdmin)
+
+

@@ -33,6 +33,30 @@ def comment_image_upload_path(instance, filename):
     """Generate upload path for comment images"""
     return f'images/comments/user_{instance.user.id}/{filename}'
 
+# Add to models.py
+from urllib.parse import urlparse, parse_qs
+
+def validate_youtube_url(url):
+    if not url:
+        return
+    
+    try:
+        parsed = urlparse(url)
+        if parsed.hostname not in ['www.youtube.com', 'youtube.com', 'youtu.be']:
+            raise ValidationError('Only YouTube URLs are allowed')
+            
+        if parsed.hostname in ['youtube.com', 'www.youtube.com']:
+            if not parsed.path.startswith('/watch'):
+                raise ValidationError('Invalid YouTube URL format')
+            if not parse_qs(parsed.query).get('v'):
+                raise ValidationError('Invalid YouTube URL format')
+        elif parsed.hostname == 'youtu.be':
+            if not parsed.path[1:]:
+                raise ValidationError('Invalid YouTube URL format')
+    except Exception:
+        raise ValidationError('Invalid YouTube URL')
+    
+    
 # Models
 class Project(models.Model):
     title = models.CharField(max_length=200)
@@ -79,6 +103,31 @@ class Project(models.Model):
     
     rating_total = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     rating_count = models.PositiveIntegerField(default=0)
+
+    youtube_url = models.URLField(
+        validators=[validate_youtube_url],
+        blank=True,
+        null=True,
+        help_text="Link to a YouTube video for your project"
+    )
+    
+    def get_youtube_embed_url(self):
+        """Convert YouTube video URL to embed URL"""
+        if not self.youtube_url:
+            return None
+            
+        video_id = None
+        parsed = urlparse(self.youtube_url)
+        
+        if 'youtube.com' in parsed.hostname:
+            query = parse_qs(parsed.query)
+            video_id = query.get('v', [None])[0]
+        elif 'youtu.be' in parsed.hostname:
+            video_id = parsed.path.lstrip('/')
+            
+        if video_id:
+            return f"https://www.youtube.com/embed/{video_id}"
+        return None
     
     class Meta:
         ordering = ['-created_at']
@@ -415,3 +464,8 @@ class CommentClap(models.Model):
 
     def __str__(self):
         return f'{self.user.username} clapped for comment on {self.comment.project.title}'
+    
+
+
+
+

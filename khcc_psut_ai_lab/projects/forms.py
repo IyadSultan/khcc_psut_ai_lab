@@ -691,3 +691,66 @@ class AdvancedSearchForm(forms.Form):
             raise ValidationError("End date should be greater than start date")
         
         return cleaned_data
+    
+
+# In forms.py
+from django import forms
+from .models import Project, Comment
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
+from PIL import Image
+from io import BytesIO
+import os
+
+class ProjectForm(forms.ModelForm):
+    """Form for creating and editing projects."""
+    
+    class Meta:
+        model = Project
+        fields = ['title', 'description', 'github_link', 'tags', 'youtube_url', 
+                 'pdf_file', 'featured_image', 'additional_files']
+        
+    def clean_youtube_url(self):
+        url = self.cleaned_data.get('youtube_url')
+        if url:
+            from .models import validate_youtube_url
+            validate_youtube_url(url)
+        return url
+
+    def clean_pdf_file(self):
+        pdf_file = self.cleaned_data.get('pdf_file')
+        if pdf_file and pdf_file.size > 10 * 1024 * 1024:  # 10MB limit
+            raise ValidationError('PDF file must be smaller than 10MB')
+        return pdf_file
+
+    def clean_featured_image(self):
+        image = self.cleaned_data.get('featured_image')
+        if image:
+            if image.size > 5 * 1024 * 1024:  # 5MB limit
+                raise ValidationError('Image file must be smaller than 5MB')
+            try:
+                img = Image.open(image)
+                if img.mode not in ('RGB', 'RGBA'):
+                    img = img.convert('RGB')
+                
+                # Resize if needed
+                if img.width > 1200 or img.height > 1200:
+                    output_size = (1200, 1200)
+                    img.thumbnail(output_size, Image.LANCZOS)
+                
+                output = BytesIO()
+                img.save(output, format='JPEG', quality=85)
+                output.seek(0)
+                
+                from django.core.files.uploadedfile import InMemoryUploadedFile
+                return InMemoryUploadedFile(
+                    output,
+                    'ImageField',
+                    f"{os.path.splitext(image.name)[0]}.jpg",
+                    'image/jpeg',
+                    output.tell(),
+                    None
+                )
+            except Exception as e:
+                raise ValidationError(f'Invalid image file: {str(e)}')
+        return image

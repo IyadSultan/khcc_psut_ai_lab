@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     
     'projects.apps.ProjectsConfig',
-    'accounts.apps.AccountsConfig',
+    # 'accounts.apps.AccountsConfig',
     'crispy_forms',
     'crispy_bootstrap5',
     'django_bootstrap5',

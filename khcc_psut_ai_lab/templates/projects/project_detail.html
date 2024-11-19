@@ -139,7 +139,6 @@
     }
 
     /* Responsive adjustments */
-    
     @media (max-width: 768px) {
         .comment-replies {
             margin-left: 1rem;
@@ -190,6 +189,12 @@
                                             <a href="{% url 'projects:edit_project' project.pk %}" 
                                                class="dropdown-item">
                                                 <i class="bi bi-pencil me-2"></i>Edit Project
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'projects:edit_seed' project.pk %}"
+                                               class="dropdown-item">
+                                                <i class="bi bi-gear me-2"></i>Edit Seed
                                             </a>
                                         </li>
                                         <li>
@@ -246,6 +251,20 @@
                         {{ project.description|linebreaks }}
                     </div>
 
+                    {% if project.youtube_url %}
+                        <div class="mb-4">
+                            <div class="ratio ratio-16x9">
+                                <iframe 
+                                    src="{{ project.get_youtube_embed_url }}"
+                                    title="Project Video"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                        </div>
+                    {% endif %}
+
                     <!-- Tags Section -->
                     {% if project.tag_list %}
                         <div class="mb-4">
@@ -278,8 +297,8 @@
                                         </div>
                                     </div>
                                 </div>
-                            {% endif %}
-                            
+                            {% endif %}  
+
                             {% if project.additional_files %}
                                 <div class="col-md-6">
                                     <div class="card h-100 file-card border">
@@ -363,190 +382,109 @@
                 </div>
             </div>
 
-          <!-- Comments Section -->
-<div class="card shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h4 class="card-title mb-0">Discussion</h4>
-        <span class="badge bg-secondary">{{ project.comments.count }}</span>
-    </div>
-    
-    <div class="card-body">
-        <!-- Comment Form -->
-        {% if user.is_authenticated %}
-            <form method="post" 
-                  action="{% url 'projects:project_detail' project.pk %}" 
-                  enctype="multipart/form-data" 
-                  class="mb-4 comment-form"
-                  id="main-comment-form">
-                {% csrf_token %}
-                {{ comment_form|crispy }}
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div class="form-text">
-                        <i class="bi bi-image me-1"></i>
-                        You can attach an image to your comment
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        Post Comment
-                    </button>
+            <!-- Comments Section -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">Discussion</h4>
+                    <span class="badge bg-secondary">{{ project.comments.count }}</span>
                 </div>
-            </form>
-        {% else %}
-            <div class="alert alert-info d-flex align-items-center" role="alert">
-                <i class="bi bi-info-circle me-2"></i>
-                <div>
-                    Please <a href="{% url 'login' %}?next={{ request.path }}" class="alert-link">sign in</a> 
-                    to join the discussion.
-                </div>
-            </div>
-        {% endif %}
-        
-        <!-- Comments List -->
-        <div class="comments-list">
-            {% for comment in comments %}
-                <div class="comment-thread" id="comment-{{ comment.id }}">
-                    <!-- Parent Comment -->
-                    <div class="card border-0 bg-light">
-                        <div class="card-body">
-                            <!-- Comment Header -->
-                            <div class="d-flex align-items-start mb-3">
-                                <img src="{% if comment.user.profile.avatar %}{{ comment.user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ comment.user.username }}{% endif %}" 
-                                     alt="{{ comment.user.username }}" 
-                                     class="rounded-circle me-2"
-                                     width="32" height="32">
-                                <div>
-                                    <div class="d-flex align-items-center">
-                                        <a href="{% url 'projects:user_profile' comment.user.username %}" 
-                                           class="fw-bold text-decoration-none text-dark me-2">
-                                            {{ comment.user.username }}
-                                        </a>
-                                        {% if comment.user == project.author %}
-                                            <span class="badge bg-primary">Author</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="text-muted small">
-                                        {{ comment.created_at|naturaltime }}
-                                        {% if comment.updated_at > comment.created_at %}
-                                            • edited {{ comment.updated_at|naturaltime }}
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Comment Content -->
-                            <div class="comment-content mb-3">
-                                {{ comment.content|linebreaks }}
-                                {% if comment.image %}
-                                    <img src="{{ comment.image.url }}" 
-                                         alt="Comment image" 
-                                         class="comment-image mt-2"
-                                         data-bs-toggle="modal"
-                                         data-bs-target="#imageModal"
-                                         data-full-image="{{ comment.image.url }}">
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Comment Actions -->
-                            {% if user.is_authenticated %}
-                                <div class="d-flex gap-2">
-                                    <!-- Clap Button -->
-                                    <button class="btn btn-sm btn-light clap-comment-btn {% if comment.has_user_clapped %}active{% endif %}"
-                                            data-comment-id="{{ comment.id }}">
-                                        <i class="bi bi-hands-clapping me-1"></i>
-                                        <span class="clap-count">{{ comment.clap_count }}</span>
-                                    </button>
-                                    
-                                    <!-- Reply Button -->
-                                    <button class="btn btn-sm btn-light reply-btn" 
-                                            data-comment-id="{{ comment.id }}">
-                                        <i class="bi bi-reply me-1"></i>Reply
-                                    </button>
-                                    
-                                    <!-- Delete Button (for comment author or project author) -->
-                                    {% if user == comment.user or user == project.author %}
-                                        <button class="btn btn-sm btn-light text-danger delete-comment-btn" 
-                                                data-comment-id="{{ comment.id }}"
-                                                data-url="{% url 'projects:delete_comment' comment.id %}">
-                                            <i class="bi bi-trash me-1"></i>Delete
-                                        </button>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <!-- Reply Form -->
-                    <div class="reply-form" id="reply-form-{{ comment.id }}">
+                
+                <div class="card-body">
+                    <!-- Comment Form -->
+                    {% if user.is_authenticated %}
                         <form method="post" 
                               action="{% url 'projects:project_detail' project.pk %}" 
-                              enctype="multipart/form-data">
+                              enctype="multipart/form-data" 
+                              class="mb-4 comment-form"
+                              id="main-comment-form">
                             {% csrf_token %}
-                            <input type="hidden" name="parent_id" value="{{ comment.id }}">
                             {{ comment_form|crispy }}
-                            <div class="d-flex justify-content-end gap-2 mt-3">
-                                <button type="button" class="btn btn-light cancel-reply">
-                                    Cancel
-                                </button>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="form-text">
+                                    <i class="bi bi-image me-1"></i>
+                                    You can attach an image to your comment
+                                </div>
                                 <button type="submit" class="btn btn-primary">
-                                    Post Reply
+                                    Post Comment
                                 </button>
                             </div>
                         </form>
-                    </div>
+                    {% else %}
+                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <div>
+                                Please <a href="{% url 'login' %}?next={{ request.path }}" class="alert-link">sign in</a> 
+                                to join the discussion.
+                            </div>
+                        </div>
+                    {% endif %}
                     
-                    <!-- Replies -->
-                    {% if comment.replies.exists %}
-                        <div class="comment-replies mt-3">
-                            {% for reply in comment.replies.all %}
-                                <div class="card border-0 bg-light mb-2" id="comment-{{ reply.id }}">
+                    <!-- Comments List -->
+                    <div class="comments-list">
+                        {% for comment in comments %}
+                            <div class="comment-thread" id="comment-{{ comment.id }}">
+                                <!-- Parent Comment -->
+                                <div class="card border-0 bg-light">
                                     <div class="card-body">
-                                        <!-- Reply Header -->
-                                        <div class="d-flex align-items-start mb-2">
-                                            <img src="{% if reply.user.profile.avatar %}{{ reply.user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ reply.user.username }}{% endif %}" 
-                                                 alt="{{ reply.user.username }}" 
+                                        <!-- Comment Header -->
+                                        <div class="d-flex align-items-start mb-3">
+                                            <img src="{% if comment.user.profile.avatar %}{{ comment.user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ comment.user.username }}{% endif %}" 
+                                                 alt="{{ comment.user.username }}" 
                                                  class="rounded-circle me-2"
-                                                 width="24" height="24">
+                                                 width="32" height="32">
                                             <div>
                                                 <div class="d-flex align-items-center">
-                                                    <a href="{% url 'projects:user_profile' reply.user.username %}" 
+                                                    <a href="{% url 'projects:user_profile' comment.user.username %}" 
                                                        class="fw-bold text-decoration-none text-dark me-2">
-                                                        {{ reply.user.username }}
+                                                        {{ comment.user.username }}
                                                     </a>
-                                                    {% if reply.user == project.author %}
+                                                    {% if comment.user == project.author %}
                                                         <span class="badge bg-primary">Author</span>
                                                     {% endif %}
                                                 </div>
                                                 <div class="text-muted small">
-                                                    {{ reply.created_at|naturaltime }}
+                                                    {{ comment.created_at|naturaltime }}
+                                                    {% if comment.updated_at > comment.created_at %}
+                                                        • edited {{ comment.updated_at|naturaltime }}
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
                                         
-                                        <!-- Reply Content -->
-                                        <div class="reply-content mb-2">
-                                            {{ reply.content|linebreaks }}
-                                            {% if reply.image %}
-                                                <img src="{{ reply.image.url }}" 
-                                                     alt="Reply image" 
+                                        <!-- Comment Content -->
+                                        <div class="comment-content mb-3">
+                                            {{ comment.content|linebreaks }}
+                                            {% if comment.image %}
+                                                <img src="{{ comment.image.url }}" 
+                                                     alt="Comment image" 
                                                      class="comment-image mt-2"
                                                      data-bs-toggle="modal"
                                                      data-bs-target="#imageModal"
-                                                     data-full-image="{{ reply.image.url }}">
+                                                     data-full-image="{{ comment.image.url }}">
                                             {% endif %}
                                         </div>
                                         
-                                        <!-- Reply Actions -->
+                                        <!-- Comment Actions -->
                                         {% if user.is_authenticated %}
                                             <div class="d-flex gap-2">
-                                                <button class="btn btn-sm btn-light clap-comment-btn {% if reply.has_user_clapped %}active{% endif %}"
-                                                        data-comment-id="{{ reply.id }}">
+                                                <!-- Clap Button -->
+                                                <button class="btn btn-sm btn-light clap-comment-btn {% if comment.has_user_clapped %}active{% endif %}"
+                                                        data-comment-id="{{ comment.id }}">
                                                     <i class="bi bi-hands-clapping me-1"></i>
-                                                    <span class="clap-count">{{ reply.clap_count }}</span>
+                                                    <span class="clap-count">{{ comment.clap_count }}</span>
                                                 </button>
                                                 
-                                                {% if user == reply.user or user == project.author %}
+                                                <!-- Reply Button -->
+                                                <button class="btn btn-sm btn-light reply-btn" 
+                                                        data-comment-id="{{ comment.id }}">
+                                                    <i class="bi bi-reply me-1"></i>Reply
+                                                </button>
+                                                
+                                                <!-- Delete Button (for comment author or project author) -->
+                                                {% if user == comment.user or user == project.author %}
                                                     <button class="btn btn-sm btn-light text-danger delete-comment-btn" 
-                                                            data-comment-id="{{ reply.id }}"
-                                                            data-url="{% url 'projects:delete_comment' reply.id %}">
+                                                            data-comment-id="{{ comment.id }}"
+                                                            data-url="{% url 'projects:delete_comment' comment.id %}">
                                                         <i class="bi bi-trash me-1"></i>Delete
                                                     </button>
                                                 {% endif %}
@@ -554,189 +492,273 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                            {% endfor %}
+                                
+                                <!-- Reply Form -->
+                                <div class="reply-form" id="reply-form-{{ comment.id }}">
+                                    <form method="post" 
+                                          action="{% url 'projects:project_detail' project.pk %}" 
+                                          enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                        {{ comment_form|crispy }}
+                                        <div class="d-flex justify-content-end gap-2 mt-3">
+                                            <button type="button" class="btn btn-light cancel-reply">
+                                                Cancel
+                                            </button>
+                                            <button type="submit" class="btn btn-primary">
+                                                Post Reply
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                                
+                                <!-- Replies -->
+                                {% if comment.replies.exists %}
+                                    <div class="comment-replies mt-3">
+                                        {% for reply in comment.replies.all %}
+                                            <div class="card border-0 bg-light mb-2" id="comment-{{ reply.id }}">
+                                                <div class="card-body">
+                                                    <!-- Reply Header -->
+                                                    <div class="d-flex align-items-start mb-2">
+                                                        <img src="{% if reply.user.profile.avatar %}{{ reply.user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ reply.user.username }}{% endif %}" 
+                                                             alt="{{ reply.user.username }}" 
+                                                             class="rounded-circle me-2"
+                                                             width="24" height="24">
+                                                        <div>
+                                                            <div class="d-flex align-items-center">
+                                                                <a href="{% url 'projects:user_profile' reply.user.username %}" 
+                                                                   class="fw-bold text-decoration-none text-dark me-2">
+                                                                    {{ reply.user.username }}
+                                                                </a>
+                                                                {% if reply.user == project.author %}
+                                                                    <span class="badge bg-primary">Author</span>
+                                                                {% endif %}
+                                                            </div>
+                                                            <div class="text-muted small">
+                                                                {{ reply.created_at|naturaltime }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Reply Content -->
+                                                    <div class="reply-content mb-2">
+                                                        {{ reply.content|linebreaks }}
+                                                        {% if reply.image %}
+                                                            <img src="{{ reply.image.url }}" 
+                                                                 alt="Reply image" 
+                                                                 class="comment-image mt-2"
+                                                                 data-bs-toggle="modal"
+                                                                 data-bs-target="#imageModal"
+                                                                 data-full-image="{{ reply.image.url }}">
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <!-- Reply Actions -->
+                                                    {% if user.is_authenticated %}
+                                                        <div class="d-flex gap-2">
+                                                            <button class="btn btn-sm btn-light clap-comment-btn {% if reply.has_user_clapped %}active{% endif %}"
+                                                                    data-comment-id="{{ reply.id }}">
+                                                                <i class="bi bi-hands-clapping me-1"></i>
+                                                                <span class="clap-count">{{ reply.clap_count }}</span>
+                                                            </button>
+                                                            
+                                                            {% if user == reply.user or user == project.author %}
+                                                                <button class="btn btn-sm btn-light text-danger delete-comment-btn" 
+                                                                        data-comment-id="{{ reply.id }}"
+                                                                        data-url="{% url 'projects:delete_comment' reply.id %}">
+                                                                    <i class="bi bi-trash me-1"></i>Delete
+                                                                </button>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% empty %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-chat-dots text-muted display-4"></i>
+                                <p class="text-muted mt-3 mb-0">No comments yet. Be the first to share your thoughts!</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="sticky-sidebar">
+                <!-- Project Stats Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Project Statistics</h5>
+                        <div class="row g-3">
+                            <!-- Claps Stat -->
+                            <div class="col-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
+                                        <i class="bi bi-hands-clapping text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block">Claps</small>
+                                        <span class="fs-5 fw-semibold stats-claps">{{ stats.clap_count }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Comments Stat -->
+                            <div class="col-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
+                                        <i class="bi bi-chat-dots text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block">Comments</small>
+                                        <span class="fs-5 fw-semibold">{{ project.comments.count }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rating Stat -->
+                            <div class="col-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
+                                        <i class="bi bi-star text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block">Avg Rating</small>
+                                        <span class="fs-5 fw-semibold">{{ project.average_rating|default:"--" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Views Stat -->
+                            <div class="col-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
+                                        <i class="bi bi-eye text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block">Views</small>
+                                        <span class="fs-5 fw-semibold">{{ stats.view_count|default:"0" }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    {% endif %}
-                </div>
-            {% empty %}
-                <div class="text-center py-5">
-                    <i class="bi bi-chat-dots text-muted display-4"></i>
-                    <p class="text-muted mt-3 mb-0">No comments yet. Be the first to share your thoughts!</p>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<!-- Sidebar -->
-<div class="col-lg-4">
-    <div class="sticky-sidebar">
-    <!-- Project Stats Card -->
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h5 class="card-title mb-4">Project Statistics</h5>
-        <div class="row g-3">
-            <!-- Claps Stat -->
-            <div class="col-6">
-                <div class="d-flex align-items-start">
-                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
-                        <i class="bi bi-hands-clapping text-primary"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Claps</small>
-                        <span class="fs-5 fw-semibold stats-claps">{{ stats.clap_count }}</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- Comments Stat -->
-            <div class="col-6">
-                <div class="d-flex align-items-start">
-                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
-                        <i class="bi bi-chat-dots text-primary"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Comments</small>
-                        <span class="fs-5 fw-semibold">{{ project.comments.count }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Rating Stat -->
-            <div class="col-6">
-                <div class="d-flex align-items-start">
-                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
-                        <i class="bi bi-star text-primary"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Avg Rating</small>
-                        <span class="fs-5 fw-semibold">{{ project.average_rating|default:"--" }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Views Stat -->
-            <div class="col-6">
-                <div class="d-flex align-items-start">
-                    <div class="stats-icon rounded p-2 me-3 bg-primary-subtle">
-                        <i class="bi bi-eye text-primary"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Views</small>
-                        <span class="fs-5 fw-semibold">{{ stats.view_count|default:"0" }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-    <!-- Author Card -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="card-title mb-4">About the Author</h5>
-            <div class="d-flex align-items-center mb-3">
-                <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ project.author.username }}{% endif %}" 
-                     alt="{{ project.author.username }}" 
-                     class="rounded-circle me-3" 
-                     style="width: 64px; height: 64px; object-fit: cover;">
-                <div>
-                    <h6 class="mb-1">
-                        <a href="{% url 'projects:user_profile' project.author.username %}" 
-                           class="text-decoration-none text-dark">
-                            {{ project.author.get_full_name|default:project.author.username }}
-                        </a>
-                    </h6>
-                    {% if project.author.profile.title %}
-                        <p class="text-muted small mb-0">{{ project.author.profile.title }}</p>
-                    {% endif %}
-                    {% if project.author.profile.department %}
-                        <p class="text-muted small mb-0">{{ project.author.profile.department }}</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% if project.author.profile.bio %}
-                <p class="small mb-3">{{ project.author.profile.bio }}</p>
-            {% endif %}
-
-            {% if project.author.profile.location %}
-                <div class="d-flex align-items-center mb-3">
-                    <i class="bi bi-geo-alt text-muted me-2"></i>
-                    <span class="small text-muted">{{ project.author.profile.location }}</span>
-                </div>
-            {% endif %}
-
-            <!-- Social Links -->
-            <div class="d-flex gap-2 mb-3">
-                {% if project.author.profile.github_username %}
-                    <a href="https://github.com/{{ project.author.profile.github_username }}" 
-                       class="btn btn-sm btn-dark" 
-                       target="_blank">
-                        <i class="bi bi-github"></i>
-                    </a>
-                {% endif %}
-                
-                {% if project.author.profile.linkedin_url %}
-                    <a href="{{ project.author.profile.linkedin_url }}" 
-                       class="btn btn-sm btn-primary" 
-                       target="_blank">
-                        <i class="bi bi-linkedin"></i>
-                    </a>
-                {% endif %}
-
-                {% if project.author.profile.twitter_username %}
-                    <a href="https://twitter.com/{{ project.author.profile.twitter_username }}" 
-                       class="btn btn-sm btn-info" 
-                       target="_blank">
-                        <i class="bi bi-twitter text-white"></i>
-                    </a>
-                {% endif %}
-            </div>
-
-            <div class="d-flex justify-content-between text-muted small">
-                <span>Projects: {{ project.author.projects.count }}</span>
-                <span>Member since: {{ project.author.date_joined|date:"M Y" }}</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Similar Projects Card -->
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title mb-4">Similar Projects</h5>
-            {% get_similar_projects project as similar_projects %}
-            {% for similar in similar_projects %}
-                <div class="mb-3">
-                    <h6 class="mb-1">
-                        <a href="{% url 'projects:project_detail' similar.pk %}" 
-                           class="text-decoration-none">
-                            {{ similar.title }}
-                        </a>
-                    </h6>
-                    <p class="text-muted small mb-2">
-                        {{ similar.description|truncatechars:100 }}
-                    </p>
-                    <div class="d-flex justify-content-between align-items-center small">
-                        <div class="d-flex align-items-center">
-                            <img src="{% if similar.author.profile.avatar %}{{ similar.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ similar.author.username }}{% endif %}" 
-                                 alt="{{ similar.author.username }}" 
-                                 class="rounded-circle me-2"
-                                 width="20" height="20">
-                            <span class="text-muted">{{ similar.author.username }}</span>
+                <!-- Author Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">About the Author</h5>
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ project.author.username }}{% endif %}" 
+                                 alt="{{ project.author.username }}" 
+                                 class="rounded-circle me-3" 
+                                 style="width: 64px; height: 64px; object-fit: cover;">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{% url 'projects:user_profile' project.author.username %}" 
+                                       class="text-decoration-none text-dark">
+                                        {{ project.author.get_full_name|default:project.author.username }}
+                                    </a>
+                                </h6>
+                                {% if project.author.profile.title %}
+                                    <p class="text-muted small mb-0">{{ project.author.profile.title }}</p>
+                                {% endif %}
+                                {% if project.author.profile.department %}
+                                    <p class="text-muted small mb-0">{{ project.author.profile.department }}</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <span class="text-muted">
-                            {{ similar.created_at|naturaltime }}
-                        </span>
+
+                        {% if project.author.profile.bio %}
+                            <p class="small mb-3">{{ project.author.profile.bio }}</p>
+                        {% endif %}
+
+                        {% if project.author.profile.location %}
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-geo-alt text-muted me-2"></i>
+                                <span class="small text-muted">{{ project.author.profile.location }}</span>
+                            </div>
+                        {% endif %}
+
+                        <!-- Social Links -->
+                        <div class="d-flex gap-2 mb-3">
+                            {% if project.author.profile.github_username %}
+                                <a href="https://github.com/{{ project.author.profile.github_username }}" 
+                                   class="btn btn-sm btn-dark" 
+                                   target="_blank">
+                                    <i class="bi bi-github"></i>
+                                </a>
+                            {% endif %}
+                            
+                            {% if project.author.profile.linkedin_url %}
+                                <a href="{{ project.author.profile.linkedin_url }}" 
+                                   class="btn btn-sm btn-primary" 
+                                   target="_blank">
+                                    <i class="bi bi-linkedin"></i>
+                                </a>
+                            {% endif %}
+
+                            {% if project.author.profile.twitter_username %}
+                                <a href="https://twitter.com/{{ project.author.profile.twitter_username }}" 
+                                   class="btn btn-sm btn-info" 
+                                   target="_blank">
+                                    <i class="bi bi-twitter text-white"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span>Projects: {{ project.author.projects.count }}</span>
+                            <span>Member since: {{ project.author.date_joined|date:"M Y" }}</span>
+                        </div>
                     </div>
                 </div>
-                {% if not forloop.last %}<hr class="my-3">{% endif %}
-            {% empty %}
-                <p class="text-muted text-center mb-0">No similar projects found</p>
-            {% endfor %}
+
+                <!-- Similar Projects Card -->
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Similar Projects</h5>
+                        {% get_similar_projects project as similar_projects %}
+                        {% for similar in similar_projects %}
+                            <div class="mb-3">
+                                <h6 class="mb-1">
+                                    <a href="{% url 'projects:project_detail' similar.pk %}" 
+                                       class="text-decoration-none">
+                                        {{ similar.title }}
+                                    </a>
+                                </h6>
+                                <p class="text-muted small mb-2">
+                                    {{ similar.description|truncatechars:100 }}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center small">
+                                    <div class="d-flex align-items-center">
+                                        <img src="{% if similar.author.profile.avatar %}{{ similar.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ similar.author.username }}{% endif %}" 
+                                             alt="{{ similar.author.username }}" 
+                                             class="rounded-circle me-2"
+                                             width="20" height="20">
+                                        <span class="text-muted">{{ similar.author.username }}</span>
+                                    </div>
+                                    <span class="text-muted">
+                                        {{ similar.created_at|naturaltime }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% if not forloop.last %}<hr class="my-3">{% endif %}
+                        {% empty %}
+                            <p class="text-muted text-center mb-0">No similar projects found</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
- <!-- Close main container and row divs -->
-</div>
+    </div>
 </div>
 
 <!-- Modals -->
@@ -810,150 +832,150 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
-$(document).ready(function() {
-    // Initialize tooltips
-    const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    tooltips.forEach(tooltip => new bootstrap.Tooltip(tooltip));
+    $(document).ready(function() {
+        // Initialize tooltips
+        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltips.forEach(tooltip => new bootstrap.Tooltip(tooltip));
 
-    // Initialize toast
-    const actionToast = new bootstrap.Toast(document.getElementById('actionToast'));
+        // Initialize toast
+        const actionToast = new bootstrap.Toast(document.getElementById('actionToast'));
 
-    // Show toast message function
-    function showToast(title, message, delay = 3000) {
-        const toast = document.getElementById('actionToast');
-        toast.querySelector('#toastTitle').textContent = title;
-        toast.querySelector('#toastMessage').textContent = message;
-        const bsToast = bootstrap.Toast.getInstance(toast) || new bootstrap.Toast(toast, { delay: delay });
-        bsToast.show();
-    }
+        // Show toast message function
+        function showToast(title, message, delay = 3000) {
+            const toast = document.getElementById('actionToast');
+            toast.querySelector('#toastTitle').textContent = title;
+            toast.querySelector('#toastMessage').textContent = message;
+            const bsToast = bootstrap.Toast.getInstance(toast) || new bootstrap.Toast(toast, { delay: delay });
+            bsToast.show();
+        }
 
-    // Handle clap button for project
-    $('#clap-btn').click(function() {
-        const btn = $(this);
-        const projectId = btn.data('project-id');
-        
-        $.post("{% url 'projects:clap_project' project.pk %}", {
-            csrfmiddlewaretoken: '{{ csrf_token }}'
-        })
-        .done(function(response) {
-            if (response.status === 'success' || response.status === 'removed') {
-                $('#clap-count').text(response.claps);
-                btn.toggleClass('active');
-                
-                // Add animation
-                btn.addClass('clap-animation');
-                setTimeout(() => btn.removeClass('clap-animation'), 300);
-                
-                // Update stats card
-                $('.stats-claps').text(response.claps);
-            }
-        })
-        .fail(function() {
-            showToast('Error', 'Failed to update clap. Please try again.');
-        });
-    });
-
-    // Handle comment claps
-    $('.clap-comment-btn').click(function() {
-        const btn = $(this);
-        const commentId = btn.data('comment-id');
-        
-        $.post(`/comment/${commentId}/clap/`, {
-            csrfmiddlewaretoken: '{{ csrf_token }}'
-        })
-        .done(function(response) {
-            if (response.status === 'success' || response.status === 'removed') {
-                btn.find('.clap-count').text(response.claps);
-                btn.toggleClass('active');
-                
-                // Add animation
-                btn.addClass('clap-animation');
-                setTimeout(() => btn.removeClass('clap-animation'), 300);
-            }
-        })
-        .fail(function() {
-            showToast('Error', 'Failed to update clap. Please try again.');
-        });
-    });
-
-    // Handle reply functionality
-    $('.reply-btn').click(function() {
-        const commentId = $(this).data('comment-id');
-        $('.reply-form').not(`#reply-form-${commentId}`).slideUp();
-        $(`#reply-form-${commentId}`).slideToggle();
-    });
-
-    $('.cancel-reply').click(function() {
-        $(this).closest('.reply-form').slideUp();
-    });
-
-    // Handle comment deletion
-    let commentToDelete = null;
-    let deleteUrl = null;
-
-    $('.delete-comment-btn').click(function() {
-        commentToDelete = $(this).data('comment-id');
-        deleteUrl = $(this).data('url');
-        $('#deleteCommentModal').modal('show');
-    });
-
-    $('#confirmDeleteComment').click(function() {
-        if (commentToDelete && deleteUrl) {
-            $.post(deleteUrl, {
+        // Handle clap button for project
+        $('#clap-btn').click(function() {
+            const btn = $(this);
+            const projectId = btn.data('project-id');
+            
+            $.post("{% url 'projects:clap_project' project.pk %}", {
                 csrfmiddlewaretoken: '{{ csrf_token }}'
             })
             .done(function(response) {
-                if (response.status === 'success') {
-                    $(`#comment-${commentToDelete}`).fadeOut(300, function() {
-                        $(this).remove();
-                        showToast('Success', 'Comment deleted successfully');
-                    });
+                if (response.status === 'success' || response.status === 'removed') {
+                    $('#clap-count').text(response.claps);
+                    btn.toggleClass('active');
+                    
+                    // Add animation
+                    btn.addClass('clap-animation');
+                    setTimeout(() => btn.removeClass('clap-animation'), 300);
+                    
+                    // Update stats card
+                    $('.stats-claps').text(response.claps);
                 }
             })
             .fail(function() {
-                showToast('Error', 'Failed to delete comment. Please try again.');
+                showToast('Error', 'Failed to update clap. Please try again.');
             });
-            $('#deleteCommentModal').modal('hide');
+        });
+
+        // Handle comment claps
+        $('.clap-comment-btn').click(function() {
+            const btn = $(this);
+            const commentId = btn.data('comment-id');
+            
+            $.post(`/comment/${commentId}/clap/`, {
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            })
+            .done(function(response) {
+                if (response.status === 'success' || response.status === 'removed') {
+                    btn.find('.clap-count').text(response.claps);
+                    btn.toggleClass('active');
+                    
+                    // Add animation
+                    btn.addClass('clap-animation');
+                    setTimeout(() => btn.removeClass('clap-animation'), 300);
+                }
+            })
+            .fail(function() {
+                showToast('Error', 'Failed to update clap. Please try again.');
+            });
+        });
+
+        // Handle reply functionality
+        $('.reply-btn').click(function() {
+            const commentId = $(this).data('comment-id');
+            $('.reply-form').not(`#reply-form-${commentId}`).slideUp();
+            $(`#reply-form-${commentId}`).slideToggle();
+        });
+
+        $('.cancel-reply').click(function() {
+            $(this).closest('.reply-form').slideUp();
+        });
+
+        // Handle comment deletion
+        let commentToDelete = null;
+        let deleteUrl = null;
+
+        $('.delete-comment-btn').click(function() {
+            commentToDelete = $(this).data('comment-id');
+            deleteUrl = $(this).data('url');
+            $('#deleteCommentModal').modal('show');
+        });
+
+        $('#confirmDeleteComment').click(function() {
+            if (commentToDelete && deleteUrl) {
+                $.post(deleteUrl, {
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                })
+                .done(function(response) {
+                    if (response.status === 'success') {
+                        $(`#comment-${commentToDelete}`).fadeOut(300, function() {
+                            $(this).remove();
+                            showToast('Success', 'Comment deleted successfully');
+                        });
+                    }
+                })
+                .fail(function() {
+                    showToast('Error', 'Failed to delete comment. Please try again.');
+                });
+                $('#deleteCommentModal').modal('hide');
+            }
+        });
+
+        // Handle bookmark toggle
+        $('.bookmark-btn').click(function() {
+            const btn = $(this);
+            
+            $.post("{% url 'projects:bookmark_project' project.pk %}", {
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            })
+            .done(function(response) {
+                btn.find('i').toggleClass('bi-bookmark bi-bookmark-fill');
+                showToast('Success', response.message);
+            })
+            .fail(function() {
+                showToast('Error', 'Failed to update bookmark. Please try again.');
+            });
+        });
+
+        // Handle image modal
+        $('.comment-image').click(function() {
+            const fullImage = $(this).data('full-image');
+            $('#modalImage').attr('src', fullImage);
+        });
+
+        // Handle link copying
+        $('.copy-link').click(function() {
+            const url = $(this).data('url');
+            navigator.clipboard.writeText(url)
+                .then(() => showToast('Success', 'Link copied to clipboard!'))
+                .catch(() => showToast('Error', 'Failed to copy link. Please try again.'));
+        });
+
+        // Smooth scroll to comment if URL has comment ID
+        if (window.location.hash && window.location.hash.includes('comment-')) {
+            const commentId = window.location.hash;
+            $(commentId)[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            $(commentId).addClass('bg-light');
+            setTimeout(() => $(commentId).removeClass('bg-light'), 2000);
         }
     });
-
-    // Handle bookmark toggle
-    $('.bookmark-btn').click(function() {
-        const btn = $(this);
-        
-        $.post("{% url 'projects:bookmark_project' project.pk %}", {
-            csrfmiddlewaretoken: '{{ csrf_token }}'
-        })
-        .done(function(response) {
-            btn.find('i').toggleClass('bi-bookmark bi-bookmark-fill');
-            showToast('Success', response.message);
-        })
-        .fail(function() {
-            showToast('Error', 'Failed to update bookmark. Please try again.');
-        });
-    });
-
-    // Handle image modal
-    $('.comment-image').click(function() {
-        const fullImage = $(this).data('full-image');
-        $('#modalImage').attr('src', fullImage);
-    });
-
-    // Handle link copying
-    $('.copy-link').click(function() {
-        const url = $(this).data('url');
-        navigator.clipboard.writeText(url)
-            .then(() => showToast('Success', 'Link copied to clipboard!'))
-            .catch(() => showToast('Error', 'Failed to copy link. Please try again.'));
-    });
-
-    // Smooth scroll to comment if URL has comment ID
-    if (window.location.hash && window.location.hash.includes('comment-')) {
-        const commentId = window.location.hash;
-        $(commentId)[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        $(commentId).addClass('bg-light');
-        setTimeout(() => $(commentId).removeClass('bg-light'), 2000);
-    }
-});
 </script>
 {% endblock %}
