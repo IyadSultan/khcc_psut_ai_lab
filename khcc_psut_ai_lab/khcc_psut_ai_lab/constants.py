@@ -4,9 +4,10 @@ TALENT_TYPES = [
     ('healthcare', 'Healthcare Talent'),
     ('quality', 'Quality Talent'),
     ('engineering', 'Engineering Talent'),
-    ('planner', 'Planner Talent'),
+    ('planning', 'Planning Talent'),
     ('design', 'Design Talent'),
     ('lab', 'Lab Talent'),
+    ('extra', 'Extra Talent'),
 ]
 
 # For easy lookup

@@ -2,15 +2,17 @@
 {% load static %}
 
 {% block content %}
+<!-- Talents Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Our Talents</h1>
+        <p class="lead">Discover our community of talented developers and their amazing projects</p>
+    </div>
+</div>
+
 <div class="container py-5">
-    <!-- Header -->
+    <!-- Talent Type Filter -->
     <div class="text-center mb-5">
-        <h1 class="display-4 mb-3">Our Talents</h1>
-        <p class="lead text-muted">
-            Discover our community of talented developers and their amazing projects
-        </p>
-        
-        <!-- Talent Type Filter -->
         <div class="d-flex justify-content-center gap-2 mt-4">
             <a href="{% url 'projects:talents' %}" 
                class="btn btn-{% if not selected_talent %}primary{% else %}outline-primary{% endif %} btn-sm">
