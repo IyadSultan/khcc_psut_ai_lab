@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Header -->
+    <div class="text-center mb-5">
+        <h1 class="display-4 mb-3">Our Talents</h1>
+        <p class="lead text-muted">
+            Discover our community of talented developers and their amazing projects
+        </p>
+    </div>
+
+    <!-- Talents Grid -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for talent in talents %}
+        <div class="col">
+            <div class="card h-100 shadow-sm hover-card">
+                <!-- Profile Header -->
+                <div class="card-body text-center">
+                    <!-- Avatar -->
+                    <img src="{% if talent.userprofile.avatar %}{{ talent.userprofile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ talent.username }}{% endif %}" 
+                         alt="{{ talent.username }}" 
+                         class="rounded-circle mb-3"
+                         style="width: 100px; height: 100px; object-fit: cover;">
+                    
+                    <!-- Name and Username -->
+                    <h5 class="card-title mb-1">
+                        {{ talent.get_full_name|default:talent.username }}
+                    </h5>
+                    <p class="text-muted small mb-3">@{{ talent.username }}</p>
+                    
+                    <!-- Bio -->
+                    {% if talent.userprofile.bio %}
+                    <p class="card-text small mb-3">
+                        {{ talent.userprofile.bio|truncatechars:100 }}
+                    </p>
+                    {% endif %}
+                    
+                    <!-- Stats -->
+                    <div class="d-flex justify-content-center gap-3 mb-3">
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ talent.project_count }}</h6>
+                            <small class="text-muted">Projects</small>
+                        </div>
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ talent.follower_count }}</h6>
+                            <small class="text-muted">Followers</small>
+                        </div>
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ talent.following_count }}</h6>
+                            <small class="text-muted">Following</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Social Links -->
+                    <div class="d-flex justify-content-center gap-2 mb-3">
+                        {% if talent.userprofile.github_username %}
+                        <a href="https://github.com/{{ talent.userprofile.github_username }}" 
+                           class="btn btn-sm btn-outline-dark" 
+                           target="_blank">
+                            <i class="bi bi-github"></i>
+                        </a>
+                        {% endif %}
+                        
+                        {% if talent.userprofile.twitter_username %}
+                        <a href="https://twitter.com/{{ talent.userprofile.twitter_username }}" 
+                           class="btn btn-sm btn-outline-primary" 
+                           target="_blank">
+                            <i class="bi bi-twitter"></i>
+                        </a>
+                        {% endif %}
+                        
+                        {% if talent.userprofile.website %}
+                        <a href="{{ talent.userprofile.website }}" 
+                           class="btn btn-sm btn-outline-secondary" 
+                           target="_blank">
+                            <i class="bi bi-globe"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="{% url 'projects:user_profile' talent.username %}" 
+                           class="btn btn-primary">
+                            View Profile
+                        </a>
+                        {% if user.is_authenticated and user != talent %}
+                            <button class="btn btn-outline-primary follow-btn" 
+                                    data-username="{{ talent.username }}"
+                                    {% if user in talent.followers.all %}data-following="true"{% endif %}>
+                                {% if user in talent.followers.all %}
+                                    Unfollow
+                                {% else %}
+                                    Follow
+                                {% endif %}
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center">
+            <p class="text-muted">No talents found</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- JavaScript for Follow Button -->
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('.follow-btn').click(function() {
+        const btn = $(this);
+        const username = btn.data('username');
+        const isFollowing = btn.data('following');
+        const url = isFollowing 
+            ? "{% url 'projects:unfollow_user' 'username' %}"
+            : "{% url 'projects:follow_user' 'username' %}";
+        
+        $.post(url.replace('username', username), {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        })
+        .done(function(response) {
+            btn.data('following', !isFollowing);
+            btn.text(isFollowing ? 'Follow' : 'Unfollow');
+            location.reload(); // Refresh to update counts
+        })
+        .fail(function() {
+            alert('Error updating follow status');
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock content %}

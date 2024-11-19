@@ -902,27 +902,50 @@ def leaderboard_view(request):
 
 @login_required
 def edit_project(request, pk):
-    project = get_object_or_404(Project, pk=pk, author=request.user)
+    project = get_object_or_404(Project, pk=pk)
+    
+    if request.user != project.author:
+        messages.error(request, 'You do not have permission to edit this project')
+        return redirect('projects:project_detail', pk=pk)
+        
     if request.method == 'POST':
         form = ProjectForm(request.POST, request.FILES, instance=project)
         if form.is_valid():
             project = form.save()
-            messages.success(request, 'Project updated successfully!')
+            messages.success(request, 'Project updated successfully')
             return redirect('projects:project_detail', pk=project.pk)
     else:
         form = ProjectForm(instance=project)
-    return render(request, 'projects/edit_project.html', {'form': form, 'project': project})
+    
+    return render(request, 'projects/edit_project.html', {
+        'form': form,
+        'project': project,
+        'title': f'Edit {project.title}'
+    })
 
 @login_required
 def delete_project(request, pk):
-    project = get_object_or_404(Project, pk=pk, author=request.user)
-    if request.method == 'POST':
-        project.delete()
-        messages.success(request, 'Project deleted successfully!')
-        return redirect('projects:project_list')
-    return render(request, 'projects/delete_project.html', {'project': project})
-
-
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Delete associated files
+    if project.featured_image:
+        project.featured_image.delete()
+    if project.pdf_file:
+        project.pdf_file.delete()
+    if project.additional_files:
+        project.additional_files.delete()
+        
+    # Delete analytics data
+    ProjectAnalytics.objects.filter(project=project).delete()
+    
+    # Delete notifications related to this project
+    Notification.objects.filter(project=project).delete()
+    
+    # Delete the project
+    project.delete()
+    
+    messages.success(request, 'Project deleted successfully')
+    return redirect('projects:project_list')
 
 @login_required
 def clap_project(request, pk):
@@ -1134,4 +1157,21 @@ def get_similar_projects(project, limit=3):
         ).exclude(id=project.id)
     
     return similar_projects.distinct()[:limit]
+
+def talents_page(request):
+    # Get all users who are not faculty and have at least one project
+    talents = User.objects.annotate(
+        project_count=Count('project'),
+        follower_count=Count('followers'),
+        following_count=Count('following')
+    ).filter(
+        ~Q(groups__name='Faculty'),  # Exclude faculty members
+        is_active=True  # Only show active users
+    ).order_by('-project_count')  # Order by number of projects
+    
+    context = {
+        'talents': talents,
+        'title': 'Our Talents'
+    }
+    return render(request, 'projects/talents.html', context)
 

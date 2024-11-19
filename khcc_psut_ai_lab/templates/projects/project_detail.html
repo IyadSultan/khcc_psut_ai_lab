@@ -178,75 +178,63 @@
                              class="featured-image card-img-top cursor-pointer"
                              data-bs-toggle="modal"
                              data-bs-target="#imageModal">
-                        {% if user == project.author %}
-                            <div class="position-absolute top-0 end-0 m-3">
-                                <div class="dropdown">
-                                    <button class="btn btn-light btn-sm shadow-sm" type="button" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots-vertical"></i>
+                {% endif %}
+                
+                <!-- Author Actions - Moved outside of featured_image block -->
+                {% if user == project.author %}
+                    <div class="position-absolute top-0 end-0 m-3">
+                        <div class="dropdown">
+                            <button class="btn btn-light btn-sm shadow-sm" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a href="{% url 'projects:edit_project' project.pk %}" class="dropdown-item">
+                                        <i class="bi bi-pencil me-2"></i>Edit Project
+                                    </a>
+                                </li>
+                                <li>
+                                    <button type="button" 
+                                            class="dropdown-item text-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteProjectModal">
+                                        <i class="bi bi-trash me-2"></i>Delete Project
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li>
-                                            <a href="{% url 'projects:edit_project' project.pk %}" 
-                                               class="dropdown-item">
-                                                <i class="bi bi-pencil me-2"></i>Edit Project
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a href="{% url 'projects:edit_seed' project.pk %}"
-                                               class="dropdown-item">
-                                                <i class="bi bi-gear me-2"></i>Edit Seed
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a href="{% url 'projects:project_analytics' project.pk %}" 
-                                               class="dropdown-item">
-                                                <i class="bi bi-graph-up me-2"></i>View Analytics
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <button type="button" 
-                                                    class="dropdown-item text-danger" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#deleteProjectModal">
-                                                <i class="bi bi-trash me-2"></i>Delete Project
-                                            </button>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        {% endif %}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                {% if project.featured_image %}
                     </div>
                 {% endif %}
                 
                 <div class="card-body">
-                    <!-- Author and Date Section -->
-                    <div class="d-flex align-items-center mb-4">
-                        <a href="{% url 'projects:user_profile' project.author.username %}" 
-                           class="text-decoration-none">
-                            <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ project.author.username }}{% endif %}" 
-                                 alt="{{ project.author.username }}" 
-                                 class="rounded-circle me-3 object-fit-cover"
-                                 width="48" height="48">
-                        </a>
+                    <!-- Project Title and Author Info -->
+                    <div class="d-flex justify-content-between align-items-start mb-4">
                         <div>
-                            <h6 class="mb-0">
+                            <h1 class="card-title h2 mb-3">{{ project.title }}</h1>
+                            <div class="d-flex align-items-center text-muted">
                                 <a href="{% url 'projects:user_profile' project.author.username %}" 
-                                   class="text-decoration-none text-dark">
+                                   class="text-decoration-none text-muted">
+                                    <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ project.author.username }}{% endif %}" 
+                                         alt="{{ project.author.username }}" 
+                                         class="rounded-circle me-2"
+                                         width="32" height="32">
                                     {{ project.author.get_full_name|default:project.author.username }}
                                 </a>
-                            </h6>
-                            <div class="text-muted small">
-                                Posted {{ project.created_at|naturaltime }}
+                                <span class="mx-2">•</span>
+                                <span>{{ project.created_at|naturaltime }}</span>
                                 {% if project.updated_at > project.created_at %}
-                                    • Updated {{ project.updated_at|naturaltime }}
+                                    <span class="mx-2">•</span>
+                                    <span>Updated {{ project.updated_at|naturaltime }}</span>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
-
+                    
                     <!-- Project Title and Description -->
-                    <h1 class="card-title h2 mb-4">{{ project.title }}</h1>
                     <div class="project-content mb-4">
                         {{ project.description|linebreaks }}
                     </div>
