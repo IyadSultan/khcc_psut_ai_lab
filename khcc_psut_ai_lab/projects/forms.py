@@ -19,6 +19,10 @@ from .models import (
     Notification
 )
 
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from khcc_psut_ai_lab.constants import TALENT_TYPES
+
 
 
 class NotificationSettingsForm(forms.Form):
@@ -754,3 +758,25 @@ class ProjectForm(forms.ModelForm):
             except Exception as e:
                 raise ValidationError(f'Invalid image file: {str(e)}')
         return image
+
+class ExtendedUserCreationForm(UserCreationForm):
+    talent_type = forms.ChoiceField(
+        choices=TALENT_TYPES,
+        required=True,
+        label='Select Your Talent Type',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password1', 'password2', 'talent_type')
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if commit:
+            user.save()
+            UserProfile.objects.create(
+                user=user,
+                talent_type=self.cleaned_data['talent_type']
+            )
+        return user

@@ -31,11 +31,26 @@ from .models import (
 )
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
-    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm
+    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm, ExtendedUserCreationForm
 )
 from .filters.project_filters import ProjectFilter
 from django.contrib.auth.forms import UserCreationForm
 from .utils.pdf import generate_analytics_pdf
+from khcc_psut_ai_lab.constants import TALENT_TYPES
+
+# Talent Types
+TALENT_TYPES = [
+    ('ai', 'AI Talent'),
+    ('healthcare', 'Healthcare Talent'),
+    ('quality', 'Quality Talent'),
+    ('engineering', 'Engineering Talent'),
+    ('planner', 'Planner Talent'),
+    ('design', 'Design Talent'),
+    ('lab', 'Lab Talent'),
+]
+
+# For easy lookup
+TALENT_DICT = dict(TALENT_TYPES)
 
 class ProjectAnalyticsView(LoginRequiredMixin, DetailView):
     model = Project
@@ -840,9 +855,14 @@ def bookmark_project(request, pk):
     })
 
 class RegisterView(CreateView):
-    form_class = UserCreationForm
+    form_class = ExtendedUserCreationForm
     success_url = reverse_lazy('login')
     template_name = 'registration/register.html'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, 'Registration successful! Please log in.')
+        return response
 
 def get_monthly_contributions():
     """Get users sorted by their contributions in the current month"""
@@ -1159,19 +1179,30 @@ def get_similar_projects(project, limit=3):
     return similar_projects.distinct()[:limit]
 
 def talents_page(request):
-    # Get all users who are not faculty and have at least one project
+    # Get selected talent type from query params
+    talent_type = request.GET.get('talent_type', '')
+    
+    # Base queryset
     talents = User.objects.annotate(
         project_count=Count('project'),
         follower_count=Count('followers'),
         following_count=Count('following')
     ).filter(
-        ~Q(groups__name='Faculty'),  # Exclude faculty members
-        is_active=True  # Only show active users
-    ).order_by('-project_count')  # Order by number of projects
+        ~Q(groups__name='Faculty'),
+        is_active=True
+    )
+    
+    # Apply talent type filter if selected
+    if talent_type:
+        talents = talents.filter(userprofile__talent_type=talent_type)
+    
+    talents = talents.order_by('-project_count')
     
     context = {
         'talents': talents,
-        'title': 'Our Talents'
+        'title': 'Our Talents',
+        'talent_types': TALENT_TYPES,
+        'selected_talent': talent_type
     }
     return render(request, 'projects/talents.html', context)
 

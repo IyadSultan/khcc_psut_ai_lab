@@ -28,8 +28,11 @@
                          style="width: 150px; height: 150px; object-fit: cover;">
                     
                     <h4 class="card-title">{{ profile_user.get_full_name }}</h4>
+                    {% if profile_user.userprofile.talent_type %}
+                        <span class="badge bg-primary mb-2">{{ profile_user.userprofile.get_talent_display }}</span>
+                    {% endif %}
                     {% if is_faculty %}
-                        <span class="badge bg-primary mb-2">Faculty</span>
+                        <span class="badge bg-secondary mb-2">Faculty</span>
                     {% endif %}
 
                     {% if profile_user.profile.title %}

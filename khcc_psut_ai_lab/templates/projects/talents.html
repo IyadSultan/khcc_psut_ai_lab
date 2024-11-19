@@ -10,6 +10,20 @@
         <p class="lead text-muted">
             Discover our community of talented developers and their amazing projects
         </p>
+        
+        <!-- Talent Type Filter -->
+        <div class="d-flex justify-content-center gap-2 mt-4">
+            <a href="{% url 'projects:talents' %}" 
+               class="btn btn-{% if not selected_talent %}primary{% else %}outline-primary{% endif %} btn-sm">
+                All
+            </a>
+            {% for value, label in talent_types %}
+                <a href="{% url 'projects:talents' %}?talent_type={{ value }}" 
+                   class="btn btn-{% if selected_talent == value %}primary{% else %}outline-primary{% endif %} btn-sm">
+                    {{ label }}
+                </a>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- Talents Grid -->

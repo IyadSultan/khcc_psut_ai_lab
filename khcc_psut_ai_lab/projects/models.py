@@ -11,6 +11,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 import uuid
 from django.db.models import Avg
+from django.conf import settings
+from khcc_psut_ai_lab.constants import TALENT_TYPES
 
 # File Upload Path Functions
 def validate_github_url(value):
@@ -253,6 +255,12 @@ class UserProfile(models.Model):
     title = models.CharField(max_length=100, blank=True)
     department = models.CharField(max_length=100, blank=True)
     research_interests = models.TextField(blank=True)
+    talent_type = models.CharField(
+        max_length=20,
+        choices=TALENT_TYPES,
+        default='ai',
+        verbose_name='Talent Type'
+    )
     
     
     @property
@@ -270,6 +278,9 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+    def get_talent_display(self):
+        return dict(TALENT_TYPES).get(self.talent_type, '')
 
 class Clap(models.Model):
     project = models.ForeignKey(
