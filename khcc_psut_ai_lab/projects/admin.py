@@ -316,7 +316,7 @@ class CustomAdminSite(admin.AdminSite):
             'app_label': 'statistics',
             'models': [
                 {
-                    'name': 'Total Projects',
+                    'name': 'Total Seeds',
                     'object_name': 'projects',
                     'count': Project.objects.count(),
                     'admin_url': reverse('admin:projects_project_changelist'),

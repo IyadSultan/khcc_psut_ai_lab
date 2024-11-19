@@ -1,6 +1,6 @@
 # Combined Python and HTML files
-# Generated from directory: C:\Users\USER\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\projects
-# Total files found: 37
+# Generated from directory: C:\Users\isultan\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\projects
+# Total files found: 27
 
 
 
@@ -11,94 +11,14 @@
 # projects/admin.py
 
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import User
-from django.db.models import Count, Sum
 from django.utils.html import format_html
 from django.urls import reverse
+from django.db.models import Count
 from django.utils.safestring import mark_safe
 from .models import (
     Project, Comment, Clap, UserProfile, Rating,
-    Bookmark, ProjectAnalytics, Notification, Follow
+    Bookmark, ProjectAnalytics, Notification
 )
-from allauth.account.models import EmailAddress
-from django.contrib import messages
-
-# Extend UserProfile admin to include faculty-specific fields
-class UserProfileInline(admin.StackedInline):
-    model = UserProfile
-    can_delete = False
-    verbose_name_plural = 'Profile'
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('avatar', 'bio', 'location', 'website')
-        }),
-        ('Professional Information', {
-            'fields': ('title', 'department', 'research_interests')
-        }),
-        ('Social Media', {
-            'fields': ('github_username', 'linkedin_url', 'twitter_username')
-        }),
-        ('Notification Settings', {
-            'fields': (
-                'email_on_comment', 'email_on_follow',
-                'email_on_clap', 'email_on_bookmark'
-            ),
-            'classes': ('collapse',)
-        })
-    )
-
-class EmailAddressInline(admin.StackedInline):
-    model = EmailAddress
-    extra = 0
-    can_delete = True
-    verbose_name = 'Email Address'
-    verbose_name_plural = 'Email Addresses'
-
-# Customize the User admin to include profile information
-class UserAdmin(BaseUserAdmin):
-    inlines = (UserProfileInline, EmailAddressInline)
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_faculty_member', 'is_email_verified')
-    list_filter = BaseUserAdmin.list_filter + ('groups__name', 'emailaddress__verified')
-    actions = ['verify_email_action']
-    
-    def is_faculty_member(self, obj):
-        return obj.groups.filter(name='Faculty').exists()
-    is_faculty_member.boolean = True
-    is_faculty_member.short_description = 'Faculty'
-    
-    def is_email_verified(self, obj):
-        try:
-            return obj.emailaddress_set.first().verified
-        except AttributeError:
-            return False
-    is_email_verified.boolean = True
-    is_email_verified.short_description = 'Email Verified'
-    
-    def verify_email_action(self, request, queryset):
-        verified_count = 0
-        for user in queryset:
-            email_address, created = EmailAddress.objects.get_or_create(
-                user=user,
-                email=user.email,
-                defaults={'verified': True, 'primary': True}
-            )
-            
-            if not created and not email_address.verified:
-                email_address.verified = True
-                email_address.save()
-                verified_count += 1
-
-        self.message_user(
-            request,
-            f"Successfully verified email for {verified_count} users.",
-            messages.SUCCESS
-        )
-    verify_email_action.short_description = "Verify email for selected users"
-
-# Re-register UserAdmin
-admin.site.unregister(User)
-admin.site.register(User, UserAdmin)
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
@@ -195,15 +115,50 @@ class CommentAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'title', 'department', 'is_faculty_member', 'created_at')
-    list_filter = ('department', 'user__groups', 'created_at')
-    search_fields = ('user__username', 'user__email', 'title', 'department')
-    readonly_fields = ('created_at', 'updated_at')
+    list_display = [
+        'user_link', 'location', 'github_username',
+        'project_count', 'total_claps_received', 'avatar_preview'
+    ]
+    list_filter = ['location', 'created_at']
+    search_fields = ['user__username', 'bio', 'location', 'github_username']
+    readonly_fields = [
+        'created_at', 'updated_at', 'avatar_preview',
+        'project_count', 'total_claps_received'
+    ]
     
-    def is_faculty_member(self, obj):
-        return obj.is_faculty
-    is_faculty_member.boolean = True
-    is_faculty_member.short_description = 'Faculty'
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user', 'avatar', 'avatar_preview', 'bio')
+        }),
+        ('Contact Information', {
+            'fields': ('location', 'website')
+        }),
+        ('Social Links', {
+            'fields': ('github_username', 'linkedin_url')
+        }),
+        ('Statistics', {
+            'fields': ('project_count', 'total_claps_received'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def user_link(self, obj):
+        url = reverse('admin:auth_user_change', args=[obj.user.id])
+        return format_html('<a href="{}">{}</a>', url, obj.user.username)
+    user_link.short_description = 'User'
+    
+    def avatar_preview(self, obj):
+        if obj.avatar:
+            return format_html(
+                '<img src="{}" style="max-width: 100px; max-height: 100px;" />',
+                obj.avatar.url
+            )
+        return 'No avatar'
+    avatar_preview.short_description = 'Avatar Preview'
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
@@ -307,11 +262,6 @@ class ProjectAnalyticsAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">{}</a>', url, obj.project.title)
     project_link.short_description = 'Project'
 
-@admin.register(Follow)
-class FollowAdmin(admin.ModelAdmin):
-    list_display = ('follower', 'following', 'created_at')
-    search_fields = ('follower__username', 'following__username')
-
 class CustomAdminSite(admin.AdminSite):
     site_header = 'KHCC_PSUT AI Lab Administration'
     site_title = 'KHCC_PSUT AI Lab Admin'
@@ -361,7 +311,6 @@ admin_site.register(Comment, CommentAdmin)
 admin_site.register(UserProfile, UserProfileAdmin)
 admin_site.register(Notification, NotificationAdmin)
 admin_site.register(ProjectAnalytics, ProjectAnalyticsAdmin)
-admin_site.register(Follow, FollowAdmin)
 
 # Contents from: .\apps.py
 from django.apps import AppConfig
@@ -379,9 +328,12 @@ def get_files_recursively(directory, extensions):
     """
     Recursively get all files with specified extensions from directory and subdirectories.
     Uses os.walk() to traverse through all subdirectories at any depth.
+    Excludes any directories named 'migrations'.
     """
     file_list = []
     for root, dirs, files in os.walk(directory):
+        # Exclude 'migrations' folders from the search
+        dirs[:] = [d for d in dirs if d != '.venv']
         for file in files:
             if any(file.endswith(ext) for ext in extensions):
                 file_list.append(os.path.join(root, file))
@@ -405,8 +357,8 @@ def combine_files(output_file, file_list):
 def main():
     # Define the base directory (current directory in this case)
     base_directory = "."
-    output_file = 'combined.txt'
-    extensions = ('.py', '.html', '.js', '.css')
+    output_file = 'combined.py'
+    extensions = ('.py', '.html', '.css', '.js')
 
     # Remove output file if it exists
     if os.path.exists(output_file):
@@ -556,32 +508,9 @@ from .models import (
     Rating,
     Bookmark,
     ProjectAnalytics,
-    Notification
+    Notification,
+    Profile
 )
-
-
-
-class NotificationSettingsForm(forms.Form):
-    email_on_comment = forms.BooleanField(
-        required=False,
-        label='Email me when someone comments on my projects',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-    email_on_follow = forms.BooleanField(
-        required=False,
-        label='Email me when someone follows me',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-    email_on_clap = forms.BooleanField(
-        required=False,
-        label='Email me when someone claps for my projects',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-    email_on_bookmark = forms.BooleanField(
-        required=False,
-        label='Email me when someone bookmarks my projects',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
 
 class ProjectForm(forms.ModelForm):
     """
@@ -635,14 +564,13 @@ class ProjectForm(forms.ModelForm):
     def clean_github_link(self):
         """Validate GitHub repository URL"""
         url = self.cleaned_data['github_link']
-        if url:  # Only validate if URL is provided
-            if not url.startswith(('https://github.com/', 'http://github.com/')):
-                raise ValidationError('Please enter a valid GitHub repository URL')
-            
-            try:
-                URLValidator()(url)
-            except ValidationError:
-                raise ValidationError('Please enter a valid URL')
+        if not url.startswith(('https://github.com/', 'http://github.com/')):
+            raise ValidationError('Please enter a valid GitHub repository URL')
+        
+        try:
+            URLValidator()(url)
+        except ValidationError:
+            raise ValidationError('Please enter a valid URL')
         
         return url
 
@@ -652,7 +580,10 @@ class ProjectForm(forms.ModelForm):
         if not tags:
             return ''
         
+        # Clean and validate tags
         tag_list = [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
+        
+        # Remove duplicates while preserving order
         seen = set()
         unique_tags = [x for x in tag_list if not (x in seen or seen.add(x))]
         
@@ -668,13 +599,16 @@ class ProjectForm(forms.ModelForm):
         """Validate PDF file"""
         pdf_file = self.cleaned_data.get('pdf_file')
         if pdf_file:
+            # Check file size (10MB limit)
             if pdf_file.size > 10 * 1024 * 1024:
                 raise ValidationError('PDF file must be smaller than 10MB')
 
+            # Check file extension
             ext = os.path.splitext(pdf_file.name)[1].lower()
             if ext != '.pdf':
                 raise ValidationError('Only PDF files are allowed')
 
+            # Check MIME type using mimetypes
             file_type, encoding = mimetypes.guess_type(pdf_file.name)
             if file_type != 'application/pdf':
                 raise ValidationError('Invalid PDF file')
@@ -685,26 +619,32 @@ class ProjectForm(forms.ModelForm):
         """Validate and process featured image"""
         image = self.cleaned_data.get('featured_image')
         if image:
+            # Check file size (5MB limit)
             if image.size > 5 * 1024 * 1024:
                 raise ValidationError('Image file must be smaller than 5MB')
 
             try:
                 img = Image.open(image)
                 
+                # Convert to RGB if necessary
                 if img.mode not in ('RGB', 'RGBA'):
                     img = img.convert('RGB')
                 
+                # Check dimensions
                 if img.width > 2000 or img.height > 2000:
                     raise ValidationError('Image dimensions should not exceed 2000x2000 pixels')
                 
+                # Resize if larger than 1200px
                 if img.width > 1200 or img.height > 1200:
                     output_size = (1200, 1200)
                     img.thumbnail(output_size, Image.LANCZOS)
                 
+                # Save optimized image
                 output = BytesIO()
                 img.save(output, format='JPEG', quality=85, optimize=True)
                 output.seek(0)
                 
+                # Return processed image
                 from django.core.files.uploadedfile import InMemoryUploadedFile
                 return InMemoryUploadedFile(
                     output,
@@ -719,7 +659,10 @@ class ProjectForm(forms.ModelForm):
         return image
 
 class CommentForm(forms.ModelForm):
-    """Form for adding comments to projects"""
+    """
+    Form for adding comments to projects.
+    Includes validation for minimum content length.
+    """
     class Meta:
         model = Comment
         fields = ['content', 'image']
@@ -727,69 +670,136 @@ class CommentForm(forms.ModelForm):
             'content': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'Write your comment here...'
+                'placeholder': 'Write your comment here...',
+                'data-toggle': 'tooltip',
+                'title': 'Share your thoughts, feedback, or questions'
             }),
             'image': forms.FileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*'
             })
         }
+    
+    def clean_content(self):
+        """Validate comment content"""
+        content = self.cleaned_data['content'].strip()
+        if len(content) < 10:
+            raise ValidationError('Comment must be at least 10 characters long')
+        if len(content) > 1000:
+            raise ValidationError('Comment must be less than 1000 characters')
+        return content
 
-# Add this class to forms.py
+    def clean_image(self):
+        """Validate comment image"""
+        image = self.cleaned_data.get('image')
+        if image:
+            # Check file size (2MB limit)
+            if image.size > 2 * 1024 * 1024:
+                raise ValidationError('Image file must be smaller than 2MB')
 
-class ProfileForm(forms.ModelForm):
-    avatar = forms.ImageField(
-        required=False,
-        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'gif'])],
-        widget=forms.FileInput(attrs={
-            'class': 'form-control',
-            'accept': 'image/*'
-        })
-    )
+            try:
+                img = Image.open(image)
+                
+                # Convert to RGB if necessary
+                if img.mode not in ('RGB', 'RGBA'):
+                    img = img.convert('RGB')
+                
+                # Check dimensions
+                if img.width > 1000 or img.height > 1000:
+                    raise ValidationError('Image dimensions should not exceed 1000x1000 pixels')
+                
+                # Resize if larger than 800px
+                if img.width > 800 or img.height > 800:
+                    output_size = (800, 800)
+                    img.thumbnail(output_size, Image.LANCZOS)
+                
+                # Save optimized image
+                output = BytesIO()
+                img.save(output, format='JPEG', quality=85, optimize=True)
+                output.seek(0)
+                
+                # Return processed image
+                from django.core.files.uploadedfile import InMemoryUploadedFile
+                return InMemoryUploadedFile(
+                    output,
+                    'ImageField',
+                    f"{os.path.splitext(image.name)[0]}.jpg",
+                    'image/jpeg',
+                    output.tell(),
+                    None
+                )
+            except Exception as e:
+                raise ValidationError(f'Invalid image file: {str(e)}')
+        return image
 
+class UserProfileForm(forms.ModelForm):
+    """Form for user profile management"""
     class Meta:
         model = UserProfile
-        fields = [
-            'avatar',
-            'bio',
-            'location',
-            'website',
-            'github_username',
-            'linkedin_url',
-            'title',
-            'department',
-            'research_interests',
-            
-        ]
+        fields = ['bio', 'location', 'website', 'github_username', 'linkedin_url', 'avatar']
         widgets = {
             'bio': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
-                'placeholder': 'Tell us about yourself...'
+                'placeholder': 'Tell us about yourself...',
+                'maxlength': '500'
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Where are you based?'
+                'placeholder': 'Where are you based?',
+                'maxlength': '100'
             }),
             'website': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'https://'
+                'placeholder': 'https://yourwebsite.com'
             }),
             'github_username': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Your GitHub username'
+                'placeholder': 'Your GitHub username',
+                'maxlength': '39'
             }),
             'linkedin_url': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Your LinkedIn URL'
+                'placeholder': 'https://www.linkedin.com/in/your-profile'
+            }),
+            'avatar': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
             })
         }
 
     def clean_avatar(self):
+        """Validate avatar file"""
         avatar = self.cleaned_data.get('avatar')
         if avatar:
-            if avatar.size > 5 * 1024 * 1024:  # 5MB limit
-                raise forms.ValidationError("Image file too large ( > 5MB )")
+            # Check file size (5MB limit)
+            if avatar.size > 5 * 1024 * 1024:
+                raise ValidationError('Avatar file must be smaller than 5MB')
+
+            try:
+                img = Image.open(avatar)
+                if img.mode not in ('RGB', 'RGBA'):
+                    img = img.convert('RGB')
+                
+                # Resize to standard avatar size
+                output_size = (300, 300)
+                img.thumbnail(output_size, Image.LANCZOS)
+                
+                output = BytesIO()
+                img.save(output, format='JPEG', quality=85, optimize=True)
+                output.seek(0)
+                
+                from django.core.files.uploadedfile import InMemoryUploadedFile
+                return InMemoryUploadedFile(
+                    output,
+                    'ImageField',
+                    f"{os.path.splitext(avatar.name)[0]}.jpg",
+                    'image/jpeg',
+                    output.tell(),
+                    None
+                )
+            except Exception as e:
+                raise ValidationError(f'Invalid image file: {str(e)}')
         return avatar
 
 class RatingForm(forms.ModelForm):
@@ -797,6 +807,24 @@ class RatingForm(forms.ModelForm):
     class Meta:
         model = Rating
         fields = ['score', 'review']
+        widgets = {
+            'score': forms.Select(attrs={
+                'class': 'form-select',
+                'aria-label': 'Rating score'
+            }),
+            'review': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Share your experience with this project (optional)',
+                'maxlength': 500
+            })
+        }
+
+    def clean_review(self):
+        review = self.cleaned_data.get('review', '').strip()
+        if len(review) > 500:
+            raise ValidationError('Review must be less than 500 characters')
+        return review
 
 class BookmarkForm(forms.ModelForm):
     """Form for managing bookmarks"""
@@ -809,38 +837,49 @@ class BookmarkForm(forms.ModelForm):
 
 class ProjectSearchForm(forms.Form):
     """Form for project search and filtering"""
-    query = forms.CharField(required=False)
-    tags = forms.CharField(required=False)
+    query = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search projects...',
+            'aria-label': 'Search'
+        })
+    )
+    
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Filter by tags (comma separated)',
+            'aria-label': 'Tags'
+        })
+    )
+    
+    SORT_CHOICES = [
+        ('-created_at', 'Newest first'),
+        ('created_at', 'Oldest first'),
+        ('-claps', 'Most popular'),
+        ('title', 'Alphabetical'),
+    ]
+    
     sort = forms.ChoiceField(
         required=False,
-        choices=[
-            ('-created_at', 'Newest first'),
-            ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
-            ('title', 'Alphabetical'),
-        ]
+        initial='-created_at',
+        choices=SORT_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'aria-label': 'Sort projects'
+        })
     )
 
-class AdvancedSearchForm(forms.Form):
-    """Advanced search form"""
-    query = forms.CharField(required=False)
-    tags = forms.CharField(required=False)
-    date_from = forms.DateField(required=False)
-    date_to = forms.DateField(required=False)
-    min_claps = forms.IntegerField(required=False, min_value=0)
-    has_github = forms.BooleanField(required=False)
-    sort_by = forms.ChoiceField(
-        required=False,
-        choices=[
-            ('-created_at', 'Newest first'),
-            ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
-            ('-comment_count', 'Most discussed'),
-            ('title', 'Alphabetical'),
-            ('-rating_avg', 'Highest rated')
-        ]
-    )
+    def clean_tags(self):
+        tags = self.cleaned_data.get('tags', '')
+        if tags:
+            return [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
+        return []
+    
 
+################################
 
 class FileValidationMixin:
     """Mixin for common file validation methods"""
@@ -863,308 +902,9 @@ class FileValidationMixin:
         except Exception as e:
             raise ValidationError(f'Invalid image file: {str(e)}')
 
-class ProjectForm(forms.ModelForm, FileValidationMixin):
-    """
-    Form for creating and editing projects.
-    Includes validation for GitHub links and tag formatting.
-    """
-    tags = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter tags separated by commas (e.g., AI, Machine Learning, NLP)',
-            'data-toggle': 'tooltip',
-            'title': 'Add up to 5 tags to help others find your project'
-        })
-    )
-    
-    class Meta:
-        model = Project
-        fields = ['title', 'description', 'github_link', 'tags', 'pdf_file', 'featured_image']
-        widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter project title',
-                'maxlength': '200'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 5,
-                'placeholder': 'Describe your project in detail...'
-            }),
-            'github_link': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'https://github.com/username/repository'
-            }),
-            'pdf_file': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'application/pdf',
-            }),
-            'featured_image': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*',
-            })
-        }
-
-    def clean_github_link(self):
-        url = self.cleaned_data['github_link']
-        if url:  # Only validate if URL is provided
-            if not url.startswith(('https://github.com/', 'http://github.com/')):
-                raise ValidationError('Please enter a valid GitHub repository URL')
-            
-            try:
-                URLValidator()(url)
-            except ValidationError:
-                raise ValidationError('Please enter a valid URL')
-        
-        return url
-
-    def clean_tags(self):
-        tags = self.cleaned_data['tags']
-        if not tags:
-            return ''
-        
-        tag_list = [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
-        seen = set()
-        unique_tags = [x for x in tag_list if not (x in seen or seen.add(x))]
-        
-        if len(unique_tags) > 5:
-            raise ValidationError('Please enter no more than 5 unique tags')
-        
-        if any(len(tag) > 20 for tag in unique_tags):
-            raise ValidationError('Each tag must be less than 20 characters')
-        
-        return ', '.join(unique_tags)
-
-    def clean_pdf_file(self):
-        pdf_file = self.cleaned_data.get('pdf_file')
-        if pdf_file:
-            self.validate_file_size(pdf_file, 10)
-            self.validate_file_type(pdf_file, ['application/pdf'])
-        return pdf_file
-
-    def clean_featured_image(self):
-        image = self.cleaned_data.get('featured_image')
-        if image:
-            self.validate_file_size(image, 5)
-            img = self.validate_image(image)
-            
-            if img.mode not in ('RGB', 'RGBA'):
-                img = img.convert('RGB')
-            
-            if img.width > 1200 or img.height > 1200:
-                output_size = (1200, 1200)
-                img.thumbnail(output_size, Image.LANCZOS)
-            
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=85, optimize=True)
-            output.seek(0)
-            
-            from django.core.files.uploadedfile import InMemoryUploadedFile
-            return InMemoryUploadedFile(
-                output,
-                'ImageField',
-                f"{os.path.splitext(image.name)[0]}.jpg",
-                'image/jpeg',
-                output.tell(),
-                None
-            )
-        return image
-
-class CommentForm(forms.ModelForm, FileValidationMixin):
-    """Form for adding comments to projects"""
-    class Meta:
-        model = Comment
-        fields = ['content', 'image']
-        widgets = {
-            'content': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Write your comment here...'
-            }),
-            'image': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
-            })
-        }
-
-    def clean_content(self):
-        content = self.cleaned_data['content'].strip()
-        if len(content) < 10:
-            raise ValidationError('Comment must be at least 10 characters long')
-        if len(content) > 1000:
-            raise ValidationError('Comment must be less than 1000 characters')
-        return content
-
-    def clean_image(self):
-        image = self.cleaned_data.get('image')
-        if image:
-            self.validate_file_size(image, 2)
-            img = self.validate_image(image, 1000)
-            
-            if img.mode not in ('RGB', 'RGBA'):
-                img = img.convert('RGB')
-            
-            if img.width > 800 or img.height > 800:
-                output_size = (800, 800)
-                img.thumbnail(output_size, Image.LANCZOS)
-            
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=85, optimize=True)
-            output.seek(0)
-            
-            from django.core.files.uploadedfile import InMemoryUploadedFile
-            return InMemoryUploadedFile(
-                output,
-                'ImageField',
-                f"{os.path.splitext(image.name)[0]}.jpg",
-                'image/jpeg',
-                output.tell(),
-                None
-            )
-        return image
-
-class UserProfileForm(forms.ModelForm, FileValidationMixin):
-    """Form for user profile management"""
-    class Meta:
-        model = UserProfile
-        fields = [
-            'bio', 'location', 'website', 'github_username',
-            'linkedin_url', 'avatar', 'email_on_comment',
-            'email_on_follow', 'email_on_clap', 'email_on_bookmark'
-        ]
-        widgets = {
-            'bio': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Tell us about yourself...'
-            }),
-            'location': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Where are you based?'
-            }),
-            'website': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'https://yourwebsite.com'
-            }),
-            'github_username': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Your GitHub username'
-            }),
-            'linkedin_url': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'https://linkedin.com/in/your-profile'
-            }),
-            'avatar': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
-            })
-        }
-
-    def clean_avatar(self):
-        avatar = self.cleaned_data.get('avatar')
-        if avatar:
-            self.validate_file_size(avatar, 5)
-            img = self.validate_image(avatar)
-            
-            if img.mode not in ('RGB', 'RGBA'):
-                img = img.convert('RGB')
-            
-            output_size = (300, 300)
-            img.thumbnail(output_size, Image.LANCZOS)
-            
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=85, optimize=True)
-            output.seek(0)
-            
-            from django.core.files.uploadedfile import InMemoryUploadedFile
-            return InMemoryUploadedFile(
-                output,
-                'ImageField',
-                f"{os.path.splitext(avatar.name)[0]}.jpg",
-                'image/jpeg',
-                output.tell(),
-                None
-            )
-        return avatar
-
-class RatingForm(forms.ModelForm):
-    """Form for rating projects"""
-    class Meta:
-        model = Rating
-        fields = ['score', 'review']
-        widgets = {
-            'score': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'review': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Write your review here...'
-            })
-        }
-
-class BookmarkForm(forms.ModelForm):
-    """Form for managing bookmarks"""
-    class Meta:
-        model = Bookmark
-        fields = ['project']
-        widgets = {
-            'project': forms.HiddenInput()
-        }
-
-class NotificationSettingsForm(forms.Form):
-    """Form for notification preferences"""
-    email_on_comment = forms.BooleanField(
-        required=False,
-        label='Email me when someone comments on my projects'
-    )
-    email_on_follow = forms.BooleanField(
-        required=False,
-        label='Email me when someone follows me'
-    )
-    email_on_clap = forms.BooleanField(
-        required=False,
-        label='Email me when someone claps for my projects'
-    )
-    email_on_bookmark = forms.BooleanField(
-        required=False,
-        label='Email me when someone bookmarks my projects'
-    )
-
-class ProjectSearchForm(forms.Form):
-    """Form for project search and filtering"""
-    query = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Search projects...'
-        })
-    )
-    
-    tags = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Filter by tags (comma separated)'
-        })
-    )
-    
-    sort = forms.ChoiceField(
-        required=False,
-        choices=[
-            ('-created_at', 'Newest first'),
-            ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
-            ('title', 'Alphabetical'),
-        ],
-        widget=forms.Select(attrs={
-            'class': 'form-select'
-        })
-    )
-
 class AdvancedSearchForm(forms.Form):
     """Advanced search form with multiple filters"""
+    
     query = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -1231,6 +971,126 @@ class AdvancedSearchForm(forms.Form):
             raise ValidationError("End date should be greater than start date")
         
         return cleaned_data
+
+# projects/filters.py
+
+import django_filters
+from django.db.models import Avg, Count, Q
+from .models import Project
+
+class ProjectFilter(django_filters.FilterSet):
+    """FilterSet for advanced project filtering"""
+    query = django_filters.CharFilter(method='filter_query')
+    tags = django_filters.CharFilter(method='filter_tags')
+    date_from = django_filters.DateFilter(field_name='created_at', lookup_expr='gte')
+    date_to = django_filters.DateFilter(field_name='created_at', lookup_expr='lte')
+    min_claps = django_filters.NumberFilter(field_name='claps', lookup_expr='gte')
+    has_github = django_filters.BooleanFilter(method='filter_has_github')
+    
+    class Meta:
+        model = Project
+        fields = ['query', 'tags', 'date_from', 'date_to', 'min_claps', 'has_github']
+    
+    def filter_query(self, queryset, name, value):
+        if not value:
+            return queryset
+        
+        return queryset.filter(
+            Q(title__icontains=value) |
+            Q(description__icontains=value) |
+            Q(author__username__icontains=value) |
+            Q(tags__icontains=value)
+        )
+    
+    def filter_tags(self, queryset, name, value):
+        if not value:
+            return queryset
+        
+        tags = [tag.strip().lower() for tag in value.split(',') if tag.strip()]
+        for tag in tags:
+            queryset = queryset.filter(tags__icontains=tag)
+        return queryset
+    
+    def filter_has_github(self, queryset, name, value):
+        if value:
+            return queryset.exclude(github_link='')
+        return queryset
+
+# Now let's update the views.py to use these filters:
+
+class NotificationSettingsForm(forms.Form):
+    email_on_comment = forms.BooleanField(
+        required=False,
+        label='Email me when someone comments on my projects',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    email_on_follow = forms.BooleanField(
+        required=False,
+        label='Email me when someone follows me',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    email_on_clap = forms.BooleanField(
+        required=False,
+        label='Email me when someone claps for my projects',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    email_on_bookmark = forms.BooleanField(
+        required=False,
+        label='Email me when someone bookmarks my projects',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
+class ProfileForm(forms.ModelForm):
+    avatar = forms.ImageField(
+        required=False,
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'gif'])],
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*'
+        })
+    )
+
+    class Meta:
+        model = Profile
+        fields = [
+            'bio', 
+            'location', 
+            'website', 
+            'github_username', 
+            'twitter_username', 
+            'avatar'
+        ]
+        widgets = {
+            'bio': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Tell us about yourself...'
+            }),
+            'location': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Where are you based?'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            }),
+            'github_username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your GitHub username'
+            }),
+            'twitter_username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your Twitter username'
+            })
+        }
+
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get('avatar')
+        if avatar:
+            if avatar.size > 5 * 1024 * 1024:  # 5MB limit
+                raise forms.ValidationError("Image file too large ( > 5MB )")
+        return avatar
+
 
 # Contents from: .\migrations\0001_initial.py
 # Generated by Django 5.1.3 on 2024-11-17 21:54
@@ -1931,218 +1791,6 @@ class Migration(migrations.Migration):
     ]
 
 
-# Contents from: .\migrations\0010_userprofile_email_on_bookmark_and_more.py
-# Generated by Django 5.1.3 on 2024-11-18 14:33
-
-from django.db import migrations, models
-
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("projects", "0009_follow"),
-    ]
-
-    operations = [
-        migrations.AddField(
-            model_name="userprofile",
-            name="email_on_bookmark",
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name="userprofile",
-            name="email_on_clap",
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name="userprofile",
-            name="email_on_comment",
-            field=models.BooleanField(default=True),
-        ),
-        migrations.AddField(
-            model_name="userprofile",
-            name="email_on_follow",
-            field=models.BooleanField(default=True),
-        ),
-        migrations.AddField(
-            model_name="userprofile",
-            name="twitter_username",
-            field=models.CharField(blank=True, max_length=100),
-        ),
-    ]
-
-
-# Contents from: .\migrations\0011_alter_project_github_link.py
-# Generated by Django 5.1.3 on 2024-11-18 15:11
-
-import django.core.validators
-import projects.models
-from django.db import migrations, models
-
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("projects", "0010_userprofile_email_on_bookmark_and_more"),
-    ]
-
-    operations = [
-        migrations.AlterField(
-            model_name="project",
-            name="github_link",
-            field=models.URLField(
-                blank=True,
-                null=True,
-                validators=[
-                    django.core.validators.URLValidator(),
-                    projects.models.validate_github_url,
-                ],
-            ),
-        ),
-    ]
-
-
-# Contents from: .\migrations\0012_alter_project_slug.py
-# Generated by Django 5.1.3 on 2024-11-18 15:14
-
-from django.db import migrations, models
-
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("projects", "0011_alter_project_github_link"),
-    ]
-
-    operations = [
-        migrations.AlterField(
-            model_name="project",
-            name="slug",
-            field=models.SlugField(blank=True, max_length=255, unique=True),
-        ),
-    ]
-
-
-# Contents from: .\migrations\0013_project_total_ratings.py
-# Generated by Django 5.1.3 on 2024-11-18 15:49
-
-from django.db import migrations, models
-
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("projects", "0012_alter_project_slug"),
-    ]
-
-    operations = [
-        migrations.AddField(
-            model_name="project",
-            name="total_ratings",
-            field=models.PositiveIntegerField(default=0),
-        ),
-    ]
-
-
-# Contents from: .\migrations\0014_rename_total_ratings_project_rating_count_and_more.py
-# Generated by Django 5.1.3 on 2024-11-18 15:54
-
-from django.db import migrations, models
-
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("projects", "0013_project_total_ratings"),
-    ]
-
-    operations = [
-        migrations.RenameField(
-            model_name="project",
-            old_name="total_ratings",
-            new_name="rating_count",
-        ),
-        migrations.AddField(
-            model_name="project",
-            name="rating_total",
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=5),
-        ),
-    ]
-
-
-# Contents from: .\migrations\0015_userprofile_department_and_more.py
-# Generated by Django 5.1.3 on 2024-11-18 17:14
-
-from django.db import migrations, models
-
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("projects", "0014_rename_total_ratings_project_rating_count_and_more"),
-    ]
-
-    operations = [
-        migrations.AddField(
-            model_name="userprofile",
-            name="department",
-            field=models.CharField(blank=True, max_length=100),
-        ),
-        migrations.AddField(
-            model_name="userprofile",
-            name="research_interests",
-            field=models.TextField(blank=True),
-        ),
-        migrations.AddField(
-            model_name="userprofile",
-            name="title",
-            field=models.CharField(blank=True, max_length=100),
-        ),
-    ]
-
-
-# Contents from: .\migrations\0016_rename_claps_project_clap_count_alter_clap_project_and_more.py
-# Generated by Django 5.1.3 on 2024-11-18 17:18
-
-import django.db.models.deletion
-from django.conf import settings
-from django.db import migrations, models
-
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("projects", "0015_userprofile_department_and_more"),
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-    ]
-
-    operations = [
-        migrations.RenameField(
-            model_name="project",
-            old_name="claps",
-            new_name="clap_count",
-        ),
-        migrations.AlterField(
-            model_name="clap",
-            name="project",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="claps",
-                to="projects.project",
-            ),
-        ),
-        migrations.AlterField(
-            model_name="clap",
-            name="user",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="user_claps",
-                to=settings.AUTH_USER_MODEL,
-            ),
-        ),
-    ]
-
-
 # Contents from: .\migrations\__init__.py
 
 
@@ -2158,8 +1806,6 @@ from datetime import timedelta
 import os
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-import uuid
-from django.db.models import Avg
 
 # File Upload Path Functions
 def validate_github_url(value):
@@ -2185,16 +1831,16 @@ def comment_image_upload_path(instance, filename):
 # Models
 class Project(models.Model):
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, max_length=255, blank=True)
+    slug = models.SlugField(unique=True, blank=True)
     description = models.TextField()
-    github_link = models.URLField(validators=[URLValidator(), validate_github_url], blank=True, null=True)
+    github_link = models.URLField(validators=[URLValidator(), validate_github_url])
     tags = models.CharField(
         max_length=100, 
         blank=True, 
         help_text="Enter tags separated by commas"
     )
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    clap_count = models.IntegerField(default=0)
+    claps = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -2226,9 +1872,6 @@ class Project(models.Model):
         help_text="Upload additional files (PDF, DOC, TXT, ZIP - max 10MB)"
     )
     
-    rating_total = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    rating_count = models.PositiveIntegerField(default=0)
-    
     class Meta:
         ordering = ['-created_at']
         
@@ -2237,17 +1880,15 @@ class Project(models.Model):
         
     def save(self, *args, **kwargs):
         if not self.slug:
-            # Generate base slug from title
-            base_slug = slugify(self.title)
-            
-            # Check if the base slug exists
-            if Project.objects.filter(slug=base_slug).exists():
-                # If it exists, append a UUID to make it unique
-                base_slug = f"{base_slug}-{str(uuid.uuid4())[:8]}"
-            
-            self.slug = base_slug
-            
-        super().save(*args, **kwargs)
+            self.slug = slugify(self.title)
+        
+        # Create upload directory if it doesn't exist
+        if not self.pk:  # Only for new instances
+            super().save(*args, **kwargs)
+            upload_dir = os.path.dirname(project_file_upload_path(self, ''))
+            os.makedirs(os.path.join('media', upload_dir), exist_ok=True)
+        else:
+            super().save(*args, **kwargs)
     
     @property
     def tag_list(self):
@@ -2258,13 +1899,14 @@ class Project(models.Model):
         return self.comments.count()
         
     def user_has_clapped(self, user):
-        return self.claps.filter(user=user).exists()
+        return self.claps_set.filter(user=user).exists()
     
     @property
     def average_rating(self):
-        if self.rating_count == 0:
-            return 0
-        return round(float(self.rating_total) / self.rating_count, 1)
+        ratings = self.ratings.all()
+        if not ratings:
+            return None
+        return sum(r.score for r in ratings) / len(ratings)
 
     def clean(self):
         super().clean()
@@ -2275,27 +1917,6 @@ class Project(models.Model):
             raise ValidationError({'additional_files': 'File must be smaller than 10MB'})
         if self.featured_image and self.featured_image.size > 5 * 1024 * 1024:  # 5MB
             raise ValidationError({'featured_image': 'Image must be smaller than 5MB'})
-
-    def update_rating_stats(self):
-        """Update the rating statistics"""
-        ratings = self.ratings.all()
-        count = ratings.count()
-        if count > 0:
-            total = sum(r.score for r in ratings)
-            self.rating_total = total
-            self.rating_count = count
-        else:
-            self.rating_total = 0
-            self.rating_count = 0
-        self.save()
-
-    def get_featured_image_url(self):
-        """Get the featured image URL or return None"""
-        return self.featured_image.url if self.featured_image else None
-        
-    def get_pdf_url(self):
-        """Get the PDF file URL or return None"""
-        return self.pdf_file.url if self.pdf_file else None
 
 class Comment(models.Model):
     project = models.ForeignKey(
@@ -2336,46 +1957,34 @@ class UserProfile(models.Model):
     bio = models.TextField(max_length=500, blank=True)
     location = models.CharField(max_length=100, blank=True)
     website = models.URLField(blank=True)
-    github_username = models.CharField(max_length=39, blank=True) 
+    github_username = models.CharField(max_length=39, blank=True)
     linkedin_url = models.URLField(blank=True)
-    twitter_username = models.CharField(max_length=100, blank=True)
     avatar = models.ImageField(
         upload_to=avatar_upload_path,
         null=True,
         blank=True
     )
-    title = models.CharField(max_length=100, blank=True)
-    department = models.CharField(max_length=100, blank=True)
-    research_interests = models.TextField(blank=True)
-    
-    
-    @property
-    def is_faculty(self):
-        return self.user.groups.filter(name='Faculty').exists()
-    
-    # Notification settings
-    email_on_comment = models.BooleanField(default=True)
-    email_on_follow = models.BooleanField(default=True)
-    email_on_clap = models.BooleanField(default=False)
-    email_on_bookmark = models.BooleanField(default=False)
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     def __str__(self):
         return f"{self.user.username}'s profile"
+    
+    @property
+    def project_count(self):
+        return self.user.project_set.count()
+    
+    @property
+    def total_claps_received(self):
+        return sum(project.claps for project in self.user.project_set.all())
 
 class Clap(models.Model):
     project = models.ForeignKey(
         Project, 
-        related_name='claps', 
+        related_name='claps_set', 
         on_delete=models.CASCADE
     )
-    user = models.ForeignKey(
-        User,
-        related_name='user_claps', 
-        on_delete=models.CASCADE
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -2548,7 +2157,23 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
 
-
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    bio = models.TextField(max_length=500, blank=True)
+    location = models.CharField(max_length=100, blank=True)
+    website = models.URLField(blank=True)
+    github_username = models.CharField(max_length=100, blank=True)
+    twitter_username = models.CharField(max_length=100, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    
+    # Notification settings
+    email_on_comment = models.BooleanField(default=True)
+    email_on_follow = models.BooleanField(default=True)
+    email_on_clap = models.BooleanField(default=False)
+    email_on_bookmark = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.user.username}'s profile"
 
 # Contents from: .\serializers.py
 # projects/serializers.py
@@ -2739,48 +2364,6 @@ class ProjectAnalyticsSummarySerializer(serializers.ModelSerializer):
         model = ProjectAnalytics
         fields = ['view_count', 'unique_visitors', 'github_clicks']
 
-# Contents from: .\templatetags\__init__.py
-
-
-# Contents from: .\templatetags\custom_filters.py
-# projects/templatetags/custom_filters.py
-
-from django import template
-
-register = template.Library()
-
-@register.filter
-def split(value, arg):
-    """Split a string by the given delimiter"""
-    return value.split(arg)
-
-# Contents from: .\templatetags\project_tags.py
-# projects/templatetags/project_tags.py
-
-from django import template
-from django.db.models import Q
-from ..models import Project
-
-register = template.Library()
-
-@register.simple_tag
-def get_similar_projects(project):
-    """Returns similar projects based on tags"""
-    if not project.tags:
-        return Project.objects.exclude(id=project.id)[:3]
-    
-    tags = [tag.strip() for tag in project.tags.split(',')]
-    similar_projects = Project.objects.filter(
-        tags__icontains=tags[0]
-    ).exclude(id=project.id)
-    
-    for tag in tags[1:]:
-        similar_projects = similar_projects | Project.objects.filter(
-            tags__icontains=tag
-        ).exclude(id=project.id)
-    
-    return similar_projects.distinct()[:3]
-
 # Contents from: .\templatetags\search_tags.py
 # projects/templatetags/search_tags.py
 
@@ -2846,54 +2429,49 @@ from . import views
 app_name = 'projects'
 
 urlpatterns = [
-    # Homepage and Project List
-    path('', views.homepage, name='homepage'),
-    path('projects/', views.project_list, name='project_list'),
-    
     # Project Management
-    path('submit/', views.submit_project, name='submit_project'),
-    path('search/', views.search_projects, name='search_projects'),
-    path('leaderboard/', views.leaderboard_view, name='leaderboard'),
+    path('', views.project_list, name='project_list'),  # Main page to list projects
+    path('submit/', views.submit_project, name='submit_project'),  # Page to submit a new project
+    path('search/', views.search_projects, name='search_projects'),  # Page to search for projects
+    path('leaderboard/', views.leaderboard_view, name='leaderboard'),  # Page to view project leaderboard
     
     # Project Detail & Actions
-    path('project/<int:pk>/', views.project_detail, name='project_detail'),
-    path('project/<int:pk>/edit/', views.edit_project, name='edit_project'),
-    path('project/<int:pk>/rate/', views.rate_project, name='rate_project'),
-    path('project/<int:pk>/bookmark/', views.bookmark_project, name='bookmark_project'),
-    path('project/<int:pk>/clap/', views.clap_project, name='clap_project'),
-    path('project/<int:pk>/delete/', views.delete_project, name='delete_project'),
+    path('project/<int:pk>/', views.project_detail, name='project_detail'),  # View details of a specific project
+    path('project/<int:pk>/edit/', views.edit_project, name='edit_project'),  # Edit a specific project
+    path('project/<int:pk>/rate/', views.rate_project, name='rate_project'),  # Rate a specific project
+    path('project/<int:pk>/bookmark/', views.bookmark_project, name='bookmark_project'),  # Bookmark a specific project
+    path('project/<int:pk>/clap/', views.clap_project, name='clap_project'),  # Clap for a specific project
+    path('project/<int:pk>/delete/', views.delete_project, name='delete_project'),  # Delete a specific project
     
     # Analytics
-    path('project/<int:pk>/analytics/', views.ProjectAnalyticsView.as_view(), name='project_analytics'),
-    path('project/<int:pk>/analytics/data/', views.analytics_data, name='analytics_data'),
-    path('project/<int:pk>/analytics/export/csv/', views.export_analytics_csv, name='export_analytics_csv'),
-    path('project/<int:pk>/analytics/export/pdf/', views.export_analytics_pdf, name='export_analytics_pdf'),
+    path('project/<int:pk>/analytics/', views.ProjectAnalyticsView.as_view(), name='project_analytics'),  # View project analytics
+    path('project/<int:pk>/analytics/data/', views.analytics_data, name='analytics_data'),  # Get analytics data for a project
+    path('project/<int:pk>/analytics/export/csv/', views.export_analytics_csv, name='export_analytics_csv'),  # Export analytics as CSV
+    path('project/<int:pk>/analytics/export/pdf/', views.export_analytics_pdf, name='export_analytics_pdf'),  # Export analytics as PDF
     
     # User Profiles - Note the reordered URLs
-    path('profile/edit/', views.edit_profile, name='edit_profile'),  # Moved before username pattern
-    path('profile/settings/', views.profile_settings, name='profile_settings'),  # Added settings
-    path('profile/<str:username>/', views.user_profile, name='user_profile'),
-    path('profile/<str:username>/projects/', views.user_projects, name='user_projects'),
-    path('profile/<str:username>/follow/', views.follow_user, name='follow_user'),
-    path('profile/<str:username>/unfollow/', views.unfollow_user, name='unfollow_user'),
+    path('profile/edit/', views.edit_profile, name='edit_profile'),  # Edit user profile
+    path('profile/settings/', views.profile_settings, name='profile_settings'),  # User profile settings
+    path('profile/<str:username>/', views.user_profile, name='user_profile'),  # View a user's profile
+    path('profile/<str:username>/projects/', views.user_projects, name='user_projects'),  # View projects by a user
+    path('profile/<str:username>/follow/', views.follow_user, name='follow_user'),  # Follow a user
+    path('profile/<str:username>/unfollow/', views.unfollow_user, name='unfollow_user'),  # Unfollow a user
     
     # Notifications
-    path('notifications/', views.notifications, name='notifications'),
+    path('notifications/', views.notifications, name='notifications'),  # View user notifications
     path('notifications/<int:notification_id>/mark-read/', 
-         views.mark_notification_read, name='mark_notification_read'),
+         views.mark_notification_read, name='mark_notification_read'),  # Mark a notification as read
     path('notifications/mark-all-read/', 
-         views.mark_all_notifications_read, name='mark_all_notifications_read'),
+         views.mark_all_notifications_read, name='mark_all_notifications_read'),  # Mark all notifications as read
     
     # Comments
-    path('comment/<int:pk>/delete/', views.delete_comment, name='delete_comment'),
-    path('comment/<int:pk>/edit/', views.edit_comment, name='edit_comment'),
+    path('comment/<int:pk>/delete/', views.delete_comment, name='delete_comment'),  # Delete a comment
+    path('comment/<int:pk>/edit/', views.edit_comment, name='edit_comment'),  # Edit a comment
     
     # API Endpoints
-    path('api/projects/', views.ProjectListAPI.as_view(), name='api_project_list'),
-    path('api/projects/<int:pk>/', views.ProjectDetailAPI.as_view(), name='api_project_detail'),
-    path('api/projects/<int:pk>/analytics/', views.ProjectAnalyticsAPI.as_view(), name='api_project_analytics'),
-    path('faculty/', views.faculty_page, name='faculty_page'),
-    path('careers/', views.careers_page, name='careers'),
+    path('api/projects/', views.ProjectListAPI.as_view(), name='api_project_list'),  # API to list projects
+    path('api/projects/<int:pk>/', views.ProjectDetailAPI.as_view(), name='api_project_detail'),  # API to get project details
+    path('api/projects/<int:pk>/analytics/', views.ProjectAnalyticsAPI.as_view(), name='api_project_analytics'),  # API for project analytics
 ]
 
 # Contents from: .\utils\__init__.py
@@ -3520,19 +3098,21 @@ def submit_project(request):
     if request.method == 'POST':
         form = ProjectForm(request.POST, request.FILES)
         if form.is_valid():
-            try:
-                project = form.save(commit=False)
-                project.author = request.user
-                project.save()
-                
-                # Create project directory
-                project_dir = f'uploads/user_{request.user.id}/project_{project.id}'
-                os.makedirs(os.path.join(settings.MEDIA_ROOT, project_dir), exist_ok=True)
-                
-                messages.success(request, 'Project submitted successfully!')
-                return redirect('projects:project_detail', pk=project.pk)
-            except Exception as e:
-                messages.error(request, f'Error saving project: {str(e)}')
+            project = form.save(commit=False)
+            project.author = request.user
+            
+            # Handle featured image
+            if 'featured_image' in request.FILES:
+                project.featured_image = form.cleaned_data['featured_image']
+            
+            project.save()
+            
+            # Create project directory
+            project_dir = f'uploads/user_{request.user.id}/project_{project.id}'
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, project_dir), exist_ok=True)
+            
+            messages.success(request, 'Project submitted successfully!')
+            return redirect('project_detail', pk=project.pk)
     else:
         form = ProjectForm()
     
@@ -3550,13 +3130,6 @@ def project_detail(request, pk):
             comment = form.save(commit=False)
             comment.project = project
             comment.user = request.user
-            
-            # Handle replies
-            parent_id = request.POST.get('parent_id')
-            if parent_id:
-                parent_comment = get_object_or_404(Comment, id=parent_id)
-                comment.parent = parent_comment
-            
             comment.save()
             
             # Create notification for project author
@@ -3570,19 +3143,14 @@ def project_detail(request, pk):
                 )
             
             messages.success(request, 'Comment added successfully!')
-            return redirect('projects:project_detail', pk=pk)
-        else:
-            messages.error(request, 'Error posting comment. Please check your input.')
+            return redirect('project_detail', pk=pk)
     else:
         form = CommentForm()
     
     context = {
         'project': project,
         'comments': comments,
-        'comment_form': form,
-        'featured_image_url': project.get_featured_image_url(),
-        'pdf_url': project.get_pdf_url(),
-        'rating_form': RatingForm(),
+        'form': form,
     }
     return render(request, 'projects/project_detail.html', context)
 
@@ -3592,46 +3160,30 @@ def project_detail(request, pk):
 def rate_project(request, pk):
     if request.method == 'POST':
         project = get_object_or_404(Project, pk=pk)
-        score = request.POST.get('score')
-        review = request.POST.get('review', '')
+        form = RatingForm(request.POST)
         
-        try:
-            score = int(score)
-            if not (1 <= score <= 5):
-                return JsonResponse({'status': 'error', 'message': 'Invalid rating'}, status=400)
-                
+        if form.is_valid():
             rating, created = Rating.objects.update_or_create(
                 project=project,
                 user=request.user,
                 defaults={
-                    'score': score,
-                    'review': review
+                    'score': form.cleaned_data['score'],
+                    'review': form.cleaned_data['review']
                 }
             )
             
-            # Update project rating stats
-            project.update_rating_stats()
+            # Update project rating cache
+            avg_rating = project.ratings.aggregate(Avg('score'))['score__avg']
+            cache.set(f'project_rating_{project.id}', avg_rating, timeout=3600)
             
-            # Create notification for project author if it's a new rating
-            if created and project.author != request.user:
-                Notification.objects.create(
-                    recipient=project.author,
-                    sender=request.user,
-                    project=project,
-                    notification_type='rating',
-                    message=f"{request.user.username} rated your project"
-                )
-            
+            messages.success(request, 'Thank you for your rating!')
             return JsonResponse({
                 'status': 'success',
-                'rating': project.average_rating,
-                'total_ratings': project.rating_count
+                'rating': avg_rating,
+                'total_ratings': project.ratings.count()
             })
-            
-        except (ValueError, TypeError) as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-            
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    
+    return JsonResponse({'status': 'error'}, status=400)
 
 @login_required
 def toggle_bookmark(request, pk):
@@ -3671,22 +3223,19 @@ def bookmarks(request):
 def edit_profile(request):
     try:
         profile = request.user.profile
-    except Profile.DoesNotExist:
-        profile = Profile.objects.create(user=request.user)
-
+    except UserProfile.DoesNotExist:
+        profile = UserProfile(user=request.user)
+    
     if request.method == 'POST':
-        form = ProfileForm(request.POST, request.FILES, instance=profile)
+        form = UserProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
-            form.save()
+            profile = form.save()
             messages.success(request, 'Profile updated successfully!')
-            return redirect('projects:user_profile', username=request.user.username)
+            return redirect('user_profile', username=request.user.username)
     else:
-        form = ProfileForm(instance=profile)
-
-    return render(request, 'projects/edit_profile.html', {
-        'form': form,
-        'active_tab': 'profile'
-    })
+        form = UserProfileForm(instance=profile)
+    
+    return render(request, 'projects/edit_profile.html', {'form': form})
 
 @login_required
 def user_profile(request, username):
@@ -3876,34 +3425,23 @@ class RegisterView(CreateView):
     template_name = 'registration/register.html'
 
 def get_monthly_contributions():
-    """Get users sorted by their contributions in the current month"""
-    start_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    """Calculate monthly contributions for all users"""
+    now = timezone.now()
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     return User.objects.annotate(
-        monthly_projects=Count(
+        projects_count=Count(
             'project',
-            filter=Q(project__created_at__gte=start_of_month)
+            filter=models.Q(project__created_at__gte=start_of_month)
         ),
-        monthly_comments=Count(
-            'comment',
-            filter=Q(comment__created_at__gte=start_of_month)
+        claps_received=Sum(
+            'project__claps',
+            filter=models.Q(project__created_at__gte=start_of_month)
         ),
-        monthly_claps=Count(
-            'user_claps',
-            filter=Q(user_claps__created_at__gte=start_of_month)
-        ),
-        # Calculate total directly in the same annotation
-        total_contributions=Count(
-            'project',
-            filter=Q(project__created_at__gte=start_of_month)
-        ) + Count(
-            'comment',
-            filter=Q(comment__created_at__gte=start_of_month)
-        ) + Count(
-            'user_claps',
-            filter=Q(user_claps__created_at__gte=start_of_month)
-        )
-    ).order_by('-total_contributions')
+        total_contributions=models.F('projects_count') + models.F('claps_received')
+    ).filter(
+        models.Q(projects_count__gt=0) | models.Q(claps_received__gt=0)
+    ).order_by('-total_contributions')[:10]
 
 def leaderboard_view(request):
     """View for the leaderboard page"""
@@ -3984,29 +3522,14 @@ def edit_comment(request, pk):
 @login_required
 def delete_comment(request, pk):
     comment = get_object_or_404(Comment, pk=pk)
-    
-    # Check permissions
     if comment.user != request.user and comment.project.author != request.user:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
-        messages.error(request, 'You do not have permission to delete this comment.')
-        return redirect('projects:project_detail', pk=comment.project.pk)
+        return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
     
-    try:
-        project_pk = comment.project.pk
-        comment.delete()
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'status': 'success'})
-        
-        messages.success(request, 'Comment deleted successfully.')
-        return redirect('projects:project_detail', pk=project_pk)
-    
-    except Exception as e:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-        messages.error(request, f'Error deleting comment: {str(e)}')
-        return redirect('projects:project_detail', pk=comment.project.pk)
+    project_pk = comment.project.pk
+    comment.delete()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success'})
+    return redirect('projects:project_detail', pk=project_pk)
 
 @login_required
 def mark_all_notifications_read(request):
@@ -4066,60 +3589,4 @@ def profile_settings(request):
     return render(request, 'projects/profile_settings.html', {
         'form': form,
         'active_tab': 'settings'
-    })
-
-
-
-# Add to projects/views.py
-def custom_404(request, exception):
-    return render(request, 'errors/404.html', status=404)
-
-def custom_500(request):
-    return render(request, 'errors/500.html', status=500)
-
-def homepage(request):
-    """Homepage view showing featured projects and recent activity"""
-    # Get recent projects
-    recent_projects = Project.objects.select_related('author').prefetch_related('comments').order_by('-created_at')[:6]
-    
-    # Get trending projects (most claps in last 7 days)
-    week_ago = timezone.now() - timedelta(days=7)
-    trending_projects = Project.objects.annotate(
-        recent_claps=Count('claps', filter=Q(claps__created_at__gte=week_ago))
-    ).order_by('-recent_claps', '-created_at')[:3]
-    
-    # Get top contributors
-    top_contributors = get_monthly_contributions()[:5]
-    
-    # Get latest comments
-    latest_comments = Comment.objects.select_related('user', 'project').order_by('-created_at')[:5]
-    
-    context = {
-        'recent_projects': recent_projects,
-        'trending_projects': trending_projects,
-        'top_contributors': top_contributors,
-        'latest_comments': latest_comments,
-        'total_projects': Project.objects.count(),
-        'total_users': User.objects.count(),
-    }
-    
-    return render(request, 'projects/homepage.html', context)
-
-def faculty_page(request):
-    """View for the faculty page"""
-    faculty_members = User.objects.filter(
-        groups__name='Faculty'
-    ).select_related('profile')
-    
-    context = {
-        'faculty_members': faculty_members,
-        'page_title': 'Faculty Members',
-        'active_tab': 'faculty'
-    }
-    return render(request, 'projects/faculty_page.html', context)
-
-def careers_page(request):
-    return render(request, 'projects/careers.html', {
-        'page_title': 'Careers',
-        'active_tab': 'careers'
     })

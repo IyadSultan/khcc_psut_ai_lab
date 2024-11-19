@@ -171,13 +171,19 @@ class Comment(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    clap_count = models.IntegerField(default=0)
     
     class Meta:
         ordering = ['created_at']
     
+    def user_has_clapped(self, user):
+        return self.claps.filter(user=user).exists()
+    
     def __str__(self):
         return f'Comment by {self.user.username} on {self.project.title}'
 
+
+    
 class UserProfile(models.Model):
     user = models.OneToOneField(
         User, 
@@ -399,3 +405,13 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
 
+class CommentClap(models.Model):
+    comment = models.ForeignKey(Comment, related_name='claps', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='comment_claps', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('comment', 'user')
+
+    def __str__(self):
+        return f'{self.user.username} clapped for comment on {self.comment.project.title}'

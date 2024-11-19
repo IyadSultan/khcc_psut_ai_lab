@@ -13,12 +13,12 @@
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'project_list' and request.resolver_match.namespace == 'projects' %}active{% endif %}" 
-                       href="{% url 'projects:project_list' %}">Projects</a>
+                       href="{% url 'projects:project_list' %}">Seeds</a>
                 </li>
                 {% if user.is_authenticated %}
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'submit_project' and request.resolver_match.namespace == 'projects' %}active{% endif %}" 
-                       href="{% url 'projects:submit_project' %}">Share Project</a>
+                       href="{% url 'projects:submit_project' %}">Share Seed</a>
                 </li>
                 {% endif %}
                 <li class="nav-item">

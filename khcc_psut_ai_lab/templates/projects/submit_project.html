@@ -7,7 +7,7 @@
         <div class="col-md-8">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h2 class="card-title mb-4">Share Your Project</h2>
+                    <h2 class="card-title mb-4">Share Your Seed</h2>
                     
                     <form method="post" enctype="multipart/form-data" class="mb-4">
                         {% csrf_token %}
@@ -20,7 +20,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="preview-content">
-                                    <h3 id="preview-title">Project title will appear here...</h3>
+                                    <h3 id="preview-title">Seed title will appear here...</h3>
                                     <p id="preview-description" class="text-muted">Project description will appear here...</p>
                                     <div id="preview-tags" class="tag-cloud"></div>
                                 </div>
@@ -29,7 +29,7 @@
                         
                         <div class="d-grid gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
-                                Submit Project
+                                Submit Seed
                             </button>
                             <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary">
                                 Cancel
@@ -56,7 +56,7 @@
         const previewTags = document.getElementById('preview-tags');
         
         function updatePreview() {
-            previewTitle.textContent = titleInput.value || 'Project title will appear here...';
+            previewTitle.textContent = titleInput.value || 'Seed title will appear here...';
             previewDesc.textContent = descInput.value || 'Project description will appear here...';
             
             // Update tags

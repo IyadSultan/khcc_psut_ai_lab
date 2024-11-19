@@ -132,7 +132,7 @@
 {% extends 'emails/base_email.html' %}
 
 {% block content %}
-<h2>New Comment on Your Project</h2>
+<h2>New Comment on Your Seed</h2>
 <p>Hello {{ project.author.get_full_name|default:project.author.username }},</p>
 
 <p>{{ comment.user.get_full_name|default:comment.user.username }} commented on your project "{{ project.title }}":</p>
@@ -154,12 +154,12 @@
 {% extends 'emails/base_email.html' %}
 
 {% block content %}
-<h2>Someone Appreciated Your Project</h2>
+<h2>Someone Appreciated Your Seed</h2>
 <p>Hello {{ project.author.get_full_name|default:project.author.username }},</p>
 
 <p>{{ clap.user.get_full_name|default:clap.user.username }} clapped for your project "{{ project.title }}"!</p>
 
-<p>Your project now has {{ project.claps }} claps in total.</p>
+<p>Your project now has {{ project.clap_count }} clap_count in total.</p>
 
 <p>
     <a href="{{ site_url }}{% url 'project_detail' project.pk %}" class="btn">

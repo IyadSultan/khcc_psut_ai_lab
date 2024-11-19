@@ -54,4 +54,6 @@ urlpatterns = [
     path('api/projects/<int:pk>/analytics/', views.ProjectAnalyticsAPI.as_view(), name='api_project_analytics'),
     path('faculty/', views.faculty_page, name='faculty_page'),
     path('careers/', views.careers_page, name='careers'),
+    # urls.py
+path('comment/<int:pk>/clap/', views.clap_comment, name='clap_comment'),
 ]

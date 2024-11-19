@@ -174,7 +174,7 @@ $(document).ready(function() {
                 <h3 class="mt-3">No bookmarks yet</h3>
                 <p class="text-muted">Start bookmarking projects you'd like to revisit later</p>
                 <a href="{% url 'project_list' %}" class="btn btn-primary">
-                    Browse Projects
+                    Browse Seeds
                 </a>
             </div>
             {% endfor %}
@@ -297,18 +297,18 @@ $(document).ready(function() {
                                         </tr>
                                         <tr>
                                             <td>Claps</td>
-                                            <td>{{ weekly_stats.claps }}</td>
-                                            <td>{{ monthly_stats.claps }}</td>
+                                            <td>{{ weekly_stats.clap_count }}</td>
+                                            <td>{{ monthly_stats.clap_count }}</td>
                                             <td>
-                                                {% if weekly_stats.claps > monthly_stats.claps %}
+                                                {% if weekly_stats.clap_count > monthly_stats.clap_count %}
                                                 <span class="text-success">
                                                     <i class="bi bi-arrow-up"></i>
-                                                    {{ weekly_stats.claps|percentage:monthly_stats.claps }}%
+                                                    {{ weekly_stats.clap_count|percentage:monthly_stats.clap_count }}%
                                                 </span>
                                                 {% else %}
                                                 <span class="text-danger">
                                                     <i class="bi bi-arrow-down"></i>
-                                                    {{ monthly_stats.claps|percentage:weekly_stats.claps }}%
+                                                    {{ monthly_stats.clap_count|percentage:weekly_stats.clap_count }}%
                                                 </span>
                                                 {% endif %}
                                             </td>

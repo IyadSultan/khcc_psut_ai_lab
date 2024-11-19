@@ -26,7 +26,8 @@ from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectA
 
 from .models import (
     Project, Comment, Clap, UserProfile, Rating, 
-    Bookmark, ProjectAnalytics, Notification, Follow
+    Bookmark, ProjectAnalytics, Notification, Follow, 
+    CommentClap,
 )
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
@@ -254,7 +255,7 @@ def export_analytics_csv(request, pk):
             entry['github_clicks'],
             round(entry['avg_time_spent'] / 60, 2),
             entry['comments'],
-            entry['claps']
+            entry['clap_count']
         ])
     
     # Create the HTTP response with CSV data
@@ -449,11 +450,16 @@ def submit_project(request):
     return render(request, 'projects/submit_project.html', {'form': form})
 
 
-
 def project_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
-    comments = project.comments.filter(parent=None).select_related('user').prefetch_related('replies')
+    comments = project.comments.filter(parent=None).select_related('user').prefetch_related(
+        'replies', 
+        'claps',
+        'replies__claps',
+        'replies__user'
+    )
     
+    # Handle POST requests (new comments)
     if request.method == 'POST' and request.user.is_authenticated:
         form = CommentForm(request.POST, request.FILES)
         if form.is_valid():
@@ -464,13 +470,26 @@ def project_detail(request, pk):
             # Handle replies
             parent_id = request.POST.get('parent_id')
             if parent_id:
-                parent_comment = get_object_or_404(Comment, id=parent_id)
-                comment.parent = parent_comment
+                try:
+                    parent_comment = Comment.objects.get(id=parent_id)
+                    comment.parent = parent_comment
+                    # Create notification for parent comment author
+                    if parent_comment.user != request.user:
+                        Notification.objects.create(
+                            recipient=parent_comment.user,
+                            sender=request.user,
+                            project=project,
+                            notification_type='comment',
+                            message=f"{request.user.username} replied to your comment"
+                        )
+                except Comment.DoesNotExist:
+                    messages.error(request, 'Parent comment not found.')
+                    return redirect('projects:project_detail', pk=pk)
             
             comment.save()
             
-            # Create notification for project author
-            if project.author != request.user:
+            # Create notification for project author (only for top-level comments)
+            if project.author != request.user and not parent_id:
                 Notification.objects.create(
                     recipient=project.author,
                     sender=request.user,
@@ -486,6 +505,32 @@ def project_detail(request, pk):
     else:
         form = CommentForm()
     
+    # Check clap status for authenticated users
+    if request.user.is_authenticated:
+        # Check if user has clapped for the project
+        project.user_has_clapped = project.claps.filter(user=request.user).exists()
+        
+        # Check if user has clapped for comments
+        for comment in comments:
+            comment.has_user_clapped = comment.claps.filter(user=request.user).exists()
+            for reply in comment.replies.all():
+                reply.has_user_clapped = reply.claps.filter(user=request.user).exists()
+        
+        # Get user's bookmark if it exists
+        user_bookmark = project.bookmarks.filter(user=request.user).first()
+    else:
+        project.user_has_clapped = False
+        user_bookmark = None
+
+    # Get project statistics
+    stats = {
+        'view_count': project.analytics.view_count if hasattr(project, 'analytics') else 0,
+        'clap_count': project.clap_count,
+        'comment_count': project.comments.count(),
+        'rating_count': project.rating_count,
+        'avg_rating': project.average_rating,
+    }
+    
     context = {
         'project': project,
         'comments': comments,
@@ -493,10 +538,17 @@ def project_detail(request, pk):
         'featured_image_url': project.get_featured_image_url(),
         'pdf_url': project.get_pdf_url(),
         'rating_form': RatingForm(),
+        'user_bookmark': user_bookmark,
+        'stats': stats,
+
     }
+    
+    # Update view count
+    if hasattr(project, 'analytics'):
+        project.analytics.view_count += 1
+        project.analytics.save()
+    
     return render(request, 'projects/project_detail.html', context)
-
-
 
 @login_required
 def rate_project(request, pk):
@@ -833,7 +885,7 @@ def leaderboard_view(request):
             'user': user.username,
             'contributions': user.total_contributions,
             'projects': user.projects_count,
-            'claps': user.claps_received or 0,
+            'clap_count': user.claps_received or 0,
             'change': 0  # Calculate change from previous position
         } for idx, user in enumerate(contributions)]
         return JsonResponse({'leaderboard': data})
@@ -878,9 +930,9 @@ def clap_project(request, pk):
         project = get_object_or_404(Project, pk=pk)
         clap, created = Clap.objects.get_or_create(user=request.user, project=project)
         if created:
-            project.claps += 1
+            project.clap_count += 1  # Use clap_count instead of clap_count
             project.save()
-            return JsonResponse({'status': 'success', 'claps': project.claps})
+            return JsonResponse({'status': 'success', 'clap_count': project.clap_count})
     return JsonResponse({'status': 'error'}, status=400)
 
 @login_required
@@ -999,10 +1051,10 @@ def homepage(request):
     # Get recent projects
     recent_projects = Project.objects.select_related('author').prefetch_related('comments').order_by('-created_at')[:6]
     
-    # Get trending projects (most claps in last 7 days)
+    # Get trending projects (most clap_count in last 7 days)
     week_ago = timezone.now() - timedelta(days=7)
     trending_projects = Project.objects.annotate(
-        recent_claps=Count('claps', filter=Q(claps__created_at__gte=week_ago))
+        recent_claps=Count('clap_count', filter=Q(claps__created_at__gte=week_ago))
     ).order_by('-recent_claps', '-created_at')[:3]
     
     # Get top contributors
@@ -1040,3 +1092,46 @@ def careers_page(request):
         'page_title': 'Careers',
         'active_tab': 'careers'
     })
+
+@login_required
+def clap_comment(request, pk):
+    if request.method == 'POST':
+        comment = get_object_or_404(Comment, pk=pk)
+        clap, created = CommentClap.objects.get_or_create(user=request.user, comment=comment)
+        if created:
+            comment.clap_count += 1
+            comment.save()
+            return JsonResponse({
+                'status': 'success', 
+                'claps': comment.clap_count,
+                'commentId': comment.id
+            })
+        else:
+            # Remove clap if already clapped
+            clap.delete()
+            comment.clap_count -= 1
+            comment.save()
+            return JsonResponse({
+                'status': 'removed',
+                'claps': comment.clap_count,
+                'commentId': comment.id
+            })
+    return JsonResponse({'status': 'error'}, status=400)
+
+def get_similar_projects(project, limit=3):
+    """Returns similar projects based on tags"""
+    if not project.tags:
+        return Project.objects.exclude(id=project.id)[:limit]
+    
+    tags = [tag.strip() for tag in project.tags.split(',')]
+    similar_projects = Project.objects.filter(
+        tags__icontains=tags[0]
+    ).exclude(id=project.id)
+    
+    for tag in tags[1:]:
+        similar_projects = similar_projects | Project.objects.filter(
+            tags__icontains=tag
+        ).exclude(id=project.id)
+    
+    return similar_projects.distinct()[:limit]
+

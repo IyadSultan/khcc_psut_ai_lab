@@ -34,7 +34,7 @@ class NotificationSettingsForm(forms.Form):
     )
     email_on_clap = forms.BooleanField(
         required=False,
-        label='Email me when someone claps for my projects',
+        label='Email me when someone clap_count for my projects',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
     email_on_bookmark = forms.BooleanField(
@@ -276,7 +276,7 @@ class ProjectSearchForm(forms.Form):
         choices=[
             ('-created_at', 'Newest first'),
             ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
+            ('-clap_count', 'Most popular'),
             ('title', 'Alphabetical'),
         ]
     )
@@ -294,7 +294,7 @@ class AdvancedSearchForm(forms.Form):
         choices=[
             ('-created_at', 'Newest first'),
             ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
+            ('-clap_count', 'Most popular'),
             ('-comment_count', 'Most discussed'),
             ('title', 'Alphabetical'),
             ('-rating_avg', 'Highest rated')
@@ -585,7 +585,7 @@ class NotificationSettingsForm(forms.Form):
     )
     email_on_clap = forms.BooleanField(
         required=False,
-        label='Email me when someone claps for my projects'
+        label='Email me when someone clap_count for my projects'
     )
     email_on_bookmark = forms.BooleanField(
         required=False,
@@ -615,7 +615,7 @@ class ProjectSearchForm(forms.Form):
         choices=[
             ('-created_at', 'Newest first'),
             ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
+            ('-clap_count', 'Most popular'),
             ('title', 'Alphabetical'),
         ],
         widget=forms.Select(attrs={
@@ -674,7 +674,7 @@ class AdvancedSearchForm(forms.Form):
         choices=[
             ('-created_at', 'Newest first'),
             ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
+            ('-clap_count', 'Most popular'),
             ('-comment_count', 'Most discussed'),
             ('title', 'Alphabetical'),
             ('-rating_avg', 'Highest rated')

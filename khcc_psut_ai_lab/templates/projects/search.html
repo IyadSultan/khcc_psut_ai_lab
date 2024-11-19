@@ -3,7 +3,7 @@
 {% load static %}
 {% load crispy_forms_tags %}
 
-{% block title %}Search Projects - {{ block.super }}{% endblock %}
+{% block title %}Search Seeds - {{ block.super }}{% endblock %}
 
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-tagsinput@0.7.1/dist/bootstrap-tagsinput.css" rel="stylesheet">
@@ -244,7 +244,7 @@ function resetFilters() {
                         <!-- Claps -->
                         <span class="text-muted" title="Claps">
                             <i class="bi bi-hand-thumbs-up"></i>
-                            {{ project.claps }}
+                            {{ project.clap_count }}
                         </span>
                         
                         <!-- Comments -->
@@ -349,7 +349,7 @@ function resetFilters() {
     {% endif %}
     
     <a href="{% url 'project_list' %}" class="btn btn-primary">
-        Browse All Projects
+        Browse All Seeds
     </a>
 </div>
 {% endif %}
