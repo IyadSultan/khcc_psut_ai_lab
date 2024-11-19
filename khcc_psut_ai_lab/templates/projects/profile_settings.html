@@ -2,58 +2,82 @@
 {% load static %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-3">
-            <div class="card">
-                <div class="list-group list-group-flush">
-                    <a href="{% url 'projects:edit_profile' %}" 
-                       class="list-group-item list-group-item-action {% if active_tab == 'profile' %}active{% endif %}">
-                        <i class="bi bi-person"></i> Profile
-                    </a>
-                    <a href="{% url 'projects:profile_settings' %}" 
-                       class="list-group-item list-group-item-action {% if active_tab == 'settings' %}active{% endif %}">
-                        <i class="bi bi-gear"></i> Settings
-                    </a>
-                    <a href="{% url 'account_email' %}" 
-                       class="list-group-item list-group-item-action">
-                        <i class="bi bi-envelope"></i> Email
-                    </a>
-                    <a href="{% url 'account_change_password' %}" 
-                       class="list-group-item list-group-item-action">
-                        <i class="bi bi-shield-lock"></i> Password
-                    </a>
-                </div>
-            </div>
-        </div>
+<!-- Banner -->
+<div class="bg-primary py-4 mb-4">
+    <div class="container">
+        <h1 class="text-white">Notification Settings</h1>
+        <p class="text-white-50 mb-0">Manage your email notification preferences</p>
+    </div>
+</div>
 
-        <!-- Settings Form -->
-        <div class="col-md-9">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title mb-0">Notification Settings</h4>
-                </div>
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
                 <div class="card-body">
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-
+                    <h5 class="card-title mb-4">Email Notification Preferences</h5>
+                    
                     <form method="post">
                         {% csrf_token %}
-                        {% for field in form %}
-                            <div class="form-check mb-3">
-                                {{ field }}
-                                <label class="form-check-label" for="{{ field.id_for_label }}">
-                                    {{ field.label }}
-                                </label>
+                        
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <div class="list-group mb-4">
+                            <!-- Comments -->
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Comments on Your Projects</h6>
+                                    <p class="text-muted small mb-0">Receive emails when someone comments on your projects</p>
+                                </div>
+                                <div class="form-check form-switch">
+                                    {{ form.email_on_comment }}
+                                </div>
                             </div>
-                        {% endfor %}
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+
+                            <!-- Follows -->
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">New Followers</h6>
+                                    <p class="text-muted small mb-0">Receive emails when someone follows you</p>
+                                </div>
+                                <div class="form-check form-switch">
+                                    {{ form.email_on_follow }}
+                                </div>
+                            </div>
+
+                            <!-- Claps -->
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Project Claps</h6>
+                                    <p class="text-muted small mb-0">Receive emails when someone claps for your projects</p>
+                                </div>
+                                <div class="form-check form-switch">
+                                    {{ form.email_on_clap }}
+                                </div>
+                            </div>
+
+                            <!-- Bookmarks -->
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Project Bookmarks</h6>
+                                    <p class="text-muted small mb-0">Receive emails when someone bookmarks your projects</p>
+                                </div>
+                                <div class="form-check form-switch">
+                                    {{ form.email_on_bookmark }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Save Preferences</button>
+                        </div>
                     </form>
                 </div>
             </div>

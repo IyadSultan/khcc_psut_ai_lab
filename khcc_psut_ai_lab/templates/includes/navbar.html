@@ -1,7 +1,7 @@
 <!-- templates/includes/navbar.html -->
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
     <div class="container">
-        <a class="navbar-brand" href="{% url 'projects:project_list' %}">
+        <a class="navbar-brand" href="{% url 'projects:homepage' %}">
             KHCC_PSUT AI Lab
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
@@ -76,6 +76,11 @@
                         <li>
                             <a class="dropdown-item" href="{% url 'projects:edit_profile' %}">
                                 <i class="bi bi-gear"></i> Settings
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'projects:profile_settings' %}">
+                                <i class="bi bi-gear"></i> Notification Settings
                             </a>
                         </li>
                         <li><hr class="dropdown-divider"></li>

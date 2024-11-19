@@ -2,6 +2,20 @@
 {% load static %}
 
 {% block content %}
+<div class="bg-primary py-4 mb-4"></div>
+    <div class="container">
+        <h1 class="text-white mb-2">{{ profile_user.get_full_name }}</h1>
+        {% if profile_user.profile.title or profile_user.profile.department %}
+            <p class="text-white-50 mb-0">
+                {% if profile_user.profile.title %}{{ profile_user.profile.title }}{% endif %}
+                {% if profile_user.profile.department %}
+                    {% if profile_user.profile.title %} • {% endif %}
+                    {{ profile_user.profile.department }}
+                {% endif %}
+            </p>
+        {% endif %}
+    </div>
+</div>
 <div class="container py-5">
     <div class="row">
         <!-- Profile Info -->
@@ -13,23 +27,42 @@
                          class="rounded-circle mb-3" 
                          style="width: 150px; height: 150px; object-fit: cover;">
                     
-                    <h4 class="card-title">{{ profile_user.username }}</h4>
-                    {% if profile_user.profile.bio %}
-                        <p class="text-muted">{{ profile_user.profile.bio }}</p>
+                    <h4 class="card-title">{{ profile_user.get_full_name }}</h4>
+                    {% if is_faculty %}
+                        <span class="badge bg-primary mb-2">Faculty</span>
+                    {% endif %}
+
+                    {% if profile_user.profile.title %}
+                        <p class="text-muted mb-1">{{ profile_user.profile.title }}</p>
+                    {% endif %}
+                    {% if profile_user.profile.department %}
+                        <p class="text-muted mb-3">{{ profile_user.profile.department }}</p>
                     {% endif %}
                     
+                    {% if profile_user.profile.bio %}
+                        <p class="text-muted mb-3">{{ profile_user.profile.bio }}</p>
+                    {% endif %}
+
                     <div class="d-flex justify-content-center gap-3 mb-3">
                         <div class="text-center">
-                            <h6 class="mb-0">{{ projects.count }}</h6>
+                            <h6 class="mb-0">{{ stats.projects_count }}</h6>
                             <small class="text-muted">Projects</small>
                         </div>
                         <div class="text-center">
-                            <h6 class="mb-0">{{ followers_count }}</h6>
+                            <h6 class="mb-0">{{ stats.followers_count }}</h6>
                             <small class="text-muted">Followers</small>
                         </div>
                         <div class="text-center">
-                            <h6 class="mb-0">{{ following_count }}</h6>
+                            <h6 class="mb-0">{{ stats.following_count }}</h6>
                             <small class="text-muted">Following</small>
+                        </div>
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ stats.total_claps }}</h6>
+                            <small class="text-muted">Claps</small>
+                        </div>
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ stats.total_comments }}</h6>
+                            <small class="text-muted">Comments</small>
                         </div>
                     </div>
                     
@@ -47,6 +80,68 @@
                                 </form>
                             {% endif %}
                         {% endif %}
+                    {% endif %}
+
+                    <!-- Social Links -->
+                    <div class="mt-4 d-flex justify-content-center gap-3">
+                        {% if profile_user.profile.github_username %}
+                            <a href="https://github.com/{{ profile_user.profile.github_username }}" 
+                               target="_blank"
+                               class="text-dark">
+                                <i class="bi bi-github fs-5"></i>
+                            </a>
+                        {% endif %}
+
+                        {% if profile_user.profile.linkedin_url %}
+                            <a href="{{ profile_user.profile.linkedin_url }}" 
+                               target="_blank"
+                               class="text-primary">
+                                <i class="bi bi-linkedin fs-5"></i>
+                            </a>
+                        {% endif %}
+
+                        {% if profile_user.profile.twitter_username %}
+                            <a href="https://twitter.com/{{ profile_user.profile.twitter_username }}" 
+                               target="_blank"
+                               class="text-info">
+                                <i class="bi bi-twitter fs-5"></i>
+                            </a>
+                        {% endif %}
+
+                        {% if profile_user.profile.website %}
+                            <a href="{{ profile_user.profile.website }}" 
+                               target="_blank"
+                               class="text-dark">
+                                <i class="bi bi-globe fs-5"></i>
+                            </a>
+                        {% endif %}
+
+                        {% if profile_user.email %}
+                            <a href="mailto:{{ profile_user.email }}" class="text-dark">
+                                <i class="bi bi-envelope fs-5"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Info Card -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">About</h5>
+                    
+                    {% if profile_user.profile.research_interests %}
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-2">Research Interests</h6>
+                            <p>{{ profile_user.profile.research_interests }}</p>
+                        </div>
+                    {% endif %}
+
+                    {% if profile_user.profile.location %}
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-2">Location</h6>
+                            <p>{{ profile_user.profile.location }}</p>
+                        </div>
                     {% endif %}
                 </div>
             </div>

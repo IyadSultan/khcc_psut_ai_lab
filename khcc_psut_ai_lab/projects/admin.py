@@ -1,14 +1,94 @@
 # projects/admin.py
 
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from django.db.models import Count, Sum
 from django.utils.html import format_html
 from django.urls import reverse
-from django.db.models import Count
 from django.utils.safestring import mark_safe
 from .models import (
     Project, Comment, Clap, UserProfile, Rating,
-    Bookmark, ProjectAnalytics, Notification
+    Bookmark, ProjectAnalytics, Notification, Follow
 )
+from allauth.account.models import EmailAddress
+from django.contrib import messages
+
+# Extend UserProfile admin to include faculty-specific fields
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = 'Profile'
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('avatar', 'bio', 'location', 'website')
+        }),
+        ('Professional Information', {
+            'fields': ('title', 'department', 'research_interests')
+        }),
+        ('Social Media', {
+            'fields': ('github_username', 'linkedin_url', 'twitter_username')
+        }),
+        ('Notification Settings', {
+            'fields': (
+                'email_on_comment', 'email_on_follow',
+                'email_on_clap', 'email_on_bookmark'
+            ),
+            'classes': ('collapse',)
+        })
+    )
+
+class EmailAddressInline(admin.StackedInline):
+    model = EmailAddress
+    extra = 0
+    can_delete = True
+    verbose_name = 'Email Address'
+    verbose_name_plural = 'Email Addresses'
+
+# Customize the User admin to include profile information
+class UserAdmin(BaseUserAdmin):
+    inlines = (UserProfileInline, EmailAddressInline)
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_faculty_member', 'is_email_verified')
+    list_filter = BaseUserAdmin.list_filter + ('groups__name', 'emailaddress__verified')
+    actions = ['verify_email_action']
+    
+    def is_faculty_member(self, obj):
+        return obj.groups.filter(name='Faculty').exists()
+    is_faculty_member.boolean = True
+    is_faculty_member.short_description = 'Faculty'
+    
+    def is_email_verified(self, obj):
+        try:
+            return obj.emailaddress_set.first().verified
+        except AttributeError:
+            return False
+    is_email_verified.boolean = True
+    is_email_verified.short_description = 'Email Verified'
+    
+    def verify_email_action(self, request, queryset):
+        verified_count = 0
+        for user in queryset:
+            email_address, created = EmailAddress.objects.get_or_create(
+                user=user,
+                email=user.email,
+                defaults={'verified': True, 'primary': True}
+            )
+            
+            if not created and not email_address.verified:
+                email_address.verified = True
+                email_address.save()
+                verified_count += 1
+
+        self.message_user(
+            request,
+            f"Successfully verified email for {verified_count} users.",
+            messages.SUCCESS
+        )
+    verify_email_action.short_description = "Verify email for selected users"
+
+# Re-register UserAdmin
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
@@ -105,59 +185,15 @@ class CommentAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = [
-        'user_link', 'location', 'github_username',
-        'get_project_count', 'get_total_claps',
-        'avatar_preview'
-    ]
-    list_filter = ['location', 'created_at']
-    search_fields = ['user__username', 'bio', 'location', 'github_username']
-    readonly_fields = [
-        'created_at', 'updated_at', 'avatar_preview',
-        'get_project_count', 'get_total_claps'
-    ]
+    list_display = ('user', 'title', 'department', 'is_faculty_member', 'created_at')
+    list_filter = ('department', 'user__groups', 'created_at')
+    search_fields = ('user__username', 'user__email', 'title', 'department')
+    readonly_fields = ('created_at', 'updated_at')
     
-    def get_project_count(self, obj):
-        return obj.user.project_set.count()
-    get_project_count.short_description = 'Projects'
-
-    def get_total_claps(self, obj):
-        return sum(project.claps for project in obj.user.project_set.all())
-    get_total_claps.short_description = 'Total Claps'
-
-    def user_link(self, obj):
-        url = reverse('admin:auth_user_change', args=[obj.user.id])
-        return format_html('<a href="{}">{}</a>', url, obj.user.username)
-    user_link.short_description = 'User'
-    
-    def avatar_preview(self, obj):
-        if obj.avatar:
-            return format_html(
-                '<img src="{}" style="max-width: 100px; max-height: 100px;" />',
-                obj.avatar.url
-            )
-        return 'No avatar'
-    avatar_preview.short_description = 'Avatar Preview'
-
-    fieldsets = (
-        ('User Information', {
-            'fields': ('user', 'avatar', 'avatar_preview', 'bio')
-        }),
-        ('Contact Information', {
-            'fields': ('location', 'website')
-        }),
-        ('Social Links', {
-            'fields': ('github_username', 'linkedin_url')
-        }),
-        ('Statistics', {
-            'fields': ('get_project_count', 'get_total_claps'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
+    def is_faculty_member(self, obj):
+        return obj.is_faculty
+    is_faculty_member.boolean = True
+    is_faculty_member.short_description = 'Faculty'
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
@@ -261,6 +297,11 @@ class ProjectAnalyticsAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">{}</a>', url, obj.project.title)
     project_link.short_description = 'Project'
 
+@admin.register(Follow)
+class FollowAdmin(admin.ModelAdmin):
+    list_display = ('follower', 'following', 'created_at')
+    search_fields = ('follower__username', 'following__username')
+
 class CustomAdminSite(admin.AdminSite):
     site_header = 'KHCC_PSUT AI Lab Administration'
     site_title = 'KHCC_PSUT AI Lab Admin'
@@ -310,3 +351,4 @@ admin_site.register(Comment, CommentAdmin)
 admin_site.register(UserProfile, UserProfileAdmin)
 admin_site.register(Notification, NotificationAdmin)
 admin_site.register(ProjectAnalytics, ProjectAnalyticsAdmin)
+admin_site.register(Follow, FollowAdmin)

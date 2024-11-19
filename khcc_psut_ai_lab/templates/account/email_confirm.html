@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load account %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-center mb-4">{% trans "Confirm Email Address" %}</h2>
+                    
+                    {% if confirmation %}
+                        {% user_display confirmation.email_address.user as user_display %}
+                        
+                        <p class="text-center mb-4">
+                            {% blocktrans with confirmation.email_address.email as email %}
+                            Please confirm that <strong>{{ email }}</strong> is an email address for user <strong>{{ user_display }}</strong>.
+                            {% endblocktrans %}
+                        </p>
+
+                        <form method="post" action="{% url 'account_confirm_email' confirmation.key %}">
+                            {% csrf_token %}
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" type="submit">
+                                    {% trans 'Confirm' %}
+                                </button>
+                            </div>
+                        </form>
+                    
+                    {% else %}
+                        {% url 'account_email' as email_url %}
+                        
+                        <div class="text-center">
+                            <div class="alert alert-warning" role="alert">
+                                {% blocktrans %}
+                                This email confirmation link has expired or is invalid. 
+                                Please <a href="{{ email_url }}" class="alert-link">request a new confirmation email</a>.
+                                {% endblocktrans %}
+                            </div>
+                            
+                            <div class="mt-4">
+                                <a href="{% url 'account_login' %}" class="btn btn-outline-primary">
+                                    {% trans "Return to Login" %}
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

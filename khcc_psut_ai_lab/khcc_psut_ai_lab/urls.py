@@ -34,7 +34,6 @@ urlpatterns = [
         template_name='account/password_reset_complete.html'
     ), name='password_reset_complete'),
 ] 
-
 # Serve media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
@@ -43,3 +42,4 @@ if settings.DEBUG:
 # Custom error handlers
 handler404 = 'projects.views.custom_404'
 handler500 = 'projects.views.custom_500'
+

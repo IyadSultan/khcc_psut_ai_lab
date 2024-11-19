@@ -6,25 +6,40 @@ from django.utils.html import strip_tags
 from django.conf import settings
 
 def send_notification_email(notification):
-    """Send email for a new notification"""
-    subject = f'New notification from {settings.SITE_NAME}'
-    context = {
-        'notification': notification,
-        'site_url': settings.SITE_URL,
-        'unsubscribe_url': f"{settings.SITE_URL}/settings/notifications/"
-    }
+    """Send email for a new notification if user has enabled that notification type"""
+    recipient_profile = notification.recipient.profile
     
-    html_message = render_to_string('emails/notification.html', context)
-    plain_message = strip_tags(html_message)
+    # Check if user wants this type of email notification
+    should_send = False
     
-    send_mail(
-        subject,
-        plain_message,
-        settings.DEFAULT_FROM_EMAIL,
-        [notification.recipient.email],
-        html_message=html_message,
-        fail_silently=True
-    )
+    if notification.notification_type == 'comment' and recipient_profile.email_on_comment:
+        should_send = True
+    elif notification.notification_type == 'follow' and recipient_profile.email_on_follow:
+        should_send = True
+    elif notification.notification_type == 'clap' and recipient_profile.email_on_clap:
+        should_send = True
+    elif notification.notification_type == 'bookmark' and recipient_profile.email_on_bookmark:
+        should_send = True
+    
+    if should_send:
+        subject = f'New notification from {settings.SITE_NAME}'
+        context = {
+            'notification': notification,
+            'site_url': settings.SITE_URL,
+            'unsubscribe_url': f"{settings.SITE_URL}/settings/notifications/"
+        }
+        
+        html_message = render_to_string('emails/notification.html', context)
+        plain_message = strip_tags(html_message)
+        
+        send_mail(
+            subject,
+            plain_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [notification.recipient.email],
+            html_message=html_message,
+            fail_silently=True
+        )
 
 def send_welcome_email(user):
     """Send welcome email to new users"""

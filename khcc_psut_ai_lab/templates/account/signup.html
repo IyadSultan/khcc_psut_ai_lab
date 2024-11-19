@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body p-4 text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-envelope-check text-success" style="font-size: 3rem;"></i>
+                    </div>
+                    
+                    <h2 class="card-title text-center mb-4">{% trans "Verify Your Email Address" %}</h2>
+                    
+                    <p class="mb-4">
+                        {% blocktrans %}
+                        We have sent an email to verify your email address. 
+                        Please check your inbox and click on the confirmation link to complete the registration.
+                        {% endblocktrans %}
+                    </p>
+                    
+                    <p class="text-muted small mb-4">
+                        {% blocktrans %}
+                        If you don't see the email in your inbox, please check your spam folder.
+                        The confirmation link will expire in 24 hours.
+                        {% endblocktrans %}
+                    </p>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'account_login' %}" class="btn btn-outline-primary">
+                            {% trans "Return to Login" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3 shadow">
+                <div class="card-body p-3">
+                    <h5 class="card-title h6 mb-3">{% trans "Need Help?" %}</h5>
+                    <p class="card-text small mb-0">
+                        {% blocktrans %}
+                        If you're having trouble with the verification process, you can:
+                        {% endblocktrans %}
+                    </p>
+                    <ul class="small mb-0">
+                        <li>{% trans "Check your spam/junk folder" %}</li>
+                        <li>{% trans "Make sure you entered the correct email address" %}</li>
+                        <li>
+                            <a href="{% url 'account_email' %}">
+                                {% trans "Request a new verification email" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">{% trans "Contact support" %}</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

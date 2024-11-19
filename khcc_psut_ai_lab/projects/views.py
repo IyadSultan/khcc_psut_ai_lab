@@ -600,7 +600,7 @@ def edit_profile(request):
 
 @login_required
 def user_profile(request, username):
-    profile_user = get_object_or_404(User, username=username)
+    profile_user = get_object_or_404(User.objects.select_related('profile'), username=username)
     projects = Project.objects.filter(author=profile_user).order_by('-created_at')
     
     # Get follow status
@@ -611,16 +611,23 @@ def user_profile(request, username):
             following=profile_user
         ).exists()
     
-    # Get counts
-    followers_count = Follow.objects.filter(following=profile_user).count()
-    following_count = Follow.objects.filter(follower=profile_user).count()
+    # Get statistics and counts
+    stats = {
+        'followers_count': Follow.objects.filter(following=profile_user).count(),
+        'following_count': Follow.objects.filter(follower=profile_user).count(),
+        'projects_count': projects.count(),
+        'total_claps': Project.objects.filter(author=profile_user).aggregate(
+            total_claps=Sum('clap_count')
+        )['total_claps'] or 0,
+        'total_comments': Comment.objects.filter(user=profile_user).count(),
+    }
     
     context = {
         'profile_user': profile_user,
         'projects': projects,
         'is_following': is_following,
-        'followers_count': followers_count,
-        'following_count': following_count,
+        'stats': stats,
+        'is_faculty': profile_user.groups.filter(name='Faculty').exists(),
     }
     return render(request, 'projects/user_profile.html', context)
 
@@ -949,8 +956,8 @@ class ProjectAnalyticsAPI(generics.RetrieveAPIView):
 def profile_settings(request):
     try:
         user_profile = request.user.profile
-    except Profile.DoesNotExist:
-        user_profile = Profile.objects.create(user=request.user)
+    except UserProfile.DoesNotExist:
+        user_profile = UserProfile.objects.create(user=request.user)
 
     if request.method == 'POST':
         form = NotificationSettingsForm(request.POST)
@@ -962,7 +969,7 @@ def profile_settings(request):
             user_profile.email_on_bookmark = form.cleaned_data['email_on_bookmark']
             user_profile.save()
             
-            messages.success(request, 'Settings updated successfully!')
+            messages.success(request, 'Notification settings updated successfully!')
             return redirect('projects:profile_settings')
     else:
         # Initialize form with current settings
@@ -1017,9 +1024,9 @@ def homepage(request):
 
 def faculty_page(request):
     """View for the faculty page"""
-    faculty_members = UserProfile.objects.filter(
-        user__groups__name='Faculty'
-    ).select_related('user').order_by('user__first_name')
+    faculty_members = User.objects.filter(
+        groups__name='Faculty'
+    ).select_related('profile')
     
     context = {
         'faculty_members': faculty_members,

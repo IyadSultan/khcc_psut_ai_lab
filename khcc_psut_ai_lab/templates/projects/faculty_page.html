@@ -20,21 +20,23 @@
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body text-center">
-                        <img src="{{ faculty.avatar.url|default:'https://via.placeholder.com/150' }}" 
-                             alt="{{ faculty.user.get_full_name }}" 
-                             class="rounded-circle mb-3" 
-                             style="width: 150px; height: 150px; object-fit: cover;">
-                        <h3 class="h5 mb-2">{{ faculty.user.get_full_name }}</h3>
-                        <p class="text-primary small mb-2">{{ faculty.title }}</p>
-                        <p class="text-muted small mb-3">{{ faculty.department }}</p>
+                        <a href="{% url 'projects:user_profile' username=faculty.username %}">
+                            <img src="{{ faculty.profile.avatar.url|default:'https://via.placeholder.com/150' }}" 
+                                 alt="{{ faculty.get_full_name }}" 
+                                 class="rounded-circle mb-3" 
+                                 style="width: 150px; height: 150px; object-fit: cover;">
+                            <h3 class="h5 mb-2">{{ faculty.get_full_name }}</h3>
+                        </a>
+                        <p class="text-primary small mb-2">{{ faculty.profile.title }}</p>
+                        <p class="text-muted small mb-3">{{ faculty.profile.department }}</p>
                         <div class="d-flex justify-content-center gap-2">
-                            {% if faculty.linkedin_url %}
-                            <a href="{{ faculty.linkedin_url }}" class="text-dark" target="_blank">
+                            {% if faculty.profile.linkedin_url %}
+                            <a href="{{ faculty.profile.linkedin_url }}" class="text-dark" target="_blank">
                                 <i class="bi bi-linkedin"></i>
                             </a>
                             {% endif %}
-                            {% if faculty.website %}
-                            <a href="{{ faculty.website }}" class="text-dark" target="_blank">
+                            {% if faculty.profile.website %}
+                            <a href="{{ faculty.profile.website }}" class="text-dark" target="_blank">
                                 <i class="bi bi-globe"></i>
                             </a>
                             {% endif %}
