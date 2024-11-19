@@ -1,45 +1,46 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
-from django.db.models import Count, Q, Avg, Sum
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.conf import settings
-from django.urls import reverse, reverse_lazy
-from django.utils import timezone
-from django.core.cache import cache
-from django.views.generic import DetailView
-from django.views.generic.edit import CreateView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.serializers import serialize
-from django.core.files.storage import default_storage
+from datetime import datetime, timedelta
+from io import StringIO
 import csv
 import json
 import os
 import pytz
-from datetime import datetime, timedelta
-from io import StringIO
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core.files.storage import default_storage
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.serializers import serialize
+from django.db.models import Count, Q, Avg, Sum, Case, When
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.views.generic import DetailView
+from django.views.generic.edit import CreateView
+
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectAnalyticsSummarySerializer
 
-from .models import (
-    Project, Comment, Clap, UserProfile, Rating, 
-    Bookmark, ProjectAnalytics, Notification, Follow, 
-    CommentClap, Solution,
-)
+from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
+
+from .filters.project_filters import ProjectFilter
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
     RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm, ExtendedUserCreationForm,
-    SolutionForm,
+    SolutionForm, TeamForm, TeamDiscussionForm, TeamCommentForm, TeamNotificationSettingsForm
 )
-from .filters.project_filters import ProjectFilter
-from django.contrib.auth.forms import UserCreationForm
+from .models import (
+    Project, Comment, Clap, UserProfile, Rating,
+    Bookmark, ProjectAnalytics, Notification, Follow,
+    CommentClap, Solution, Team, TeamMembership, TeamDiscussion, TeamComment, TeamAnalytics
+)
+from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectAnalyticsSummarySerializer
 from .utils.pdf import generate_analytics_pdf
-from khcc_psut_ai_lab.constants import TALENT_TYPES
-
-from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
 
 class ProjectAnalyticsView(LoginRequiredMixin, DetailView):
     model = Project
@@ -1298,3 +1299,345 @@ def review_solution(request, project_pk, solution_pk):
         'project': project
     })
 
+@login_required
+def join_team(request, team_slug):
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if user is already a member
+    if TeamMembership.objects.filter(team=team, user=request.user).exists():
+        messages.warning(request, 'You are already a member of this team.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Create membership
+    TeamMembership.objects.create(
+        team=team,
+        user=request.user,
+        role='member',
+        is_approved=True  # Auto-approve for now, you can modify this for approval workflow
+    )
+    
+    messages.success(request, f'You have successfully joined {team.name}!')
+    return redirect('projects:team_detail', team_slug=team.slug)
+
+@login_required
+def leave_team(request, team_slug):
+    team = get_object_or_404(Team, slug=team_slug)
+    membership = get_object_or_404(TeamMembership, team=team, user=request.user)
+    
+    # Prevent founder from leaving
+    if membership.role == 'founder':
+        messages.error(request, 'Team founders cannot leave their team. Transfer ownership first or delete the team.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Delete membership
+    membership.delete()
+    
+    messages.success(request, f'You have left {team.name}.')
+    return redirect('projects:team_list')
+
+@login_required
+def promote_member(request, team_slug, user_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if current user is founder
+    if not TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        role='founder',
+        is_approved=True
+    ).exists():
+        messages.error(request, 'Only team founders can promote members.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Get target member
+    membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user_id=user_id,
+        is_approved=True
+    )
+    
+    # Prevent promoting founder
+    if membership.role == 'founder':
+        messages.error(request, 'Cannot promote team founder.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Promote to moderator
+    membership.role = 'moderator'
+    membership.save()
+    
+    messages.success(
+        request, 
+        f'{membership.user.get_full_name() or membership.user.username} has been promoted to moderator.'
+    )
+    return redirect('projects:team_members', team_slug=team.slug)
+
+@login_required
+def remove_member(request, team_slug, user_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if current user is founder or moderator
+    current_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        is_approved=True,
+        role__in=['founder', 'moderator']
+    )
+    
+    # Get target member
+    membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user_id=user_id
+    )
+    
+    # Prevent removing founder
+    if membership.role == 'founder':
+        messages.error(request, 'Cannot remove team founder.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Prevent moderators from removing other moderators
+    if current_membership.role == 'moderator' and membership.role == 'moderator':
+        messages.error(request, 'Moderators cannot remove other moderators.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Remove member
+    membership.delete()
+    
+    messages.success(
+        request, 
+        f'{membership.user.get_full_name() or membership.user.username} has been removed from the team.'
+    )
+    return redirect('projects:team_members', team_slug=team.slug)
+
+@login_required
+def team_list(request):
+    """
+    Display a list of all teams with search and filter capabilities
+    """
+    teams = Team.objects.all().select_related('founder')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        teams = teams.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(tags__icontains=search_query)
+        ).distinct()
+    
+    # Filter by tags
+    tag_filter = request.GET.get('tag', '')
+    if tag_filter:
+        teams = teams.filter(tags__icontains=tag_filter)
+    
+    # Get all unique tags for the filter dropdown
+    all_tags = set()
+    for team in Team.objects.values_list('tags', flat=True):
+        if team:  # Check if tags exist
+            all_tags.update(tag.strip() for tag in team.split(','))
+    
+    context = {
+        'teams': teams,
+        'search_query': search_query,
+        'tag_filter': tag_filter,
+        'all_tags': sorted(all_tags),
+        'title': 'Teams'
+    }
+    
+    return render(request, 'teams/team_list.html', context)
+
+@login_required
+def create_team(request):
+    """
+    Handle team creation
+    """
+    if request.method == 'POST':
+        form = TeamForm(request.POST, request.FILES)
+        if form.is_valid():
+            team = form.save(commit=False)
+            team.founder = request.user
+            team.save()
+            
+            # Create founder membership
+            TeamMembership.objects.create(
+                team=team,
+                user=request.user,
+                role='founder',
+                is_approved=True
+            )
+            
+            messages.success(request, f'Team "{team.name}" has been created successfully!')
+            return redirect('projects:team_detail', team_slug=team.slug)
+    else:
+        form = TeamForm()
+    
+    return render(request, 'teams/create_team.html', {
+        'form': form,
+        'title': 'Create Team'
+    })
+
+@login_required
+def team_detail(request, team_slug):
+    """
+    Display team details, members, and activities
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Get user's membership if exists
+    user_membership = TeamMembership.objects.filter(
+        team=team,
+        user=request.user
+    ).first()
+    
+    # Get team members with profiles
+    members = TeamMembership.objects.filter(
+        team=team,
+        is_approved=True
+    ).select_related('user', 'user__profile').order_by('-role', 'user__username')
+    
+    # Get recent activities (if you have an Activity model)
+    # activities = team.activities.all().select_related('user')[:5]
+    
+    context = {
+        'team': team,
+        'user_membership': user_membership,
+        'members': members,
+        # 'activities': activities,
+        'title': team.name,
+        'tags': [tag.strip() for tag in team.tags.split(',')] if team.tags else []
+    }
+    
+    return render(request, 'teams/team_detail.html', context)
+
+@login_required
+def edit_team(request, team_slug):
+    """
+    Handle team editing
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if user is founder or moderator
+    membership = get_object_or_404(
+        TeamMembership, 
+        team=team, 
+        user=request.user, 
+        is_approved=True,
+        role__in=['founder', 'moderator']
+    )
+    
+    if request.method == 'POST':
+        form = TeamForm(request.POST, request.FILES, instance=team)
+        if form.is_valid():
+            team = form.save()
+            messages.success(request, f'Team "{team.name}" has been updated successfully!')
+            return redirect('projects:team_detail', team_slug=team.slug)
+    else:
+        form = TeamForm(instance=team)
+    
+    context = {
+        'form': form,
+        'team': team,
+        'title': f'Edit Team: {team.name}',
+        'can_delete': membership.role == 'founder'  # Only founders can delete teams
+    }
+    
+    return render(request, 'teams/edit_team.html', context)
+
+@login_required
+def delete_team(request, team_slug):
+    """
+    Handle team deletion
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if user is founder
+    if not TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        role='founder',
+        is_approved=True
+    ).exists():
+        messages.error(request, 'Only team founders can delete teams.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    if request.method == 'POST':
+        # Store team name for success message
+        team_name = team.name
+        
+        # Delete team image if it exists
+        if team.team_image:
+            team.team_image.delete(save=False)
+        
+        # Delete the team and all related objects
+        team.delete()
+        
+        messages.success(request, f'Team "{team_name}" has been deleted successfully.')
+        return redirect('projects:team_list')
+    
+    return render(request, 'teams/delete_team.html', {
+        'team': team,
+        'title': f'Delete Team: {team.name}'
+    })
+
+@login_required
+def team_members(request, team_slug):
+    """
+    Display and manage team members
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Get user's membership if exists
+    user_membership = TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        is_approved=True
+    ).first()
+    
+    # Check if user is a member
+    if not user_membership:
+        messages.error(request, 'You must be a team member to view this page.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Get all team members with profiles
+    members = TeamMembership.objects.filter(
+        team=team,
+        is_approved=True
+    ).select_related(
+        'user',
+        'user__profile'
+    ).order_by(
+        # Order by role (founder first, then moderators, then members)
+        Case(
+            When(role='founder', then=0),
+            When(role='moderator', then=1),
+            default=2
+        ),
+        'user__username'
+    )
+    
+    # Get pending join requests if user is founder or moderator
+    pending_requests = []
+    if user_membership.role in ['founder', 'moderator']:
+        pending_requests = TeamMembership.objects.filter(
+            team=team,
+            is_approved=False
+        ).select_related('user', 'user__profile')
+    
+    context = {
+        'team': team,
+        'user_membership': user_membership,
+        'members': members,
+        'pending_requests': pending_requests,
+        'title': f'{team.name} - Members',
+        'can_manage': user_membership.role in ['founder', 'moderator']
+    }
+    
+    return render(request, 'teams/team_members.html', context)

@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<!-- Edit Team Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Edit Team: {{ team.name }}</h1>
+        <p class="lead">Update your team's information and settings</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Edit Form -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Team Information -->
+                        <div class="mb-4">
+                            <h5 class="card-title mb-3">
+                                <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                                Team Information
+                            </h5>
+                            {{ form.name|as_crispy_field }}
+                            {{ form.description|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Team Settings -->
+                        <div class="mb-4">
+                            <h5 class="card-title mb-3">
+                                <i class="bi bi-gear-fill text-primary me-2"></i>
+                                Team Settings
+                            </h5>
+                            {{ form.tags|as_crispy_field }}
+                            
+                            <!-- Current Image Preview -->
+                            {% if team.team_image %}
+                            <div class="mb-3">
+                                <label class="form-label">Current Team Image</label>
+                                <div class="mb-2">
+                                    <img src="{{ team.team_image.url }}" 
+                                         alt="Current team image" 
+                                         class="img-thumbnail"
+                                         style="max-width: 200px;">
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {{ form.team_image|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <button type="submit" class="btn btn-primary me-2">
+                                    <i class="bi bi-save me-2"></i>Save Changes
+                                </button>
+                                <a href="{% url 'projects:team_detail' team_slug=team.slug %}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-lg me-2"></i>Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            {% if can_delete %}
+            <!-- Danger Zone -->
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Danger Zone
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-danger mb-3">
+                        These actions cannot be undone. Please be certain.
+                    </p>
+                    <form action="{% url 'projects:delete_team' team_slug=team.slug %}" 
+                          method="post" 
+                          onsubmit="return confirm('Are you sure you want to delete this team? This action cannot be undone.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="bi bi-trash me-2"></i>Delete Team
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Help Sidebar -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-question-circle-fill text-primary me-2"></i>
+                        Tips
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Use a clear, descriptive team name
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Add relevant tags to help others find your team
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Upload a team image to make your team stand out
+                        </li>
+                        <li>
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Provide a detailed description of your team's goals
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

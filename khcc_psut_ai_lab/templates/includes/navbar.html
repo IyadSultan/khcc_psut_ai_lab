@@ -34,6 +34,12 @@
                             <i class="bi bi-person-hearts me-1"></i>Talents
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_tab == 'Teams' %}active{% endif %}"
+                           href="{% url 'projects:team_list' %}">
+                            <i class="bi bi-people me-1"></i>Teams
+                        </a>
+                    </li>
             </ul>
             <ul class="navbar-nav">
                 {% if user.is_authenticated %}

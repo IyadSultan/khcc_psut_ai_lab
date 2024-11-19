@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h1 class="text-2xl font-bold">{{ discussion.title }}</h1>
+                <p class="text-gray-500">Posted by {{ discussion.author.username }} - {{ discussion.created_at|timesince }} ago</p>
+            </div>
+            <a href="{% url 'team_detail' team.slug %}" class="btn btn-secondary">Back to Team</a>
+        </div>
+        <div class="prose max-w-none">
+            {{ discussion.content|linebreaks }}
+        </div>
+    </div>
+
+    <!-- Comments -->
+    <div class="space-y-6">
+        {% if membership.is_approved %}
+        <form method="POST" class="bg-white rounded-lg shadow-md p-6">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary mt-4">Add Comment</button>
+        </form>
+        {% endif %}
+
+        {% for comment in discussion.comments.all %}
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center space-x-2">
+                    <span class="font-semibold">{{ comment.author.username }}</span>
+                    <span class="text-gray-500">{{ comment.created_at|timesince }} ago</span>
+                </div>
+                {% if comment.author == request.user or membership.role in 'founder,moderator' %}
+                <button class="text-gray-500 hover:text-red-500" onclick="deleteComment({{ comment.id }})">Delete</button>
+                {% endif %}
+            </div>
+            <div class="mt-2">
+                {{ comment.content|linebreaks }}
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-center text-gray-500">No comments yet.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function deleteComment(commentId) {
+    if (confirm('Are you sure you want to delete this comment?')) {
+        fetch(`/teams/comments/${commentId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -17,7 +17,8 @@ from .models import (
     Bookmark,
     ProjectAnalytics,
     Notification,
-    Solution
+    Solution,
+    Team
 )
 
 from django.contrib.auth.forms import UserCreationForm
@@ -825,3 +826,104 @@ class SolutionForm(forms.ModelForm):
     class Meta:
         model = Solution
         fields = ['content', 'files', 'github_link']
+
+from django import forms
+from .models import Team, TeamDiscussion, TeamComment, TeamMembership
+
+class TeamForm(forms.ModelForm):
+    class Meta:
+        model = Team
+        fields = ['name', 'description', 'tags', 'team_image']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter team name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your team and its goals'
+            }),
+            'tags': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter tags separated by commas (e.g., AI, Healthcare, Research)'
+            }),
+            'team_image': forms.FileInput(attrs={
+                'class': 'form-control'
+            })
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        if self.instance.pk:
+            if Team.objects.exclude(pk=self.instance.pk).filter(name__iexact=name).exists():
+                raise forms.ValidationError('A team with this name already exists.')
+        else:
+            if Team.objects.filter(name__iexact=name).exists():
+                raise forms.ValidationError('A team with this name already exists.')
+        return name
+
+class TeamDiscussionForm(forms.ModelForm):
+    class Meta:
+        model = TeamDiscussion
+        fields = ['title', 'content']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 6})
+        }
+
+class TeamCommentForm(forms.ModelForm):
+    class Meta:
+        model = TeamComment
+        fields = ['content']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 3})
+        }
+
+class TeamMembershipForm(forms.ModelForm):
+    class Meta:
+        model = TeamMembership
+        fields = ['role', 'is_approved']
+        widgets = {
+            'role': forms.Select(attrs={'class': 'form-select'}),
+            'is_approved': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only allow certain role choices based on permissions
+        user = kwargs.get('initial', {}).get('user')
+        if user and not user.is_staff:
+            self.fields['role'].choices = [
+                ('member', 'Member'),
+                ('moderator', 'Moderator')
+            ]
+
+class TeamNotificationSettingsForm(forms.Form):
+    email_notifications = forms.BooleanField(required=False)
+    in_app_notifications = forms.BooleanField(required=False)
+
+class TeamForm(forms.ModelForm):
+    class Meta:
+        model = Team
+        fields = ['name', 'description', 'tags', 'team_image']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'tags': forms.TextInput(attrs={
+                'placeholder': 'Enter tags separated by commas'
+            }),
+        }
+    
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        if Team.objects.filter(name__iexact=name).exists():
+            raise forms.ValidationError('A team with this name already exists.')
+        return name
+    
+    def clean_tags(self):
+        tags = self.cleaned_data['tags']
+        if tags:
+            # Split tags by comma and clean them
+            tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
+            # Rejoin cleaned tags
+            return ', '.join(tag_list)
+        return tags

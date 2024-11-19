@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<!-- Create Team Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Create Team</h1>
+        <p class="lead">Start a new collaboration and build something amazing together</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Team Information -->
+                        <div class="mb-4">
+                            <h5 class="card-title mb-3">
+                                <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                                Team Information
+                            </h5>
+                            {{ form.name|as_crispy_field }}
+                            {{ form.description|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Team Settings -->
+                        <div class="mb-4">
+                            <h5 class="card-title mb-3">
+                                <i class="bi bi-gear-fill text-primary me-2"></i>
+                                Team Settings
+                            </h5>
+                            {{ form.tags|as_crispy_field }}
+                            {{ form.team_image|as_crispy_field }}
+                            
+                            {% if form.team_image.help_text %}
+                            <small class="form-text text-muted">
+                                {{ form.team_image.help_text }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-lg me-2"></i>Create Team
+                            </button>
+                            <a href="{% url 'projects:team_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Tips Card -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-lightbulb-fill text-warning me-2"></i>
+                        Tips for Creating a Great Team
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Choose a clear, descriptive name for your team
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Write a detailed description of your team's goals
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Add relevant tags to help others find your team
+                        </li>
+                        <li>
+                            <i class="bi bi-check2 text-success me-2"></i>
+                            Upload a team image to make your team stand out
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<!-- Team Detail Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <div class="d-flex align-items-center">
+            {% if team.team_image %}
+            <img src="{{ team.team_image.url }}" 
+                 alt="{{ team.name }}" 
+                 class="rounded-circle me-4"
+                 style="width: 100px; height: 100px; object-fit: cover;">
+            {% endif %}
+            <div>
+                <h1 class="display-4">{{ team.name }}</h1>
+                <p class="lead mb-0">{{ team.description|truncatewords:30 }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Team Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if user_membership %}
+                                {% if user_membership.role == 'founder' or user_membership.role == 'moderator' %}
+                                <a href="{% url 'projects:edit_team' team_slug=team.slug %}" 
+                                   class="btn btn-outline-primary me-2">
+                                    <i class="bi bi-pencil me-2"></i>Edit Team
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'projects:leave_team' team_slug=team.slug %}" 
+                                   class="btn btn-outline-danger"
+                                   onclick="return confirm('Are you sure you want to leave this team?');">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Leave Team
+                                </a>
+                            {% else %}
+                                <a href="{% url 'projects:join_team' team_slug=team.slug %}" 
+                                   class="btn btn-primary">
+                                    <i class="bi bi-person-plus me-2"></i>Join Team
+                                </a>
+                            {% endif %}
+                        </div>
+                        
+                        {% if user_membership %}
+                        <a href="{% url 'projects:team_members' team_slug=team.slug %}" 
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-people me-2"></i>View All Members
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Description -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">About</h5>
+                    <p class="card-text">{{ team.description }}</p>
+                    
+                    {% if tags %}
+                    <div class="mt-3">
+                        <h6 class="text-muted mb-2">Tags</h6>
+                        {% for tag in tags %}
+                        <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Team Members Preview -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Team Members</h5>
+                        <span class="badge bg-primary">{{ members.count }} Members</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% for member in members|slice:":5" %}
+                    <div class="d-flex align-items-center {% if not forloop.last %}mb-3{% endif %}">
+                        <img src="{% if member.user.profile.avatar %}{{ member.user.profile.avatar.url }}{% else %}https://via.placeholder.com/40{% endif %}" 
+                             class="rounded-circle me-3" 
+                             alt="{{ member.user.username }}"
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div>
+                            <h6 class="mb-0">{{ member.user.get_full_name|default:member.user.username }}</h6>
+                            <span class="badge {% if member.role == 'founder' %}bg-warning{% elif member.role == 'moderator' %}bg-info{% endif %}">{{ member.role|title }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Team Members Preview -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Team Members</h5>
+                </div>
+                <div class="card-body">
+                    {% for member in members %}
+                    <div class="d-flex align-items-center {% if not forloop.last %}mb-3{% endif %}">
+                        <img src="{% if member.user.profile.avatar %}{{ member.user.profile.avatar.url }}{% else %}https://via.placeholder.com/40{% endif %}" 
+                             class="rounded-circle me-2" 
+                             alt="{{ member.user.username }}"
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div>
+                            <h6 class="mb-0">{{ member.user.get_full_name|default:member.user.username }}</h6>
+                            <small class="text-muted">{{ member.role|title }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

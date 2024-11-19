@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Team Members Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">{{ team.name }} - Members</h1>
+        <p class="lead">{{ members.count }} team member{{ members.count|pluralize }}</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            {% if pending_requests %}
+            <!-- Pending Requests -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock-fill me-2"></i>
+                            Pending Requests
+                        </h5>
+                        <span class="badge bg-warning text-dark">{{ pending_requests.count }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% for request in pending_requests %}
+                    <div class="d-flex justify-content-between align-items-center {% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}">
+                        <div class="d-flex align-items-center">
+                            <img src="{% if request.user.profile.avatar %}{{ request.user.profile.avatar.url }}{% else %}https://via.placeholder.com/40{% endif %}" 
+                                 class="rounded-circle me-3" 
+                                 alt="{{ request.user.username }}"
+                                 style="width: 40px; height: 40px; object-fit: cover;">
+                            <div>
+                                <h6 class="mb-0">{{ request.user.get_full_name|default:request.user.username }}</h6>
+                                {% if request.user.profile.title %}
+                                <small class="text-muted">{{ request.user.profile.title }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <form method="post" action="{% url 'projects:approve_member' team_slug=team.slug user_id=request.user.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success btn-sm me-2">
+                                    <i class="bi bi-check-lg me-1"></i>Approve
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'projects:reject_member' team_slug=team.slug user_id=request.user.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-x-lg me-1"></i>Reject
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Team Members List -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Team Members</h5>
+                </div>
+                <div class="card-body">
+                    {% for member in members %}
+                    <div class="d-flex justify-content-between align-items-center {% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}">
+                        <div class="d-flex align-items-center">
+                            <img src="{% if member.user.profile.avatar %}{{ member.user.profile.avatar.url }}{% else %}https://via.placeholder.com/48{% endif %}" 
+                                 class="rounded-circle me-3" 
+                                 alt="{{ member.user.username }}"
+                                 style="width: 48px; height: 48px; object-fit: cover;">
+                            <div>
+                                <h6 class="mb-0">{{ member.user.get_full_name|default:member.user.username }}</h6>
+                                <div>
+                                    <span class="badge {% if member.role == 'founder' %}bg-warning{% elif member.role == 'moderator' %}bg-info{% else %}bg-secondary{% endif %} text-dark">
+                                        {{ member.role|title }}
+                                    </span>
+                                    {% if member.user.profile.title %}
+                                    <small class="text-muted ms-2">{{ member.user.profile.title }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if can_manage and member.user != request.user %}
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                    type="button" 
+                                    data-bs-toggle="dropdown">
+                                Actions
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                {% if user_membership.role == 'founder' and member.role != 'moderator' %}
+                                <li>
+                                    <form action="{% url 'projects:promote_member' team_slug=team.slug user_id=member.user.id %}" method="post">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="bi bi-arrow-up-circle me-2"></i>Promote to Moderator
+                                        </button>
+                                    </form>
+                                </li>
+                                {% endif %}
+                                <li>
+                                    <form action="{% url 'projects:remove_member' team_slug=team.slug user_id=member.user.id %}" 
+                                          method="post"
+                                          onsubmit="return confirm('Are you sure you want to remove this member?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-person-x me-2"></i>Remove from Team
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-center text-muted my-4">No members found.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Team Info Sidebar -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">About Team</h5>
+                    <p class="card-text">{{ team.description }}</p>
+                    {% if tags %}
+                    <div class="mb-3">
+                        <h6 class="card-subtitle text-muted mb-2">Tags</h6>
+                        {% for tag in tags %}
+                        <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="mb-0">
+                        <h6 class="card-subtitle text-muted mb-2">Quick Stats</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <i class="bi bi-people-fill me-2"></i>
+                                {{ members.count }} Members
+                            </li>
+                            <li>
+                                <i class="bi bi-calendar-fill me-2"></i>
+                                Created {{ team.created_at|date:"M d, Y" }}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Back to Team -->
+            <a href="{% url 'projects:team_detail' team_slug=team.slug %}" 
+               class="btn btn-outline-primary w-100">
+                <i class="bi bi-arrow-left me-2"></i>Back to Team
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

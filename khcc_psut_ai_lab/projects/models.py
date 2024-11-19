@@ -532,4 +532,147 @@ class Solution(models.Model):
 
 
 
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator
+from django.urls import reverse
+from django.utils.text import slugify
+from khcc_psut_ai_lab.constants import DEFAULT_TEAM_SIZE, MAX_TEAM_SIZE, TEAM_ROLES
+import uuid
+
+def team_image_upload_path(instance, filename):
+    # Generate path like: team_images/team_slug/filename
+    return f'team_images/{instance.slug}/{filename}'
+
+class Team(models.Model):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True, max_length=100, blank=True)
+    description = models.TextField()
+    founder = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='founded_teams'
+    )
+    team_image = models.ImageField(  # Changed from 'image' to 'team_image'
+        upload_to=team_image_upload_path,
+        null=True,
+        blank=True,
+        help_text="Upload a team profile image"
+    )
+    tags = models.CharField(
+        max_length=200, 
+        blank=True,
+        help_text="Enter tags separated by commas"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['-created_at']
+
+class TeamMembership(models.Model):
+    ROLE_CHOICES = [
+        ('founder', 'Founder'),
+        ('moderator', 'Moderator'),
+        ('member', 'Member'),
+    ]
+    
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_memberships')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='member')
+    is_approved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'user')
+
+class TeamDiscussion(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='discussions')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    pinned = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-pinned', '-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.team.name}"
+
+class TeamComment(models.Model):
+    discussion = models.ForeignKey(TeamDiscussion, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Comment by {self.author.username} on {self.discussion.title}"
+
+class TeamAnalytics(models.Model):
+    team = models.OneToOneField(Team, on_delete=models.CASCADE, related_name='analytics')
+    total_discussions = models.PositiveIntegerField(default=0)
+    total_comments = models.PositiveIntegerField(default=0)
+    active_members = models.PositiveIntegerField(default=0)
+    last_activity = models.DateTimeField(null=True, blank=True)
+    
+    # Weekly and monthly stats
+    discussions_this_week = models.PositiveIntegerField(default=0)
+    comments_this_week = models.PositiveIntegerField(default=0)
+    discussions_this_month = models.PositiveIntegerField(default=0)
+    comments_this_month = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        verbose_name_plural = "Team analytics"
+
+    def __str__(self):
+        return f"Analytics for {self.team.name}"
+
+    def update_stats(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+        
+        self.total_discussions = self.team.discussions.count()
+        self.total_comments = TeamComment.objects.filter(discussion__team=self.team).count()
+        self.active_members = TeamMembership.objects.filter(
+            team=self.team,
+            user__last_login__gte=month_ago
+        ).count()
+        
+        self.discussions_this_week = self.team.discussions.filter(
+            created_at__gte=week_ago
+        ).count()
+        self.comments_this_week = TeamComment.objects.filter(
+            discussion__team=self.team,
+            created_at__gte=week_ago
+        ).count()
+        
+        self.discussions_this_month = self.team.discussions.filter(
+            created_at__gte=month_ago
+        ).count()
+        self.comments_this_month = TeamComment.objects.filter(
+            discussion__team=self.team,
+            created_at__gte=month_ago
+        ).count()
+        
+        self.last_activity = now
+        self.save()
 
