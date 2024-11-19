@@ -13,6 +13,14 @@ import uuid
 from django.db.models import Avg
 from django.conf import settings
 from khcc_psut_ai_lab.constants import TALENT_TYPES
+from django.utils import timezone
+
+# Add these constants
+gold_goalS = [
+    ('all', 'All Complete'),
+    ('first', 'First to Complete'),
+    ('best', 'Best Solution')
+]
 
 # File Upload Path Functions
 def validate_github_url(value):
@@ -113,6 +121,22 @@ class Project(models.Model):
         help_text="Link to a YouTube video for your project"
     )
     
+    # New fields for Gold Seeds
+    is_gold = models.BooleanField(default=False, help_text="Mark this as a Gold Seed (Faculty only)")
+    token_reward = models.PositiveIntegerField(
+        null=True, 
+        blank=True, 
+        help_text="Number of tokens awarded for completion"
+    )
+    gold_goal = models.CharField(
+        max_length=10,
+        choices=gold_goalS,
+        null=True,
+        blank=True
+    )
+    deadline = models.DateTimeField(null=True, blank=True)
+    is_completed = models.BooleanField(default=False)
+
     def get_youtube_embed_url(self):
         """Convert YouTube video URL to embed URL"""
         if not self.youtube_url:
@@ -198,6 +222,11 @@ class Project(models.Model):
     def get_pdf_url(self):
         """Get the PDF file URL or return None"""
         return self.pdf_file.url if self.pdf_file else None
+
+    def can_submit(self):
+        if not self.is_gold or not self.deadline:
+            return False
+        return timezone.now() <= self.deadline
 
 class Comment(models.Model):
     project = models.ForeignKey(
@@ -476,6 +505,30 @@ class CommentClap(models.Model):
     def __str__(self):
         return f'{self.user.username} clapped for comment on {self.comment.project.title}'
     
+
+class Solution(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='solutions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    files = models.FileField(
+        upload_to='solutions/',
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'doc', 'docx', 'zip', 'py', 'ipynb', 'txt']
+        )]
+    )
+    github_link = models.URLField(blank=True, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False)
+    faculty_feedback = models.TextField(blank=True)
+    tokens_awarded = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ['project', 'user']
+
+    def __str__(self):
+        return f"Solution by {self.user.username} for {self.project.title}"
 
 
 

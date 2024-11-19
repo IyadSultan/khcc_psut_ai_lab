@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <h2>Review Solution</h2>
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5>Solution by {{ solution.user.username }}</h5>
+            <p class="text-muted">Submitted: {{ solution.submitted_at|date:"F d, Y H:i" }}</p>
+            
+            <div class="mb-3">
+                <h6>Content:</h6>
+                {{ solution.content|linebreaks }}
+            </div>
+            
+            {% if solution.files %}
+                <div class="mb-3">
+                    <h6>Files:</h6>
+                    <a href="{{ solution.files.url }}" class="btn btn-sm btn-outline-primary">
+                        Download Files
+                    </a>
+                </div>
+            {% endif %}
+            
+            {% if solution.github_link %}
+                <div class="mb-3">
+                    <h6>GitHub Link:</h6>
+                    <a href="{{ solution.github_link }}" target="_blank">{{ solution.github_link }}</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label">Feedback:</label>
+            <textarea name="feedback" class="form-control" rows="4">{{ solution.faculty_feedback }}</textarea>
+        </div>
+        
+        {% if project.token_reward %}
+        <div class="mb-3">
+            <label class="form-label">Tokens to Award (max {{ project.token_reward }}):</label>
+            <input type="number" name="tokens" class="form-control" 
+                   max="{{ project.token_reward }}" value="{{ solution.tokens_awarded|default:0 }}">
+        </div>
+        {% endif %}
+        
+        <div class="mb-3">
+            <div class="form-check">
+                <input type="checkbox" name="is_approved" class="form-check-input" 
+                       {% if solution.is_approved %}checked{% endif %}>
+                <label class="form-check-label">Approve Solution</label>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Submit Review</button>
+    </form>
+</div>
+{% endblock %}

@@ -16,7 +16,8 @@ from .models import (
     Rating,
     Bookmark,
     ProjectAnalytics,
-    Notification
+    Notification,
+    Solution
 )
 
 from django.contrib.auth.forms import UserCreationForm
@@ -64,37 +65,46 @@ class ProjectForm(forms.ModelForm):
     
     class Meta:
         model = Project
-        fields = ['title', 'description', 'github_link', 'tags', 'pdf_file', 'featured_image']
+        fields = [
+            'title', 'description', 'github_link', 'tags',
+            'pdf_file', 'featured_image', 'additional_files',
+            'youtube_url', 'is_gold', 'token_reward',
+            'gold_goal', 'deadline'
+        ]
         widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter project title',
-                'maxlength': '200',
-                'data-toggle': 'tooltip',
-                'title': 'Choose a descriptive title for your project'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 5,
-                'placeholder': 'Describe your project in detail...',
-                'data-toggle': 'tooltip',
-                'title': 'Explain what your project does, technologies used, and its purpose'
-            }),
-            'github_link': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'https://github.com/username/repository',
-                'data-toggle': 'tooltip',
-                'title': 'Link to your GitHub repository'
-            }),
-            'pdf_file': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'application/pdf',
-            }),
-            'featured_image': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*',
-            })
+            'deadline': forms.DateTimeInput(
+                attrs={'type': 'datetime-local'},
+                format='%Y-%m-%dT%H:%M'
+            ),
+            'tags': forms.TextInput(
+                attrs={'placeholder': 'Enter tags separated by commas'}
+            ),
+            'gold_goal': forms.Select(
+                attrs={'class': 'form-select'}
+            ),
         }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        instance = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
+        
+        # Only show gold seed fields to faculty members
+        if self.user and not self.user.groups.filter(name='Faculty').exists():
+            self.fields.pop('is_gold', None)
+            self.fields.pop('token_reward', None)
+            self.fields.pop('gold_goal', None)
+            self.fields.pop('deadline', None)
+        else:
+            # Add help text for faculty members
+            self.fields['is_gold'].help_text = "Mark this as a Gold Seed to offer tokens for completion"
+            self.fields['token_reward'].help_text = "Number of tokens to award for completion"
+            self.fields['gold_goal'].help_text = "How tokens will be awarded"
+            self.fields['deadline'].help_text = "Deadline for submitting solutions"
+            
+            # If this is an existing project, format the deadline
+            if instance and instance.deadline:
+                self.initial['deadline'] = instance.deadline.strftime('%Y-%m-%dT%H:%M')
 
     def clean_github_link(self):
         """Validate GitHub repository URL"""
@@ -602,7 +612,7 @@ class ProjectSearchForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Search projects...'
+            'placeholder': 'Search seeds...'
         })
     )
     
@@ -708,11 +718,41 @@ import os
 
 class ProjectForm(forms.ModelForm):
     """Form for creating and editing projects."""
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter tags separated by commas (e.g., AI, Machine Learning, NLP)',
+            'data-toggle': 'tooltip',
+            'title': 'Add up to 5 tags to help others find your project'
+        })
+    )
     
     class Meta:
         model = Project
         fields = ['title', 'description', 'github_link', 'tags', 'youtube_url', 
                  'pdf_file', 'featured_image', 'additional_files']
+        
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Only show gold seed fields to faculty members
+        if self.user and self.user.groups.filter(name='Faculty').exists():
+            self.fields['is_gold'] = forms.BooleanField(required=False)
+            self.fields['token_reward'] = forms.IntegerField(required=False)
+            self.fields['gold_goal'] = forms.ChoiceField(
+                choices=[
+                    ('all', 'All Complete'),
+                    ('first', 'First to Complete'),
+                    ('best', 'Best Solution')
+                ],
+                required=False
+            )
+            self.fields['deadline'] = forms.DateTimeField(
+                required=False,
+                widget=forms.DateTimeInput(attrs={'type': 'datetime-local'})
+            )
         
     def clean_youtube_url(self):
         url = self.cleaned_data.get('youtube_url')
@@ -780,3 +820,8 @@ class ExtendedUserCreationForm(UserCreationForm):
                 talent_type=self.cleaned_data['talent_type']
             )
         return user
+
+class SolutionForm(forms.ModelForm):
+    class Meta:
+        model = Solution
+        fields = ['content', 'files', 'github_link']

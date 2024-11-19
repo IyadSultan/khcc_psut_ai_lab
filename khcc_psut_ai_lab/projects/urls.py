@@ -57,4 +57,7 @@ urlpatterns = [
     # urls.py
 path('comment/<int:pk>/clap/', views.clap_comment, name='clap_comment'),
 path('talents/', views.talents_page, name='talents'),
+path('project/<int:pk>/submit-solution/', views.submit_solution, name='submit_solution'),
+path('project/<int:project_pk>/solution/<int:solution_pk>/review/', 
+     views.review_solution, name='review_solution'),
 ]

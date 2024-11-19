@@ -27,11 +27,12 @@ from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectA
 from .models import (
     Project, Comment, Clap, UserProfile, Rating, 
     Bookmark, ProjectAnalytics, Notification, Follow, 
-    CommentClap,
+    CommentClap, Solution,
 )
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
-    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm, ExtendedUserCreationForm
+    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm,
 )
 from .filters.project_filters import ProjectFilter
 from django.contrib.auth.forms import UserCreationForm
@@ -432,25 +433,34 @@ def project_list(request):
 @login_required
 def submit_project(request):
     if request.method == 'POST':
-        form = ProjectForm(request.POST, request.FILES)
+        form = ProjectForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
-            try:
-                project = form.save(commit=False)
-                project.author = request.user
-                project.save()
-                
-                # Create project directory
-                project_dir = f'uploads/user_{request.user.id}/project_{project.id}'
-                os.makedirs(os.path.join(settings.MEDIA_ROOT, project_dir), exist_ok=True)
-                
-                messages.success(request, 'Project submitted successfully!')
-                return redirect('projects:project_detail', pk=project.pk)
-            except Exception as e:
-                messages.error(request, f'Error saving project: {str(e)}')
+            project = form.save(commit=False)
+            project.author = request.user
+            
+            # Handle gold seed fields for faculty
+            if request.user.groups.filter(name='Faculty').exists():
+                project.is_gold = form.cleaned_data.get('is_gold', False)
+                if project.is_gold:
+                    project.token_reward = form.cleaned_data.get('token_reward')
+                    project.gold_goal = form.cleaned_data.get('gold_goal')
+                    project.deadline = form.cleaned_data.get('deadline')
+            
+            project.save()
+            
+            # Handle tags
+            if form.cleaned_data['tags']:
+                project.tags = form.cleaned_data['tags']
+            
+            messages.success(request, 'Project submitted successfully!')
+            return redirect('projects:project_detail', pk=project.pk)
     else:
-        form = ProjectForm()
+        form = ProjectForm(user=request.user)
     
-    return render(request, 'projects/submit_project.html', {'form': form})
+    return render(request, 'projects/submit_project.html', {
+        'form': form,
+        'title': 'Submit Project'
+    })
 
 
 def project_detail(request, pk):
@@ -912,23 +922,57 @@ def leaderboard_view(request):
 def edit_project(request, pk):
     project = get_object_or_404(Project, pk=pk)
     
-    if request.user != project.author:
-        messages.error(request, 'You do not have permission to edit this project')
-        return redirect('projects:project_detail', pk=pk)
-        
+    # Check if user is author
+    if project.author != request.user:
+        messages.error(request, "You don't have permission to edit this project.")
+        return redirect('projects:project_detail', pk=project.pk)
+    
     if request.method == 'POST':
-        form = ProjectForm(request.POST, request.FILES, instance=project)
+        form = ProjectForm(
+            request.POST,
+            request.FILES,
+            instance=project,
+            user=request.user
+        )
         if form.is_valid():
-            project = form.save()
-            messages.success(request, 'Project updated successfully')
+            project = form.save(commit=False)
+            
+            # Handle gold seed fields for faculty
+            if request.user.groups.filter(name='Faculty').exists():
+                project.is_gold = form.cleaned_data.get('is_gold', False)
+                if project.is_gold:
+                    project.token_reward = form.cleaned_data.get('token_reward')
+                    project.gold_goal = form.cleaned_data.get('gold_goal')
+                    project.deadline = form.cleaned_data.get('deadline')
+                else:
+                    # Clear gold seed fields if is_gold is False
+                    project.token_reward = None
+                    project.gold_goal = None
+                    project.deadline = None
+            
+            project.save()
+            messages.success(request, 'Project updated successfully!')
             return redirect('projects:project_detail', pk=project.pk)
     else:
-        form = ProjectForm(instance=project)
+        # Initialize form with existing project data
+        initial_data = {
+            'is_gold': project.is_gold,
+            'token_reward': project.token_reward,
+            'gold_goal': project.gold_goal,
+        }
+        if project.deadline:
+            initial_data['deadline'] = project.deadline.strftime('%Y-%m-%dT%H:%M')
+            
+        form = ProjectForm(
+            instance=project,
+            user=request.user,
+            initial=initial_data
+        )
     
     return render(request, 'projects/edit_project.html', {
         'form': form,
         'project': project,
-        'title': f'Edit {project.title}'
+        'title': 'Edit Project'
     })
 
 @login_required
@@ -1193,4 +1237,64 @@ def talents_page(request):
         'selected_talent': talent_type
     }
     return render(request, 'projects/talents.html', context)
+
+@login_required
+def submit_solution(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check if project is a gold seed and still accepting submissions
+    if not project.is_gold or not project.can_submit():
+        messages.error(request, 'This project is not accepting submissions')
+        return redirect('projects:project_detail', pk=pk)
+    
+    # Check if user already submitted
+    if Solution.objects.filter(project=project, user=request.user).exists():
+        messages.error(request, 'You have already submitted a solution')
+        return redirect('projects:project_detail', pk=pk)
+    
+    if request.method == 'POST':
+        form = SolutionForm(request.POST, request.FILES)
+        if form.is_valid():
+            solution = form.save(commit=False)
+            solution.project = project
+            solution.user = request.user
+            solution.save()
+            messages.success(request, 'Solution submitted successfully!')
+            return redirect('projects:project_detail', pk=pk)
+    else:
+        form = SolutionForm()
+    
+    return render(request, 'projects/submit_solution.html', {
+        'form': form,
+        'project': project
+    })
+
+@login_required
+def review_solution(request, project_pk, solution_pk):
+    solution = get_object_or_404(Solution, pk=solution_pk, project_id=project_pk)
+    project = solution.project
+    
+    # Check if user is faculty and project author
+    if not request.user.groups.filter(name='Faculty').exists() or request.user != project.author:
+        messages.error(request, 'You do not have permission to review solutions')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    if request.method == 'POST':
+        is_approved = request.POST.get('is_approved') == 'true'
+        feedback = request.POST.get('feedback', '')
+        tokens = request.POST.get('tokens')
+        
+        solution.is_approved = is_approved
+        solution.faculty_feedback = feedback
+        if tokens and is_approved:
+            solution.tokens_awarded = int(tokens)
+        solution.save()
+        
+        messages.success(request, 'Solution review submitted successfully')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    return render(request, 'projects/review_solution.html', {
+        'solution': solution,
+        'project': project
+    })
 

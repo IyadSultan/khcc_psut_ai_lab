@@ -248,7 +248,7 @@
             <!-- Search Form -->
             <form class="d-flex me-3" action="{% url 'projects:search_projects' %}" method="GET">
                 <div class="input-group">
-                    <input class="form-control" type="search" name="query" placeholder="Search projects...">
+                    <input class="form-control" type="search" name="query" placeholder="Search seeds...">
                     <button class="btn btn-outline-primary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
@@ -6251,7 +6251,7 @@ class ProjectSearchForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Search projects...',
+            'placeholder': 'Search seeds...',
             'aria-label': 'Search'
         })
     )

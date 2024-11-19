@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<!-- Solution Header Banner -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Submit Solution</h1>
+        <p class="lead">{{ project.title }}</p>
+        {% if project.deadline %}
+            <div class="d-flex align-items-center mt-3">
+                <i class="bi bi-clock-fill me-2"></i>
+                <span>Deadline: {{ project.deadline|date:"F d, Y H:i" }}</span>
+            </div>
+        {% endif %}
+        {% if project.token_reward %}
+            <div class="d-flex align-items-center mt-2">
+                <i class="bi bi-coin me-2"></i>
+                <span>Reward: {{ project.token_reward }} Tokens</span>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Project Details Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                        Project Details
+                    </h5>
+                    <p class="card-text">{{ project.description }}</p>
+                    {% if project.github_link %}
+                        <a href="{{ project.github_link }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-github me-2"></i>View Project Repository
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Solution Form Card -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="bi bi-send-fill text-primary me-2"></i>
+                        Submit Your Solution
+                    </h5>
+                    
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Solution Content -->
+                        <div class="mb-4">
+                            {{ form.content|as_crispy_field }}
+                        </div>
+                        
+                        <!-- GitHub Link -->
+                        <div class="mb-4">
+                            {{ form.github_link|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Files -->
+                        <div class="mb-4">
+                            {{ form.files|as_crispy_field }}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send me-2"></i>Submit Solution
+                            </button>
+                            <a href="{% url 'projects:project_detail' project.pk %}" 
+                               class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Project
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            {% if project.gold_goal %}
+            <!-- Submission Guidelines -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                    <h5 class="card-title text-warning mb-3">
+                        <i class="bi bi-trophy-fill me-2"></i>
+                        Gold Seed Challenge
+                    </h5>
+                    <p class="mb-0">
+                        <strong>Goal Type:</strong>
+                        {% if project.gold_goal == 'all' %}
+                            All participants who complete this challenge will receive tokens
+                        {% elif project.gold_goal == 'first' %}
+                            First participant to complete this challenge will receive tokens
+                        {% else %}
+                            Best solution will receive tokens
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

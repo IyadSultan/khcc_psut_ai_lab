@@ -841,7 +841,7 @@ class ProjectSearchForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Search projects...',
+            'placeholder': 'Search seeds...',
             'aria-label': 'Search'
         })
     )

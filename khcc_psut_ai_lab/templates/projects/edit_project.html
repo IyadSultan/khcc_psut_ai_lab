@@ -3,26 +3,93 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h2 class="card-title mb-4">Edit Project</h2>
-            
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                {{ form|crispy }}
-                
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save"></i> Save Changes
-                    </button>
-                    <a href="{% url 'projects:project_detail' project.pk %}" 
-                       class="btn btn-outline-secondary">
-                        Cancel
-                    </a>
+<div class="container py-5">
+    <h1 class="mb-4">Edit Project</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Basic Project Info -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Project Information</h5>
+                        {{ form.title|as_crispy_field }}
+                        {{ form.description|as_crispy_field }}
+                        {{ form.tags|as_crispy_field }}
+                    </div>
                 </div>
-            </form>
+                
+                <!-- Links -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Links</h5>
+                        {{ form.github_link|as_crispy_field }}
+                        {{ form.youtube_url|as_crispy_field }}
+                    </div>
+                </div>
+                
+                <!-- Files -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Files</h5>
+                        {{ form.featured_image|as_crispy_field }}
+                        {{ form.pdf_file|as_crispy_field }}
+                        {{ form.additional_files|as_crispy_field }}
+                    </div>
+                </div>
+                
+                {% if 'Faculty' in user.groups.all|stringformat:'s' %}
+                <!-- Gold Seed Settings (Faculty Only) -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="bi bi-trophy-fill text-warning"></i>
+                            Gold Seed Settings
+                        </h5>
+                        <div class="form-check mb-3">
+                            {{ form.is_gold }}
+                            <label class="form-check-label" for="{{ form.is_gold.id_for_label }}">
+                                Make this a Gold Seed
+                            </label>
+                            {% if form.is_gold.help_text %}
+                                <small class="form-text text-muted">{{ form.is_gold.help_text }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="gold-seed-options" {% if not form.instance.is_gold %}style="display: none;"{% endif %}>
+                            {{ form.token_reward|as_crispy_field }}
+                            {{ form.gold_goal|as_crispy_field }}
+                            {{ form.deadline|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="card">
+                    <div class="card-body">
+                        <button type="submit" class="btn btn-primary w-100">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isGoldCheckbox = document.getElementById('{{ form.is_gold.id_for_label }}');
+    const goldOptions = document.querySelector('.gold-seed-options');
+    
+    // Set initial state based on checkbox
+    goldOptions.style.display = isGoldCheckbox.checked ? 'block' : 'none';
+    
+    isGoldCheckbox.addEventListener('change', function() {
+        goldOptions.style.display = this.checked ? 'block' : 'none';
+    });
+});
+</script>
 {% endblock %}

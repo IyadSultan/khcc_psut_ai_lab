@@ -214,7 +214,43 @@
                     <!-- Project Title and Author Info -->
                     <div class="d-flex justify-content-between align-items-start mb-4">
                         <div>
-                            <h1 class="card-title h2 mb-3">{{ project.title }}</h1>
+                            <h2 class="mb-2">{{ project.title }}</h2>
+                            
+                            <!-- Gold Seed Badge and Info -->
+                            {% if project.is_gold %}
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <span class="badge bg-warning text-dark d-flex align-items-center gap-1">
+                                    <i class="bi bi-trophy-fill"></i> Gold Seed
+                                </span>
+                                {% if project.token_reward %}
+                                <span class="badge bg-info d-flex align-items-center gap-1">
+                                    <i class="bi bi-coin"></i> {{ project.token_reward }} Tokens
+                                </span>
+                                {% endif %}
+                                {% if project.gold_goal %}
+                                <span class="badge bg-secondary d-flex align-items-center gap-1">
+                                    {% if project.gold_goal == 'all' %}
+                                        <i class="bi bi-people-fill"></i> All Complete
+                                    {% elif project.gold_goal == 'first' %}
+                                        <i class="bi bi-lightning-fill"></i> First to Complete
+                                    {% else %}
+                                        <i class="bi bi-star-fill"></i> Best Solution
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                                {% if project.deadline %}
+                                <span class="badge {% if project.can_submit %}bg-success{% else %}bg-danger{% endif %} d-flex align-items-center gap-1">
+                                    <i class="bi bi-clock-fill"></i>
+                                    {% if project.can_submit %}
+                                        Deadline: {{ project.deadline|date:"M d, Y H:i" }}
+                                    {% else %}
+                                        Submissions Closed
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
                             <div class="d-flex align-items-center text-muted">
                                 <a href="{% url 'projects:user_profile' project.author.username %}" 
                                    class="text-decoration-none text-muted">
@@ -238,6 +274,46 @@
                     <div class="project-content mb-4">
                         {{ project.description|linebreaks }}
                     </div>
+
+                    {% if project.is_gold %}
+                        <div class="card mb-4 border-warning">
+                            <div class="card-body">
+                                <h5 class="card-title d-flex align-items-center gap-2">
+                                    <i class="bi bi-trophy-fill text-warning"></i>
+                                    Gold Seed Challenge
+                                </h5>
+                                <div class="mb-3">
+                                    <strong>Reward:</strong> {{ project.token_reward }} Tokens
+                                    <br>
+                                    <strong>Goal:</strong> 
+                                    {% if project.gold_goal == 'all' %}
+                                        All participants who complete the challenge will receive tokens
+                                    {% elif project.gold_goal == 'first' %}
+                                        First participant to complete the challenge will receive tokens
+                                    {% else %}
+                                        Best solution will receive tokens
+                                    {% endif %}
+                                </div>
+                                {% if project.can_submit %}
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="text-muted">
+                                            <i class="bi bi-clock"></i> 
+                                            Deadline: {{ project.deadline|date:"F d, Y H:i" }}
+                                        </div>
+                                        <a href="{% url 'projects:submit_solution' project.pk %}" 
+                                           class="btn btn-warning">
+                                            <i class="bi bi-trophy"></i> Submit Solution
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-danger mb-0">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                        Submissions are now closed for this challenge.
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
 
                     {% if project.youtube_url %}
                         <div class="mb-4">

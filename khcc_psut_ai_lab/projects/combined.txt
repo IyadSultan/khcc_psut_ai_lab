@@ -1,6 +1,6 @@
 # Combined Python and HTML files
 # Generated from directory: C:\Users\isult\OneDrive\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\projects
-# Total files found: 39
+# Total files found: 45
 
 
 
@@ -362,6 +362,9 @@ admin_site.register(UserProfile, UserProfileAdmin)
 admin_site.register(Notification, NotificationAdmin)
 admin_site.register(ProjectAnalytics, ProjectAnalyticsAdmin)
 admin_site.register(Follow, FollowAdmin)
+
+
+
 
 # Contents from: .\apps.py
 from django.apps import AppConfig
@@ -1283,7 +1286,7 @@ class ProjectSearchForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Search projects...',
+            'placeholder': 'Search seeds...',
             'aria-label': 'Search'
         })
     )
@@ -4150,8 +4153,13 @@ from .models import (
     Rating,
     Bookmark,
     ProjectAnalytics,
-    Notification
+    Notification,
+    Solution
 )
+
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from khcc_psut_ai_lab.constants import TALENT_TYPES
 
 
 
@@ -4194,37 +4202,39 @@ class ProjectForm(forms.ModelForm):
     
     class Meta:
         model = Project
-        fields = ['title', 'description', 'github_link', 'tags', 'pdf_file', 'featured_image']
+        fields = [
+            'title', 'description', 'github_link', 'tags',
+            'pdf_file', 'featured_image', 'additional_files',
+            'youtube_url', 'is_gold', 'token_reward',
+            'gold_goal', 'deadline'
+        ]
         widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter project title',
-                'maxlength': '200',
-                'data-toggle': 'tooltip',
-                'title': 'Choose a descriptive title for your project'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 5,
-                'placeholder': 'Describe your project in detail...',
-                'data-toggle': 'tooltip',
-                'title': 'Explain what your project does, technologies used, and its purpose'
-            }),
-            'github_link': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'https://github.com/username/repository',
-                'data-toggle': 'tooltip',
-                'title': 'Link to your GitHub repository'
-            }),
-            'pdf_file': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'application/pdf',
-            }),
-            'featured_image': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*',
-            })
+            'deadline': forms.DateTimeInput(
+                attrs={'type': 'datetime-local'},
+                format='%Y-%m-%dT%H:%M'
+            ),
+            'tags': forms.TextInput(
+                attrs={'placeholder': 'Enter tags separated by commas'}
+            ),
         }
+
+    def __init__(self, *args, **kwargs):
+        # Extract user from kwargs before calling super
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Only show gold seed fields to faculty members
+        if user and not user.groups.filter(name='Faculty').exists():
+            del self.fields['is_gold']
+            del self.fields['token_reward']
+            del self.fields['gold_goal']
+            del self.fields['deadline']
+        else:
+            # Add help text for faculty members
+            self.fields['is_gold'].help_text = "Mark this as a Gold Seed to offer tokens for completion"
+            self.fields['token_reward'].help_text = "Number of tokens to award for completion"
+            self.fields['gold_goal'].help_text = "How tokens will be awarded"
+            self.fields['deadline'].help_text = "Deadline for submitting solutions"
 
     def clean_github_link(self):
         """Validate GitHub repository URL"""
@@ -4732,7 +4742,7 @@ class ProjectSearchForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Search projects...'
+            'placeholder': 'Search seeds...'
         })
     )
     
@@ -4825,6 +4835,96 @@ class AdvancedSearchForm(forms.Form):
             raise ValidationError("End date should be greater than start date")
         
         return cleaned_data
+    
+
+# In forms.py
+from django import forms
+from .models import Project, Comment
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
+from PIL import Image
+from io import BytesIO
+import os
+
+class ProjectForm(forms.ModelForm):
+    """Form for creating and editing projects."""
+    
+    class Meta:
+        model = Project
+        fields = ['title', 'description', 'github_link', 'tags', 'youtube_url', 
+                 'pdf_file', 'featured_image', 'additional_files']
+        
+    def clean_youtube_url(self):
+        url = self.cleaned_data.get('youtube_url')
+        if url:
+            from .models import validate_youtube_url
+            validate_youtube_url(url)
+        return url
+
+    def clean_pdf_file(self):
+        pdf_file = self.cleaned_data.get('pdf_file')
+        if pdf_file and pdf_file.size > 10 * 1024 * 1024:  # 10MB limit
+            raise ValidationError('PDF file must be smaller than 10MB')
+        return pdf_file
+
+    def clean_featured_image(self):
+        image = self.cleaned_data.get('featured_image')
+        if image:
+            if image.size > 5 * 1024 * 1024:  # 5MB limit
+                raise ValidationError('Image file must be smaller than 5MB')
+            try:
+                img = Image.open(image)
+                if img.mode not in ('RGB', 'RGBA'):
+                    img = img.convert('RGB')
+                
+                # Resize if needed
+                if img.width > 1200 or img.height > 1200:
+                    output_size = (1200, 1200)
+                    img.thumbnail(output_size, Image.LANCZOS)
+                
+                output = BytesIO()
+                img.save(output, format='JPEG', quality=85)
+                output.seek(0)
+                
+                from django.core.files.uploadedfile import InMemoryUploadedFile
+                return InMemoryUploadedFile(
+                    output,
+                    'ImageField',
+                    f"{os.path.splitext(image.name)[0]}.jpg",
+                    'image/jpeg',
+                    output.tell(),
+                    None
+                )
+            except Exception as e:
+                raise ValidationError(f'Invalid image file: {str(e)}')
+        return image
+
+class ExtendedUserCreationForm(UserCreationForm):
+    talent_type = forms.ChoiceField(
+        choices=TALENT_TYPES,
+        required=True,
+        label='Select Your Talent Type',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password1', 'password2', 'talent_type')
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if commit:
+            user.save()
+            UserProfile.objects.create(
+                user=user,
+                talent_type=self.cleaned_data['talent_type']
+            )
+        return user
+
+class SolutionForm(forms.ModelForm):
+    class Meta:
+        model = Solution
+        fields = ['content', 'files', 'github_link']
 
 # Contents from: .\migrations\0001_initial.py
 # Generated by Django 5.1.3 on 2024-11-17 21:54
@@ -5773,6 +5873,276 @@ class Migration(migrations.Migration):
     ]
 
 
+# Contents from: .\migrations\0018_project_youtube_url.py
+# Generated by Django 5.1.3 on 2024-11-19 15:40
+
+import projects.models
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0017_comment_clap_count_commentclap"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="project",
+            name="youtube_url",
+            field=models.URLField(
+                blank=True,
+                help_text="Link to a YouTube video for your project",
+                null=True,
+                validators=[projects.models.validate_youtube_url],
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0019_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:11
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0018_project_youtube_url"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="userprofile",
+            name="talent_type",
+            field=models.CharField(
+                choices=[
+                    ("ai", "AI Talent"),
+                    ("healthcare", "Healthcare Talent"),
+                    ("quality", "Quality Talent"),
+                    ("engineering", "Engineering Talent"),
+                    ("planning", "Planning Talent"),
+                    ("design", "Design Talent"),
+                    ("lab", "Lab Talent"),
+                    ("extra", "Extra Talent"),
+                ],
+                default="ai",
+                max_length=20,
+                verbose_name="Talent Type",
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0020_remove_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:16
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0019_userprofile_talent_type"),
+    ]
+
+    operations = [
+        migrations.RemoveField(
+            model_name="userprofile",
+            name="talent_type",
+        ),
+    ]
+
+
+# Contents from: .\migrations\0021_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:19
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0020_remove_userprofile_talent_type"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="userprofile",
+            name="talent_type",
+            field=models.CharField(
+                choices=[
+                    ("ai", "AI Talent"),
+                    ("healthcare", "Healthcare Talent"),
+                    ("quality", "Quality Talent"),
+                    ("engineering", "Engineering Talent"),
+                    ("planner", "Planner Talent"),
+                    ("design", "Design Talent"),
+                    ("lab", "Lab Talent"),
+                ],
+                default="ai",
+                max_length=20,
+                verbose_name="Talent Type",
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0022_alter_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:21
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0021_userprofile_talent_type"),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name="userprofile",
+            name="talent_type",
+            field=models.CharField(
+                choices=[
+                    ("ai", "AI Talent"),
+                    ("healthcare", "Healthcare Talent"),
+                    ("quality", "Quality Talent"),
+                    ("engineering", "Engineering Talent"),
+                    ("planning", "Planning Talent"),
+                    ("design", "Design Talent"),
+                    ("lab", "Lab Talent"),
+                    ("extra", "Extra Talent"),
+                ],
+                default="ai",
+                max_length=20,
+                verbose_name="Talent Type",
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0023_project_deadline_project_is_completed_and_more.py
+# Generated by Django 5.1.3 on 2024-11-19 17:39
+
+import django.core.validators
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0022_alter_userprofile_talent_type"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="project",
+            name="deadline",
+            field=models.DateTimeField(blank=True, null=True),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="is_completed",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="is_gold",
+            field=models.BooleanField(
+                default=False, help_text="Mark this as a Gold Seed (Faculty only)"
+            ),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="gold_goal",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("all", "All Complete"),
+                    ("first", "First to Complete"),
+                    ("best", "Best Solution"),
+                ],
+                max_length=10,
+                null=True,
+            ),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="token_reward",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Number of tokens awarded for completion",
+                null=True,
+            ),
+        ),
+        migrations.CreateModel(
+            name="Solution",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("content", models.TextField()),
+                (
+                    "files",
+                    models.FileField(
+                        blank=True,
+                        null=True,
+                        upload_to="solutions/",
+                        validators=[
+                            django.core.validators.FileExtensionValidator(
+                                allowed_extensions=[
+                                    "pdf",
+                                    "doc",
+                                    "docx",
+                                    "zip",
+                                    "py",
+                                    "ipynb",
+                                    "txt",
+                                ]
+                            )
+                        ],
+                    ),
+                ),
+                ("github_link", models.URLField(blank=True, null=True)),
+                ("submitted_at", models.DateTimeField(auto_now_add=True)),
+                ("is_approved", models.BooleanField(default=False)),
+                ("faculty_feedback", models.TextField(blank=True)),
+                ("tokens_awarded", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "project",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="solutions",
+                        to="projects.project",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+            options={
+                "unique_together": {("project", "user")},
+            },
+        ),
+    ]
+
+
 # Contents from: .\migrations\__init__.py
 
 
@@ -5790,6 +6160,16 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 import uuid
 from django.db.models import Avg
+from django.conf import settings
+from khcc_psut_ai_lab.constants import TALENT_TYPES
+from django.utils import timezone
+
+# Add these constants
+gold_goalS = [
+    ('all', 'All Complete'),
+    ('first', 'First to Complete'),
+    ('best', 'Best Solution')
+]
 
 # File Upload Path Functions
 def validate_github_url(value):
@@ -5812,6 +6192,30 @@ def comment_image_upload_path(instance, filename):
     """Generate upload path for comment images"""
     return f'images/comments/user_{instance.user.id}/{filename}'
 
+# Add to models.py
+from urllib.parse import urlparse, parse_qs
+
+def validate_youtube_url(url):
+    if not url:
+        return
+    
+    try:
+        parsed = urlparse(url)
+        if parsed.hostname not in ['www.youtube.com', 'youtube.com', 'youtu.be']:
+            raise ValidationError('Only YouTube URLs are allowed')
+            
+        if parsed.hostname in ['youtube.com', 'www.youtube.com']:
+            if not parsed.path.startswith('/watch'):
+                raise ValidationError('Invalid YouTube URL format')
+            if not parse_qs(parsed.query).get('v'):
+                raise ValidationError('Invalid YouTube URL format')
+        elif parsed.hostname == 'youtu.be':
+            if not parsed.path[1:]:
+                raise ValidationError('Invalid YouTube URL format')
+    except Exception:
+        raise ValidationError('Invalid YouTube URL')
+    
+    
 # Models
 class Project(models.Model):
     title = models.CharField(max_length=200)
@@ -5858,6 +6262,47 @@ class Project(models.Model):
     
     rating_total = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     rating_count = models.PositiveIntegerField(default=0)
+
+    youtube_url = models.URLField(
+        validators=[validate_youtube_url],
+        blank=True,
+        null=True,
+        help_text="Link to a YouTube video for your project"
+    )
+    
+    # New fields for Gold Seeds
+    is_gold = models.BooleanField(default=False, help_text="Mark this as a Gold Seed (Faculty only)")
+    token_reward = models.PositiveIntegerField(
+        null=True, 
+        blank=True, 
+        help_text="Number of tokens awarded for completion"
+    )
+    gold_goal = models.CharField(
+        max_length=10,
+        choices=gold_goalS,
+        null=True,
+        blank=True
+    )
+    deadline = models.DateTimeField(null=True, blank=True)
+    is_completed = models.BooleanField(default=False)
+
+    def get_youtube_embed_url(self):
+        """Convert YouTube video URL to embed URL"""
+        if not self.youtube_url:
+            return None
+            
+        video_id = None
+        parsed = urlparse(self.youtube_url)
+        
+        if 'youtube.com' in parsed.hostname:
+            query = parse_qs(parsed.query)
+            video_id = query.get('v', [None])[0]
+        elif 'youtu.be' in parsed.hostname:
+            video_id = parsed.path.lstrip('/')
+            
+        if video_id:
+            return f"https://www.youtube.com/embed/{video_id}"
+        return None
     
     class Meta:
         ordering = ['-created_at']
@@ -5927,6 +6372,11 @@ class Project(models.Model):
         """Get the PDF file URL or return None"""
         return self.pdf_file.url if self.pdf_file else None
 
+    def can_submit(self):
+        if not self.is_gold or not self.deadline:
+            return False
+        return timezone.now() <= self.deadline
+
 class Comment(models.Model):
     project = models.ForeignKey(
         Project, 
@@ -5983,6 +6433,12 @@ class UserProfile(models.Model):
     title = models.CharField(max_length=100, blank=True)
     department = models.CharField(max_length=100, blank=True)
     research_interests = models.TextField(blank=True)
+    talent_type = models.CharField(
+        max_length=20,
+        choices=TALENT_TYPES,
+        default='ai',
+        verbose_name='Talent Type'
+    )
     
     
     @property
@@ -6000,6 +6456,9 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+    def get_talent_display(self):
+        return dict(TALENT_TYPES).get(self.talent_type, '')
 
 class Clap(models.Model):
     project = models.ForeignKey(
@@ -6194,6 +6653,36 @@ class CommentClap(models.Model):
 
     def __str__(self):
         return f'{self.user.username} clapped for comment on {self.comment.project.title}'
+    
+
+class Solution(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='solutions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    files = models.FileField(
+        upload_to='solutions/',
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'doc', 'docx', 'zip', 'py', 'ipynb', 'txt']
+        )]
+    )
+    github_link = models.URLField(blank=True, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False)
+    faculty_feedback = models.TextField(blank=True)
+    tokens_awarded = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ['project', 'user']
+
+    def __str__(self):
+        return f"Solution by {self.user.username} for {self.project.title}"
+
+
+
+
+
 
 # Contents from: .\serializers.py
 # projects/serializers.py
@@ -6541,6 +7030,10 @@ urlpatterns = [
     path('careers/', views.careers_page, name='careers'),
     # urls.py
 path('comment/<int:pk>/clap/', views.clap_comment, name='clap_comment'),
+path('talents/', views.talents_page, name='talents'),
+path('project/<int:pk>/submit-solution/', views.submit_solution, name='submit_solution'),
+path('project/<int:project_pk>/solution/<int:solution_pk>/review/', 
+     views.review_solution, name='review_solution'),
 ]
 
 # Contents from: .\utils\__init__.py
@@ -6779,15 +7272,19 @@ from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectA
 from .models import (
     Project, Comment, Clap, UserProfile, Rating, 
     Bookmark, ProjectAnalytics, Notification, Follow, 
-    CommentClap,
+    CommentClap, Solution,
 )
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
-    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm
+    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm,
 )
 from .filters.project_filters import ProjectFilter
 from django.contrib.auth.forms import UserCreationForm
 from .utils.pdf import generate_analytics_pdf
+from khcc_psut_ai_lab.constants import TALENT_TYPES
+
+from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
 
 class ProjectAnalyticsView(LoginRequiredMixin, DetailView):
     model = Project
@@ -7181,25 +7678,34 @@ def project_list(request):
 @login_required
 def submit_project(request):
     if request.method == 'POST':
-        form = ProjectForm(request.POST, request.FILES)
+        form = ProjectForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
-            try:
-                project = form.save(commit=False)
-                project.author = request.user
-                project.save()
-                
-                # Create project directory
-                project_dir = f'uploads/user_{request.user.id}/project_{project.id}'
-                os.makedirs(os.path.join(settings.MEDIA_ROOT, project_dir), exist_ok=True)
-                
-                messages.success(request, 'Project submitted successfully!')
-                return redirect('projects:project_detail', pk=project.pk)
-            except Exception as e:
-                messages.error(request, f'Error saving project: {str(e)}')
+            project = form.save(commit=False)
+            project.author = request.user
+            
+            # Handle gold seed fields for faculty
+            if request.user.groups.filter(name='Faculty').exists():
+                project.is_gold = form.cleaned_data.get('is_gold', False)
+                if project.is_gold:
+                    project.token_reward = form.cleaned_data.get('token_reward')
+                    project.gold_goal = form.cleaned_data.get('gold_goal')
+                    project.deadline = form.cleaned_data.get('deadline')
+            
+            project.save()
+            
+            # Handle tags
+            if form.cleaned_data['tags']:
+                project.tags = form.cleaned_data['tags']
+            
+            messages.success(request, 'Project submitted successfully!')
+            return redirect('projects:project_detail', pk=project.pk)
     else:
-        form = ProjectForm()
+        form = ProjectForm(user=request.user)
     
-    return render(request, 'projects/submit_project.html', {'form': form})
+    return render(request, 'projects/submit_project.html', {
+        'form': form,
+        'title': 'Submit Project'
+    })
 
 
 def project_detail(request, pk):
@@ -7592,9 +8098,14 @@ def bookmark_project(request, pk):
     })
 
 class RegisterView(CreateView):
-    form_class = UserCreationForm
+    form_class = ExtendedUserCreationForm
     success_url = reverse_lazy('login')
     template_name = 'registration/register.html'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, 'Registration successful! Please log in.')
+        return response
 
 def get_monthly_contributions():
     """Get users sorted by their contributions in the current month"""
@@ -7654,27 +8165,50 @@ def leaderboard_view(request):
 
 @login_required
 def edit_project(request, pk):
-    project = get_object_or_404(Project, pk=pk, author=request.user)
+    project = get_object_or_404(Project, pk=pk)
+    
+    if request.user != project.author:
+        messages.error(request, 'You do not have permission to edit this project')
+        return redirect('projects:project_detail', pk=pk)
+        
     if request.method == 'POST':
         form = ProjectForm(request.POST, request.FILES, instance=project)
         if form.is_valid():
             project = form.save()
-            messages.success(request, 'Project updated successfully!')
+            messages.success(request, 'Project updated successfully')
             return redirect('projects:project_detail', pk=project.pk)
     else:
         form = ProjectForm(instance=project)
-    return render(request, 'projects/edit_project.html', {'form': form, 'project': project})
+    
+    return render(request, 'projects/edit_project.html', {
+        'form': form,
+        'project': project,
+        'title': f'Edit {project.title}'
+    })
 
 @login_required
 def delete_project(request, pk):
-    project = get_object_or_404(Project, pk=pk, author=request.user)
-    if request.method == 'POST':
-        project.delete()
-        messages.success(request, 'Project deleted successfully!')
-        return redirect('projects:project_list')
-    return render(request, 'projects/delete_project.html', {'project': project})
-
-
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Delete associated files
+    if project.featured_image:
+        project.featured_image.delete()
+    if project.pdf_file:
+        project.pdf_file.delete()
+    if project.additional_files:
+        project.additional_files.delete()
+        
+    # Delete analytics data
+    ProjectAnalytics.objects.filter(project=project).delete()
+    
+    # Delete notifications related to this project
+    Notification.objects.filter(project=project).delete()
+    
+    # Delete the project
+    project.delete()
+    
+    messages.success(request, 'Project deleted successfully')
+    return redirect('projects:project_list')
 
 @login_required
 def clap_project(request, pk):
@@ -7886,4 +8420,92 @@ def get_similar_projects(project, limit=3):
         ).exclude(id=project.id)
     
     return similar_projects.distinct()[:limit]
+
+def talents_page(request):
+    # Get selected talent type from query params
+    talent_type = request.GET.get('talent_type', '')
+    
+    # Base queryset
+    talents = User.objects.annotate(
+        project_count=Count('project'),
+        follower_count=Count('followers'),
+        following_count=Count('following')
+    ).filter(
+        ~Q(groups__name='Faculty'),
+        is_active=True
+    ).select_related('profile')
+    
+    # Apply talent type filter if selected
+    if talent_type:
+        talents = talents.filter(profile__talent_type=talent_type)
+    
+    talents = talents.order_by('-project_count')
+    
+    context = {
+        'talents': talents,
+        'title': 'Our Talents',
+        'talent_types': TALENT_TYPES,
+        'selected_talent': talent_type
+    }
+    return render(request, 'projects/talents.html', context)
+
+@login_required
+def submit_solution(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check if project is a gold seed and still accepting submissions
+    if not project.is_gold or not project.can_submit():
+        messages.error(request, 'This project is not accepting submissions')
+        return redirect('projects:project_detail', pk=pk)
+    
+    # Check if user already submitted
+    if Solution.objects.filter(project=project, user=request.user).exists():
+        messages.error(request, 'You have already submitted a solution')
+        return redirect('projects:project_detail', pk=pk)
+    
+    if request.method == 'POST':
+        form = SolutionForm(request.POST, request.FILES)
+        if form.is_valid():
+            solution = form.save(commit=False)
+            solution.project = project
+            solution.user = request.user
+            solution.save()
+            messages.success(request, 'Solution submitted successfully!')
+            return redirect('projects:project_detail', pk=pk)
+    else:
+        form = SolutionForm()
+    
+    return render(request, 'projects/submit_solution.html', {
+        'form': form,
+        'project': project
+    })
+
+@login_required
+def review_solution(request, project_pk, solution_pk):
+    solution = get_object_or_404(Solution, pk=solution_pk, project_id=project_pk)
+    project = solution.project
+    
+    # Check if user is faculty and project author
+    if not request.user.groups.filter(name='Faculty').exists() or request.user != project.author:
+        messages.error(request, 'You do not have permission to review solutions')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    if request.method == 'POST':
+        is_approved = request.POST.get('is_approved') == 'true'
+        feedback = request.POST.get('feedback', '')
+        tokens = request.POST.get('tokens')
+        
+        solution.is_approved = is_approved
+        solution.faculty_feedback = feedback
+        if tokens and is_approved:
+            solution.tokens_awarded = int(tokens)
+        solution.save()
+        
+        messages.success(request, 'Solution review submitted successfully')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    return render(request, 'projects/review_solution.html', {
+        'solution': solution,
+        'project': project
+    })
 
