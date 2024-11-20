@@ -406,8 +406,18 @@ def project_list(request):
     else:
         projects = projects.order_by('-created_at')
     
-    # Pagination
-    paginator = Paginator(projects, 12)
+    # Get per_page parameter from request, default to 12
+    per_page = request.GET.get('per_page', 12)
+    try:
+        per_page = int(per_page)
+        # Limit per_page to valid options
+        if per_page not in [12, 24, 48]:
+            per_page = 12
+    except ValueError:
+        per_page = 12
+    
+    # Pagination with dynamic per_page
+    paginator = Paginator(projects, per_page)
     page = request.GET.get('page', 1)
     
     try:
@@ -428,6 +438,7 @@ def project_list(request):
         'page_obj': page_obj,
         'popular_tags': popular_tags,
         'search_form': search_form,
+        'per_page': per_page,
     }
     return render(request, 'projects/project_list.html', context)
 
@@ -1641,3 +1652,8 @@ def team_members(request, team_slug):
     }
     
     return render(request, 'teams/team_members.html', context)
+
+def help_view(request):
+    return render(request, 'help.html', {
+        'active_tab': 'Help'
+    })

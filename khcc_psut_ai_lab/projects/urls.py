@@ -71,4 +71,5 @@ urlpatterns = [
      path('teams/<slug:team_slug>/members/', views.team_members, name='team_members'),
      path('teams/<slug:team_slug>/members/<int:user_id>/promote/', views.promote_member, name='promote_member'),
      path('teams/<slug:team_slug>/members/<int:user_id>/remove/', views.remove_member, name='remove_member'),
+    path('help/', views.help_view, name='help'),
 ]

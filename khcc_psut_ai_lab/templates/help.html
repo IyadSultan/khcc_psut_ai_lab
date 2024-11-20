@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Help & Manual - KHCC_PSUT AI Lab{% endblock %}
+
+{% block content %}
+<section class="hero bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="display-4 fw-bold mb-4">KHCC_PSUT AI Lab Manual</h1>
+                <p class="lead mb-0">
+                    Learn how to make the most of our platform's features and capabilities.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-lg-3">
+            <!-- Navigation sidebar -->
+            <div class="list-group sticky-top pt-3">
+                <a href="#getting-started" class="list-group-item list-group-item-action">Getting Started</a>
+                <a href="#seeds" class="list-group-item list-group-item-action">Seeds (Projects)</a>
+                <a href="#teams" class="list-group-item list-group-item-action">Teams</a>
+                <a href="#faculty" class="list-group-item list-group-item-action">Faculty</a>
+                <a href="#talents" class="list-group-item list-group-item-action">Talents</a>
+                <a href="#notifications" class="list-group-item list-group-item-action">Notifications</a>
+            </div>
+        </div>
+        
+        <div class="col-lg-9">
+            <!-- Getting Started -->
+            <section id="getting-started" class="mb-5">
+                <h2 class="h3 mb-4">Getting Started</h2>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Welcome to KHCC_PSUT AI Lab</h5>
+                        <p>Our platform connects AI researchers, faculty members, and talented individuals in the field of artificial intelligence. Here's how to get started:</p>
+                        <ol>
+                            <li>Create an account or sign in using existing credentials</li>
+                            <li>Complete your profile with relevant information</li>
+                            <li>Explore Seeds (AI projects) or share your own</li>
+                            <li>Join or create teams for collaboration</li>
+                            <li>Connect with faculty members and other talents</li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seeds Section -->
+            <section id="seeds" class="mb-5">
+                <h2 class="h3 mb-4">Seeds (Projects)</h2>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Working with Seeds</h5>
+                        <p>Seeds are AI projects that can be shared, collaborated on, and improved. You can:</p>
+                        <ul>
+                            <li>Browse and search existing Seeds</li>
+                            <li>Submit new Seeds with GitHub repository links</li>
+                            <li>Rate and bookmark interesting projects</li>
+                            <li>Track project analytics and engagement</li>
+                            <li>Collaborate with other researchers</li>
+                        </ul>
+                        
+                        <div class="mt-3">
+                            <h6>Key Features:</h6>
+                            <ul>
+                                <li><strong>Project Submission:</strong> Share your AI research and development work</li>
+                                <li><strong>Analytics:</strong> Track views, engagement, and user interaction</li>
+                                <li><strong>Collaboration:</strong> Comment, rate, and provide feedback</li>
+                                <li><strong>Bookmarking:</strong> Save interesting projects for later reference</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Teams Section -->
+            <section id="teams" class="mb-5">
+                <h2 class="h3 mb-4">Teams</h2>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Team Collaboration</h5>
+                        <p>Teams enable collaborative research and development:</p>
+                        <ul>
+                            <li>Create or join research teams</li>
+                            <li>Manage team members and roles</li>
+                            <li>Share projects within teams</li>
+                            <li>Track team progress and contributions</li>
+                        </ul>
+                        
+                        <div class="mt-3">
+                            <h6>Team Roles:</h6>
+                            <ul>
+                                <li><strong>Founder:</strong> Creates and manages the team</li>
+                                <li><strong>Moderator:</strong> Helps manage team activities</li>
+                                <li><strong>Member:</strong> Participates in team projects</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Faculty Section -->
+            <section id="faculty" class="mb-5">
+                <h2 class="h3 mb-4">Faculty</h2>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Faculty Features</h5>
+                        <p>Faculty members have additional capabilities:</p>
+                        <ul>
+                            <li>Create Gold Seed projects with rewards</li>
+                            <li>Review and approve student submissions</li>
+                            <li>Provide feedback and mentorship</li>
+                            <li>Track student progress and engagement</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Talents Section -->
+            <section id="talents" class="mb-5">
+                <h2 class="h3 mb-4">Talents</h2>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Talent Network</h5>
+                        <p>Connect with other AI enthusiasts and researchers:</p>
+                        <ul>
+                            <li>Create and customize your talent profile</li>
+                            <li>Showcase your skills and projects</li>
+                            <li>Follow other talents and track their work</li>
+                            <li>Participate in collaborative projects</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notifications Section -->
+            <section id="notifications" class="mb-5">
+                <h2 class="h3 mb-4">Notifications</h2>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Staying Updated</h5>
+                        <p>Our notification system keeps you informed about:</p>
+                        <ul>
+                            <li>Comments and feedback on your projects</li>
+                            <li>New followers and team invitations</li>
+                            <li>Project ratings and bookmarks</li>
+                            <li>Team updates and discussions</li>
+                        </ul>
+                        
+                        <div class="mt-3">
+                            <h6>Notification Settings:</h6>
+                            <p>Customize your notification preferences in your profile settings to control what updates you receive.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Support Section -->
+            <section id="support" class="mb-5">
+                <h2 class="h3 mb-4">Need Additional Help?</h2>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Support Resources</h5>
+                        <p>If you need further assistance:</p>
+                        <ul>
+                            <li>Check our documentation for detailed guides</li>
+                            <li>Reach out to team moderators</li>
+                            <li>Contact faculty members for academic guidance</li>
+                            <li>Use the platform's feedback features</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

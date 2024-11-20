@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Notifications - KHCC AI Lab{% endblock %}
+
+{% block content %}
+<!-- Notifications Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Notifications</h1>
+        <p class="lead">Stay updated with your latest activities and interactions</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Notifications</h5>
+                    {% if notifications %}
+                    <a href="{% url 'projects:notifications' %}?mark_read=true" 
+                       class="btn btn-sm btn-outline-primary">
+                        Mark all as read
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for notification in notifications %}
+                    <div class="list-group-item {% if not notification.is_read %}bg-light{% endif %}">
+                        <div class="d-flex">
+                            <img src="{% if notification.sender.profile.avatar %}{{ notification.sender.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ notification.sender.username }}{% endif %}" 
+                                 class="rounded-circle me-3" 
+                                 style="width: 40px; height: 40px; object-fit: cover;"
+                                 alt="{{ notification.sender.username }}'s avatar">
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="mb-1">{{ notification.message }}</p>
+                                        {% if notification.project and notification.notification_type == 'comment' %}
+                                        <p class="text-muted small mb-1">
+                                            <i class="bi bi-file-earmark-text me-1"></i>
+                                            On project: <a href="{% url 'projects:project_detail' notification.project.id %}" class="text-decoration-none">{{ notification.project.title }}</a>
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted ms-2">{{ notification.created_at|timesince }} ago</small>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="{% url 'projects:mark_notification_read' notification.id %}" 
+                                       class="btn btn-sm btn-link px-0">
+                                        {% if notification.project %}
+                                            <i class="bi bi-arrow-right-circle me-1"></i>View Project
+                                        {% elif notification.notification_type == 'follow' %}
+                                            <i class="bi bi-person me-1"></i>View Profile
+                                        {% else %}
+                                            <i class="bi bi-eye me-1"></i>View
+                                        {% endif %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-center py-5">
+                        <i class="bi bi-bell text-muted display-4"></i>
+                        <p class="text-muted mt-3 mb-0">No notifications yet</p>
+                        <p class="text-muted small">
+                            When you receive notifications, they will appear here
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Quick Links Section -->
+            <div class="mt-4 text-center">
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{% url 'projects:project_list' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-grid me-2"></i>Browse Projects
+                    </a>
+                    <a href="{% url 'projects:profile_settings' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-gear me-2"></i>Notification Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
