@@ -2,7 +2,7 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
     <div class="container">
         <a class="navbar-brand" href="{% url 'projects:homepage' %}">
-            KHCC_PSUT AI Lab
+            KHCC AI Lab
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
                 data-bs-target="#navbarNav" aria-controls="navbarNav" 
@@ -18,7 +18,7 @@
                 {% if user.is_authenticated %}
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'submit_project' and request.resolver_match.namespace == 'projects' %}active{% endif %}" 
-                       href="{% url 'projects:submit_project' %}">Share Seed</a>
+                       href="{% url 'projects:submit_project' %}">Share</a>
                 </li>
                 {% endif %}
                 

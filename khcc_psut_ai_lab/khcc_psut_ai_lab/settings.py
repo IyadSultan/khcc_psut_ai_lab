@@ -16,7 +16,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 # Site specific settings
-SITE_NAME = 'KHCC_PSUT AI Lab'
+SITE_NAME = 'KHCC AI Lab'
 SITE_URL = 'http://localhost:8000'  # Change this in production
 ADMIN_EMAIL = 'admin@khccpsutailab.com'
 

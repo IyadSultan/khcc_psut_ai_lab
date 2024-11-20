@@ -57,14 +57,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>KHCC_PSUT AI Lab</h1>
+            <h1>KHCC AI Lab</h1>
         </div>
         <div class="content">
             {% block content %}{% endblock %}
         </div>
         <div class="footer">
             <p>
-                You received this email because you're part of the KHCC_PSUT AI Lab community.
+                You received this email because you're part of the KHCC AI Lab community.
                 If you don't want to receive these emails, you can 
                 <a href="{{ unsubscribe_url }}">unsubscribe</a>.
             </p>
@@ -73,7 +73,7 @@
                 <a href="#">Twitter</a> |
                 <a href="#">GitHub</a>
             </div>
-            <p>&copy; {% now "Y" %} KHCC_PSUT AI Lab. All rights reserved.</p>
+            <p>&copy; {% now "Y" %} KHCC AI Lab. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -96,18 +96,18 @@
 </p>
 {% endif %}
 
-<p>Best regards,<br>KHCC_PSUT AI Lab Team</p>
+<p>Best regards,<br>KHCC AI Lab Team</p>
 {% endblock %}
 
 <!-- templates/emails/welcome.html -->
 {% extends 'emails/base_email.html' %}
 
 {% block content %}
-<h2>Welcome to KHCC_PSUT AI Lab!</h2>
+<h2>Welcome to KHCC AI Lab!</h2>
 <p>Hello {{ user.get_full_name|default:user.username }},</p>
 
 <p>
-    Welcome to the KHCC_PSUT AI Lab community! We're excited to have you join us in our 
+    Welcome to the KHCC AI Lab community! We're excited to have you join us in our 
     mission to advance AI applications in healthcare.
 </p>
 
@@ -125,7 +125,7 @@
     </a>
 </p>
 
-<p>Best regards,<br>KHCC_PSUT AI Lab Team</p>
+<p>Best regards,<br>KHCC AI Lab Team</p>
 {% endblock %}
 
 <!-- templates/emails/project_comment.html -->
@@ -147,7 +147,7 @@
     </a>
 </p>
 
-<p>Best regards,<br>KHCC_PSUT AI Lab Team</p>
+<p>Best regards,<br>KHCC AI Lab Team</p>
 {% endblock %}
 
 <!-- templates/emails/project_clap.html -->
@@ -167,7 +167,7 @@
     </a>
 </p>
 
-<p>Best regards,<br>KHCC_PSUT AI Lab Team</p>
+<p>Best regards,<br>KHCC AI Lab Team</p>
 {% endblock %}
 
 <!-- templates/emails/password_reset.html -->
@@ -202,7 +202,7 @@
     This link will expire in 24 hours for security reasons.
 </p>
 
-<p>Best regards,<br>KHCC_PSUT AI Lab Team</p>
+<p>Best regards,<br>KHCC AI Lab Team</p>
 {% endblock %}
 
 <!-- templates/emails/email_verification.html -->
@@ -213,7 +213,7 @@
 <p>Hello {{ user.get_full_name|default:user.username }},</p>
 
 <p>
-    Thank you for registering with KHCC_PSUT AI Lab. Please verify your email address 
+    Thank you for registering with KHCC AI Lab. Please verify your email address 
     by clicking the button below:
 </p>
 
@@ -233,5 +233,5 @@
     This link will expire in 24 hours for security reasons.
 </p>
 
-<p>Best regards,<br>KHCC_PSUT AI Lab Team</p>
+<p>Best regards,<br>KHCC AI Lab Team</p>
 {% endblock %}

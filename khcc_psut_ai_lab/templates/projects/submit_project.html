@@ -6,7 +6,7 @@
 <div class="bg-primary text-white py-5 mb-5">
     <div class="container">
         <h1 class="display-4">{{ title }}</h1>
-        <p class="lead">Share your research project with the community</p>
+        <p class="lead">Share your seed with the community</p>
         {% if 'Faculty' in user.groups.all|stringformat:'s' %}
         <div class="mt-3">
             <span class="badge bg-warning text-dark">
@@ -96,7 +96,7 @@
                     <div class="card-body">
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-cloud-upload me-2"></i>Submit Project
+                                <i class="bi bi-cloud-upload me-2"></i>Submit Seed
                             </button>
                             <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary">
                                 <i class="bi bi-arrow-left me-2"></i>Back to Projects
