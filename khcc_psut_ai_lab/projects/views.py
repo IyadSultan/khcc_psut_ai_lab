@@ -471,7 +471,7 @@ def submit_project(request):
     
     return render(request, 'projects/submit_project.html', {
         'form': form,
-        'title': 'incubated @ King Hussein Cancer Submit Seed'
+        'title': 'Submit Seed'
     })
 
 
