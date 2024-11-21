@@ -4,10 +4,19 @@ def get_files_recursively(directory, extensions):
     """
     Recursively get all files with specified extensions from directory and subdirectories.
     Uses os.walk() to traverse through all subdirectories at any depth.
+    Excludes migrations folders and combine/combined.py files.
     """
     file_list = []
     for root, dirs, files in os.walk(directory):
+        # Skip migrations folders
+        if 'migrations' in dirs:
+            dirs.remove('migrations')
+            
         for file in files:
+            # Skip combine.py and combined.py
+            if file in ['combine.py', 'combined.py']:
+                continue
+                
             if any(file.endswith(ext) for ext in extensions):
                 file_list.append(os.path.join(root, file))
     return file_list

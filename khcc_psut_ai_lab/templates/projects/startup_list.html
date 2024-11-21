@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Startups Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Our Startups</h1>
+        <p class="lead">Discover innovative startups from our community</p>
+    </div>
+</div>
+
+<!-- Featured Startups Section -->
+<section class="featured-startups mb-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <h2 class="h3 text-center">Featured Startups</h2>
+            {% if user.is_authenticated %}
+            <a href="{% url 'projects:create_startup' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>Add Startup
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="row g-4">
+            {% for startup in startups %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <img src="{{ startup.logo.url|default:'https://via.placeholder.com/150' }}" 
+                             alt="{{ startup.name }}" 
+                             class="rounded-circle mb-3" 
+                             style="width: 150px; height: 150px; object-fit: cover;">
+                        <h3 class="h5 mb-2">{{ startup.name }}</h3>
+                        <p class="text-primary small mb-2">Founded by {{ startup.founder.get_full_name }}</p>
+                        <p class="text-muted small mb-3">{{ startup.description|truncatewords:30 }}</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            {% if startup.website %}
+                            <a href="{{ startup.website }}" class="text-dark" target="_blank">
+                                <i class="bi bi-globe"></i>
+                            </a>
+                            {% endif %}
+                            {% if startup.linkedin_url %}
+                            <a href="{{ startup.linkedin_url }}" class="text-dark" target="_blank">
+                                <i class="bi bi-linkedin"></i>
+                            </a>
+                            {% endif %}
+                            {% if startup.email %}
+                            <a href="mailto:{{ startup.email }}" class="text-dark">
+                                <i class="bi bi-envelope"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">No startups have been added yet.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-us bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h2 class="h3 mb-4">Contact Us</h2>
+                <p class="mb-4">
+                    Interested in learning more about our startup community or want to get involved? 
+                    We'd love to hear from you.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="mailto:startups@example.com" class="btn btn-outline-primary">
+                        <i class="bi bi-envelope me-2"></i>Email Us
+                    </a>
+                    <a href="{% url 'projects:apply' %}?type=startup" class="btn btn-primary">
+                        <i class="bi bi-rocket me-2"></i>Join Our Community
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Join Us Section -->
+<section class="join-us bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h2 class="h3 mb-4">Launch Your Startup</h2>
+                <p class="mb-4">
+                    Ready to take your startup to the next level? Join our thriving community of innovators
+                    and entrepreneurs. Get access to resources, mentorship, and networking opportunities.
+                </p>
+                <a href="{% url 'projects:apply' %}?type=startup" class="btn btn-primary">
+                    <i class="bi bi-rocket me-2"></i>Apply Now
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

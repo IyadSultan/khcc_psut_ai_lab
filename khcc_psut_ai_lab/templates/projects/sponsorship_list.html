@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Sponsors Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Our Sponsors</h1>
+        <p class="lead">Thank you to our valued sponsors who make our work possible</p>
+    </div>
+</div>
+
+<!-- Sponsors Section -->
+<section class="sponsors mb-5">
+    <div class="container">
+        <!-- Platinum Sponsors -->
+        {% if sponsorships.platinum %}
+        <h2 class="h3 text-center mb-5">Platinum Sponsors</h2>
+        <div class="row g-4">
+            {% for sponsor in sponsorships.platinum %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <img src="{{ sponsor.logo.url }}" 
+                             alt="{{ sponsor.name }}" 
+                             class="mb-3" 
+                             style="width: 150px; height: 150px; object-fit: contain;">
+                        <h3 class="h5 mb-2">{{ sponsor.name }}</h3>
+                        <p class="text-muted small mb-3">{{ sponsor.description|truncatewords:30 }}</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ sponsor.website }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Visit Website
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Gold Sponsors -->
+        {% if sponsorships.gold %}
+        <h2 class="h3 text-center mb-5">Gold Sponsors</h2>
+        <div class="row g-4">
+            {% for sponsor in sponsorships.gold %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <img src="{{ sponsor.logo.url }}" 
+                             alt="{{ sponsor.name }}" 
+                             class="mb-3" 
+                             style="width: 150px; height: 150px; object-fit: contain;">
+                        <h3 class="h5 mb-2">{{ sponsor.name }}</h3>
+                        <p class="text-muted small mb-3">{{ sponsor.description|truncatewords:30 }}</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ sponsor.website }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Visit Website
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Silver Sponsors -->
+        {% if sponsorships.silver %}
+        <h2 class="h3 text-center mb-5">Silver Sponsors</h2>
+        <div class="row g-4">
+            {% for sponsor in sponsorships.silver %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <img src="{{ sponsor.logo.url }}" 
+                             alt="{{ sponsor.name }}" 
+                             class="mb-3" 
+                             style="width: 150px; height: 150px; object-fit: contain;">
+                        <h3 class="h5 mb-2">{{ sponsor.name }}</h3>
+                        <p class="text-muted small mb-3">{{ sponsor.description|truncatewords:30 }}</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ sponsor.website }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Visit Website
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Bronze Sponsors -->
+        {% if sponsorships.bronze %}
+        <h2 class="h3 text-center mb-5">Bronze Sponsors</h2>
+        <div class="row g-4">
+            {% for sponsor in sponsorships.bronze %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <img src="{{ sponsor.logo.url }}" 
+                             alt="{{ sponsor.name }}" 
+                             class="mb-3" 
+                             style="width: 150px; height: 150px; object-fit: contain;">
+                        <h3 class="h5 mb-2">{{ sponsor.name }}</h3>
+                        <p class="text-muted small mb-3">{{ sponsor.description|truncatewords:30 }}</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ sponsor.website }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Visit Website
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-us bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h2 class="h3 mb-4">Become a Sponsor</h2>
+                <p class="mb-4">
+                    Interested in supporting AI research in healthcare? 
+                    Join us in making a difference.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="mailto:sponsorship@example.com" class="btn btn-outline-primary">
+                        <i class="bi bi-envelope me-2"></i>Contact Us
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

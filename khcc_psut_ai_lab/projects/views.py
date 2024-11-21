@@ -1,24 +1,27 @@
 from datetime import datetime, timedelta
-from io import StringIO
+from io import StringIO, BytesIO
 import csv
 import json
 import os
 import pytz
+import zipfile
 
-from django.conf import settings
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
+from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.urls import reverse, reverse_lazy
+from django.conf import settings
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.serializers import serialize
 from django.db.models import Count, Q, Avg, Sum, Case, When
-from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import DetailView
 from django.views.generic.edit import CreateView
@@ -31,16 +34,270 @@ from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
 from .filters.project_filters import ProjectFilter
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
-    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm, ExtendedUserCreationForm,
-    SolutionForm, TeamForm, TeamDiscussionForm, TeamCommentForm, TeamNotificationSettingsForm
+    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, 
+    NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm, TeamForm, TeamDiscussionForm, TeamCommentForm, 
+    TeamNotificationSettingsForm, StartupForm, ProductForm, ToolForm,
+    DatasetForm, SponsorshipForm, VirtualMemberForm, ApplicationForm
 )
+
 from .models import (
     Project, Comment, Clap, UserProfile, Rating,
     Bookmark, ProjectAnalytics, Notification, Follow,
-    CommentClap, Solution, Team, TeamMembership, TeamDiscussion, TeamComment, TeamAnalytics
+    CommentClap, Solution, Team, TeamMembership, 
+    TeamDiscussion, TeamComment, TeamAnalytics,
+    Sponsorship, Startup, Product, Tool, Dataset,
+    VirtualMember, Application
 )
+
 from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectAnalyticsSummarySerializer
 from .utils.pdf import generate_analytics_pdf
+
+from django.views import generic
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.urls import reverse
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
+import os
+import zipfile
+from io import BytesIO
+
+# DRF imports
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+# Import all models
+from .models import (
+    Project, Comment, UserProfile, Rating, Bookmark, 
+    ProjectAnalytics, Notification, Follow, CommentClap,
+    Solution, Startup, Product, Tool, Dataset,
+    VirtualMember, Application, Sponsorship
+)
+
+# Import all forms
+from .forms import (
+    ProjectForm, CommentForm, UserProfileForm, RatingForm,
+    BookmarkForm, AdvancedSearchForm, ProfileForm,
+    NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm, StartupForm, ProductForm, ToolForm,
+    DatasetForm, SponsorshipForm, VirtualMemberForm,
+    ApplicationForm
+)
+
+# Add these to your views.py file
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_virtual_member(request, project_pk):
+    """Add a virtual member to a project"""
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        member_id = request.data.get('member_id')
+        if not member_id:
+            return Response({
+                "status": "error",
+                "message": "member_id is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        virtual_member = get_object_or_404(VirtualMember, pk=member_id)
+        
+        # Check if member is already added
+        if virtual_member in project.virtual_members.all():
+            return Response({
+                "status": "error",
+                "message": "Virtual member already added to this project"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Add virtual member to project
+        project.virtual_members.add(virtual_member)
+        
+        return Response({
+            "status": "success",
+            "message": f"Added {virtual_member.name} to project",
+            "member": {
+                "id": virtual_member.id,
+                "name": virtual_member.name,
+                "specialty": virtual_member.specialty
+            }
+        })
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_virtual_member(request, project_pk, member_pk):
+    """Remove a virtual member from a project"""
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        virtual_member = get_object_or_404(VirtualMember, pk=member_pk)
+        
+        # Check if member is in project
+        if virtual_member not in project.virtual_members.all():
+            return Response({
+                "status": "error",
+                "message": "Virtual member not found in this project"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Remove virtual member from project
+        project.virtual_members.remove(virtual_member)
+        
+        return Response({
+            "status": "success",
+            "message": f"Removed {virtual_member.name} from project"
+        })
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_tags(request, pk):
+    """Generate tags for a project using AI"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # This is a placeholder for AI tag generation
+        # You would implement your actual AI logic here
+        description = project.description
+        title = project.title
+        
+        # Simple example tags (replace with actual AI processing)
+        generated_tags = ["ai", "machinelearning", "healthcare"]
+        
+        # Update project's generated tags
+        project.generated_tags = ",".join(generated_tags)
+        project.save()
+        
+        return Response({
+            "status": "success",
+            "tags": generated_tags
+        })
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def project_analytics_api(request, pk):
+    """Get project analytics data"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check permissions
+    if project.author != request.user and not request.user.is_staff:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        analytics = project.analytics
+        
+        # Get time period from query params
+        period = request.GET.get('period', 'all')  # all, week, month
+        
+        if period == 'week':
+            start_date = timezone.now() - timedelta(days=7)
+        elif period == 'month':
+            start_date = timezone.now() - timedelta(days=30)
+        else:
+            start_date = None
+            
+        data = {
+            "overview": {
+                "views": analytics.view_count,
+                "unique_visitors": analytics.unique_visitors,
+                "github_clicks": analytics.github_clicks,
+                "avg_time_spent": str(analytics.avg_time_spent),
+            },
+            "device_stats": {
+                "desktop": analytics.desktop_visits,
+                "mobile": analytics.mobile_visits,
+                "tablet": analytics.tablet_visits
+            },
+            "browser_stats": {
+                "chrome": analytics.chrome_visits,
+                "firefox": analytics.firefox_visits,
+                "safari": analytics.safari_visits,
+                "edge": analytics.edge_visits,
+                "other": analytics.other_browsers
+            },
+            "traffic_sources": {
+                "direct": analytics.direct_traffic,
+                "social": analytics.social_traffic,
+                "search": analytics.search_traffic,
+                "referral": analytics.referral_traffic
+            },
+            "engagement": {
+                "comments": project.comments.count(),
+                "claps": project.clap_count,
+                "bookmarks": project.bookmarks.count(),
+                "average_rating": project.average_rating
+            }
+        }
+        
+        # Add periodic stats if a period is specified
+        if start_date:
+            data["periodic_stats"] = {
+                "views": analytics.get_views_for_period(start_date),
+                "unique_visitors": analytics.get_unique_visitors_for_period(start_date),
+                "github_clicks": analytics.get_github_clicks_for_period(start_date),
+                "comments": project.comments.filter(created_at__gte=start_date).count(),
+                "claps": Clap.objects.filter(project=project, created_at__gte=start_date).count()
+            }
+        
+        return Response({
+            "status": "success",
+            "data": data
+        })
+        
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProjectAnalyticsView(LoginRequiredMixin, DetailView):
     model = Project
@@ -1657,3 +1914,152 @@ def help_view(request):
     return render(request, 'help.html', {
         'active_tab': 'Help'
     })
+
+
+    ############################
+
+
+
+
+# Class-based views for new features
+class StartupListView(generic.ListView):
+    model = Startup
+    template_name = 'projects/startups/startup_list.html'
+    context_object_name = 'startups'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['products'] = Product.objects.all()
+        return context
+
+class StartupCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Startup
+    form_class = StartupForm
+    template_name = 'projects/startups/startup_form.html'
+    
+    def form_valid(self, form):
+        form.instance.founder = self.request.user
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('projects:startup_list')
+
+class ToolListView(generic.ListView):
+    model = Tool
+    template_name = 'projects/tools/tool_list.html'
+    context_object_name = 'tools'
+
+class ToolCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Tool
+    form_class = ToolForm
+    template_name = 'projects/tools/tool_form.html'
+    
+    def get_success_url(self):
+        return reverse('projects:tool_list')
+
+class DatasetListView(generic.ListView):
+    model = Dataset
+    template_name = 'projects/datasets/dataset_list.html'
+    context_object_name = 'datasets'
+
+class DatasetCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Dataset
+    form_class = DatasetForm
+    template_name = 'projects/datasets/dataset_form.html'
+    
+    def form_valid(self, form):
+        instance = form.save(commit=False)
+        instance.size = instance.file.size
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('projects:dataset_list')
+
+class SponsorshipListView(generic.ListView):
+    model = Sponsorship
+    template_name = 'projects/sponsorships/sponsorship_list.html'
+    context_object_name = 'sponsorships'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Group sponsorships by level
+        sponsorships = {}
+        for level, _ in Sponsorship.LEVELS:
+            sponsorships[level] = self.get_queryset().filter(level=level)
+        context['sponsorships'] = sponsorships
+        return context
+
+class VirtualMemberListView(generic.ListView):
+    model = VirtualMember
+    template_name = 'projects/virtual_members/virtual_member_list.html'
+    context_object_name = 'virtual_members'
+
+class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Application
+    form_class = ApplicationForm
+    template_name = 'projects/application_form.html'
+    success_url = reverse_lazy('projects:homepage')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['type'] = self.request.GET.get('type', 'team')
+        return initial
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        application_type = self.request.GET.get('type')
+        
+        # Remove sponsor-specific fields for team applications
+        if application_type != 'sponsor':
+            del form.fields['organization']
+            del form.fields['level']
+        
+        return form
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, 'Your application has been submitted successfully!')
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_sponsor'] = self.request.GET.get('type') == 'sponsor'
+        return context
+
+@login_required
+def download_project(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    zip_path = project.generate_zip()
+    
+    with open(zip_path, 'rb') as zip_file:
+        response = HttpResponse(zip_file.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{project.slug}_project.zip"'
+    
+    # Clean up the temporary zip file
+    os.remove(zip_path)
+    return response
+
+@login_required
+def download_dataset(request, pk):
+    dataset = get_object_or_404(Dataset, pk=pk)
+    
+    # Increment download counter
+    dataset.downloads += 1
+    dataset.save()
+    
+    response = HttpResponse(dataset.file, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{dataset.name}.zip"'
+    return response
+
+class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Application
+    fields = ['type', 'cover_letter', 'resume', 'additional_info']
+    template_name = 'projects/application_form.html'
+    
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)
+
+def faq(request):
+    return render(request, 'projects/faq.html')
+

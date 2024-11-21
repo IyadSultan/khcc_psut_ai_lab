@@ -1,0 +1,72 @@
+<!-- templates/projects/tools/tool_form.html -->
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-4">
+                        {% if form.instance.pk %}
+                            Edit Tool
+                        {% else %}
+                            Add New Tool
+                        {% endif %}
+                    </h2>
+                    
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tool Name</label>
+                            {{ form.name }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            {{ form.description }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Screenshot/Demo Image</label>
+                            {% if form.instance.image %}
+                                <div class="mb-2">
+                                    <img src="{{ form.instance.image.url }}" alt="Current image" 
+                                         style="max-height: 200px;">
+                                </div>
+                            {% endif %}
+                            {{ form.image }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tool URL</label>
+                            {{ form.url }}
+                            <div class="form-text">Link to the live tool or demo</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">GitHub Repository</label>
+                            {{ form.github_url }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Documentation URL</label>
+                            {{ form.documentation_url }}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                {% if form.instance.pk %}
+                                    Update Tool
+                                {% else %}
+                                    Add Tool
+                                {% endif %}
+                            </button>
+                            <a href="{% url 'projects:tool_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

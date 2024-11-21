@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Application Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">
+            {% if request.GET.type == 'sponsor' %}
+                Sponsorship Application
+            {% else %}
+                Join Our Team
+            {% endif %}
+        </h1>
+        <p class="lead">
+            {% if request.GET.type == 'sponsor' %}
+                Partner with us to advance AI in healthcare
+            {% else %}
+                Be part of our innovative research community
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<!-- Application Form Section -->
+<section class="application-form mb-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            
+                            <!-- Organization/Personal Details -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Name</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small">{{ form.name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Email</label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger small">{{ form.email.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if request.GET.type == 'sponsor' %}
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Organization</label>
+                                    {{ form.organization }}
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Sponsorship Level Interest</label>
+                                    {{ form.level }}
+                                    <div class="form-text text-muted">
+                                        Select your preferred sponsorship tier
+                                    </div>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Message/Proposal -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    {% if request.GET.type == 'sponsor' %}
+                                        Proposal
+                                    {% else %}
+                                        Message
+                                    {% endif %}
+                                </label>
+                                {{ form.message }}
+                                <div class="form-text text-muted">
+                                    {% if request.GET.type == 'sponsor' %}
+                                        Tell us about your organization and how you'd like to collaborate
+                                    {% else %}
+                                        Tell us about your background and interest in joining our team
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Attachments -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    {% if request.GET.type == 'sponsor' %}
+                                        Supporting Documents
+                                    {% else %}
+                                        Resume/CV
+                                    {% endif %}
+                                </label>
+                                {{ form.attachment }}
+                                <div class="form-text text-muted">
+                                    PDF format preferred, max 10MB
+                                </div>
+                            </div>
+                            
+                            <!-- Submit Buttons -->
+                            <div class="d-flex justify-content-center gap-3 mt-5">
+                                <button type="submit" class="btn btn-primary px-4">
+                                    Submit Application
+                                </button>
+                                <a href="{% url 'projects:home' %}" 
+                                   class="btn btn-outline-secondary px-4">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-us bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h2 class="h3 mb-4">Questions?</h2>
+                <p class="mb-4">
+                    If you have any questions about the application process,
+                    please don't hesitate to reach out.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="mailto:contact@example.com" class="btn btn-outline-primary">
+                        <i class="bi bi-envelope me-2"></i>Contact Us
+                    </a>
+                    <a href="{% url 'projects:faq' %}" class="btn btn-primary">
+                        <i class="bi bi-question-circle me-2"></i>View FAQs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

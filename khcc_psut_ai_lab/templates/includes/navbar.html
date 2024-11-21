@@ -22,30 +22,61 @@
                 </li>
                 {% endif %}
                 
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_tab == 'Faculty' %}active{% endif %}" 
-                           href="{% url 'projects:faculty_page' %}">
-                            <i class="bi bi-mortarboard me-1"></i>Faculty
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_tab == 'Talents' %}active{% endif %}" 
-                           href="{% url 'projects:talents' %}">
-                            <i class="bi bi-person-hearts me-1"></i>Talents
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_tab == 'Teams' %}active{% endif %}"
-                           href="{% url 'projects:team_list' %}">
-                            <i class="bi bi-people me-1"></i>Teams
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_tab == 'Help' %}active{% endif %}"
-                           href="{% url 'projects:help' %}">
-                            <i class="bi bi-question-circle me-1"></i>Help
-                        </a>
-                    </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'Faculty' %}active{% endif %}" 
+                       href="{% url 'projects:faculty_page' %}">
+                        <i class="bi bi-mortarboard me-1"></i>Faculty
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'Talents' %}active{% endif %}" 
+                       href="{% url 'projects:talents' %}">
+                        <i class="bi bi-person-hearts me-1"></i>Talents
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'Teams' %}active{% endif %}"
+                       href="{% url 'projects:team_list' %}">
+                        <i class="bi bi-people me-1"></i>Teams
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" 
+                       role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Resources
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="resourcesDropdown">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'projects:tool_list' %}">
+                                <i class="bi bi-tools me-2"></i>Tools
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'projects:dataset_list' %}">
+                                <i class="bi bi-database me-2"></i>Datasets
+                            </a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'projects:startup_list' %}">
+                                <i class="bi bi-building me-2"></i>Startups
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'projects:sponsorship_list' %}">
+                                <i class="bi bi-award me-2"></i>Sponsors
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'Help' %}active{% endif %}"
+                       href="{% url 'projects:help' %}">
+                        <i class="bi bi-question-circle me-1"></i>Help
+                    </a>
+                </li>
             </ul>
             <ul class="navbar-nav">
                 {% if user.is_authenticated %}

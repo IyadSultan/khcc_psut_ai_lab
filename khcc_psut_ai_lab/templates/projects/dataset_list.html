@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Datasets Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Our Datasets</h1>
+        <p class="lead">Access our curated collection of healthcare datasets</p>
+    </div>
+</div>
+
+<!-- Datasets Section -->
+<section class="datasets mb-5">
+    <div class="container">
+        <h2 class="h3 text-center mb-5">Available Datasets</h2>
+        
+        <div class="row g-4">
+            {% for dataset in datasets %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <h3 class="h5 mb-2">{{ dataset.name }}</h3>
+                        <p class="text-muted small mb-3">{{ dataset.description|truncatewords:30 }}</p>
+                        <div class="d-flex justify-content-center gap-2 mb-3">
+                            <span class="badge bg-primary">{{ dataset.format }}</span>
+                            <span class="badge bg-secondary">{{ dataset.size|filesizeformat }}</span>
+                            <span class="badge bg-info">{{ dataset.license }}</span>
+                        </div>
+                        <div class="d-flex justify-content-center gap-2">
+                            <small class="text-muted me-2">{{ dataset.downloads }} downloads</small>
+                            <a href="{% url 'projects:download_dataset' dataset.pk %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-download me-1"></i>Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">No datasets have been added yet.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-us bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h2 class="h3 mb-4">Need Help?</h2>
+                <p class="mb-4">
+                    Have questions about our datasets or need assistance?
+                    We're here to help.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="mailto:datasets@example.com" class="btn btn-outline-primary">
+                        <i class="bi bi-envelope me-2"></i>Contact Support
+                    </a>
+                    <a href="{% url 'projects:help' %}" class="btn btn-primary">
+                        <i class="bi bi-question-circle me-2"></i>Documentation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

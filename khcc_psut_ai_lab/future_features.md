@@ -13,3 +13,5 @@
 - [ ] Add a feature to allow users to download datasets as a zip file.
 - [ ] Make the filter more intuitive: users should select to see featured seeds, latest seeds, gold seeds, popular seeds, etc.
 - [ ] Add application for faculty, sponsors, startups, and students.
+- [ ] Add AI for automatic tag generation.
+- [ ] Add virtual members who can be added to projects.

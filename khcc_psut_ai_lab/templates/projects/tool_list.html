@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Tools Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Our AI Tools</h1>
+        <p class="lead">Explore our collection of AI tools and utilities</p>
+    </div>
+</div>
+
+<!-- Tools Section -->
+<section class="tools mb-5">
+    <div class="container">
+        <h2 class="h3 text-center mb-5">Available Tools</h2>
+        
+        <div class="row g-4">
+            {% for tool in tools %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <img src="{{ tool.image.url }}" 
+                             alt="{{ tool.name }}" 
+                             class="mb-3" 
+                             style="width: 150px; height: 150px; object-fit: contain;">
+                        <h3 class="h5 mb-2">{{ tool.name }}</h3>
+                        <p class="text-muted small mb-3">{{ tool.description|truncatewords:30 }}</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ tool.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Try It
+                            </a>
+                            {% if tool.github_url %}
+                            <a href="{{ tool.github_url }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                <i class="bi bi-github me-1"></i>GitHub
+                            </a>
+                            {% endif %}
+                            {% if tool.documentation_url %}
+                            <a href="{{ tool.documentation_url }}" class="btn btn-sm btn-outline-info" target="_blank">
+                                <i class="bi bi-book me-1"></i>Docs
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">No tools have been added yet.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-us bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h2 class="h3 mb-4">Need Help?</h2>
+                <p class="mb-4">
+                    Have questions about our tools or need technical support? 
+                    We're here to help.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="mailto:support@example.com" class="btn btn-outline-primary">
+                        <i class="bi bi-envelope me-2"></i>Contact Support
+                    </a>
+                    <a href="{% url 'projects:help' %}" class="btn btn-primary">
+                        <i class="bi bi-question-circle me-2"></i>Documentation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

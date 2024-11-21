@@ -66,7 +66,24 @@ def validate_youtube_url(url):
     except Exception:
         raise ValidationError('Invalid YouTube URL')
     
-    
+class VirtualMember(models.Model):
+    name = models.CharField(max_length=100)
+    avatar = models.ImageField(upload_to='virtual_members/')
+    specialty = models.CharField(max_length=100)
+    description = models.TextField()
+    projects = models.ManyToManyField('Project', related_name='virtual_team_members')
+
+    def __str__(self):
+        return self.name
+
+class Startup(models.Model):
+    name = models.CharField(max_length=200)
+    logo = models.ImageField(upload_to='startup_logos/')
+    description = models.TextField()
+    website = models.URLField()
+    founder = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    products = models.ManyToManyField('Product', related_name='startups')    
 # Models
 class Project(models.Model):
     title = models.CharField(max_length=200)
@@ -82,6 +99,9 @@ class Project(models.Model):
     clap_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_featured = models.BooleanField(default=False)
+    virtual_members = models.ManyToManyField(VirtualMember, related_name='assigned_projects')
+    generated_tags = models.TextField(blank=True)  # AI-generated tags
     
     # File fields
     pdf_file = models.FileField(
@@ -175,14 +195,17 @@ class Project(models.Model):
             
         super().save(*args, **kwargs)
     
+
+
+    @property
+    def comment_count(self):
+        """Get total number of comments"""
+        return self.comments.count()
+    
     @property
     def tag_list(self):
         return [tag.strip() for tag in self.tags.split(',') if tag.strip()]
-    
-    @property
-    def comment_count(self):
-        return self.comments.count()
-        
+
     def user_has_clapped(self, user):
         return self.claps.filter(user=user).exists()
     
@@ -192,6 +215,31 @@ class Project(models.Model):
             return 0
         return round(float(self.rating_total) / self.rating_count, 1)
 
+    
+    def generate_zip(self):
+        """Generate a ZIP file of the project"""
+        zip_filename = f"{self.slug}_project.zip"
+        zip_path = os.path.join(settings.MEDIA_ROOT, 'project_zips', zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w') as zip_file:
+            if self.pdf_file:
+                zip_file.write(self.pdf_file.path, os.path.basename(self.pdf_file.name))
+            if self.additional_files:
+                zip_file.write(self.additional_files.path, os.path.basename(self.additional_files.name))
+            
+            # Add README with project info
+            readme_content = f"""
+            Project: {self.title}
+            Author: {self.author.username}
+            Description: {self.description}
+            Tags: {self.tags}
+            Created: {self.created_at}
+            """
+            zip_file.writestr('README.txt', readme_content)
+        
+        return zip_path
+    
+    
     def clean(self):
         super().clean()
         # Validate file sizes
@@ -227,6 +275,39 @@ class Project(models.Model):
         if not self.is_gold or not self.deadline:
             return False
         return timezone.now() <= self.deadline
+
+class Application(models.Model):
+    APPLICATION_TYPES = [
+        ('sponsor', 'Sponsor'),
+        ('team', 'Team Member'),
+    ]
+    
+    LEVEL_CHOICES = [
+        ('bronze', 'Bronze'),
+        ('silver', 'Silver'),
+        ('gold', 'Gold'),
+        ('platinum', 'Platinum'),
+    ]
+
+    type = models.CharField(max_length=20, choices=APPLICATION_TYPES)
+    name = models.CharField(max_length=200)
+    email = models.EmailField()
+    organization = models.CharField(max_length=200, blank=True, null=True)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, blank=True, null=True)
+    message = models.TextField(help_text="Tell us about yourself or your organization")
+    attachment = models.FileField(
+        upload_to='applications/',
+        help_text="PDF format preferred, max 10MB",
+        blank=True,
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.get_type_display()}"
 
 class Comment(models.Model):
     project = models.ForeignKey(
@@ -675,4 +756,48 @@ class TeamAnalytics(models.Model):
         
         self.last_activity = now
         self.save()
+
+
+class Sponsorship(models.Model):
+    LEVELS = [
+        ('bronze', 'Bronze'),
+        ('silver', 'Silver'),
+        ('gold', 'Gold'),
+        ('platinum', 'Platinum')
+    ]
+    
+    name = models.CharField(max_length=200)
+    logo = models.ImageField(upload_to='sponsor_logos/')
+    level = models.CharField(max_length=20, choices=LEVELS)
+    website = models.URLField()
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+
+class Product(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField(upload_to='product_images/')
+    url = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Tool(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField(upload_to='tool_images/')
+    url = models.URLField()
+    github_url = models.URLField(blank=True)
+    documentation_url = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Dataset(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    file = models.FileField(upload_to='datasets/')
+    size = models.BigIntegerField()  # in bytes
+    format = models.CharField(max_length=50)
+    license = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    downloads = models.IntegerField(default=0)
 

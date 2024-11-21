@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Startup Form Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">
+            {% if form.instance.pk %}
+                Edit Startup
+            {% else %}
+                Add New Startup
+            {% endif %}
+        </h1>
+        <p class="lead">Share your startup's story with our community</p>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Logo Upload Section -->
+                        <div class="text-center mb-4">
+                            {% if form.instance.logo %}
+                                <img src="{{ form.instance.logo.url }}" 
+                                     alt="Current logo" 
+                                     class="rounded-circle mb-3"
+                                     style="width: 150px; height: 150px; object-fit: cover;">
+                            {% endif %}
+                            <div class="mb-3">
+                                {{ form.logo }}
+                                <div class="form-text">Upload a square logo (recommended size: 500x500px)</div>
+                            </div>
+                        </div>
+
+                        <!-- Startup Details -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Startup Name</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">{{ form.name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Description</label>
+                            {{ form.description }}
+                            <div class="form-text">Tell us about your startup's mission and vision</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Website</label>
+                            {{ form.website }}
+                            <div class="form-text">Share your startup's online presence</div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                {% if form.instance.pk %}
+                                    Update Startup
+                                {% else %}
+                                    Add Startup
+                                {% endif %}
+                            </button>
+                            <a href="{% url 'projects:startup_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Startups
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

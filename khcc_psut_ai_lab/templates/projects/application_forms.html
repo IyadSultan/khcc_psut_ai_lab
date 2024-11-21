@@ -1,0 +1,40 @@
+
+<!-- templates/projects/applications/application_form.html -->
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-4">{{ application_type }} Application</h2>
+                    
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Application Type</label>
+                            {{ form.type }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Resume/CV</label>
+                            {{ form.resume }}
+                            <div class="form-text">Upload your resume in PDF format (max 5MB)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Cover Letter</label>
+                            {{ form.cover_letter }}
+                            <div class="form-text">Tell us why you want to join KHCC AI Lab</div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                Submit Application
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

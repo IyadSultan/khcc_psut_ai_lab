@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load crispy_forms_tags %}
+{% load query_tags %}  {# Add this line to load the custom template tags #}
+
 
 {% block content %}
-<!-- Projects Header -->
 <div class="bg-primary text-white py-5 mb-5">
     <div class="container">
         <h1 class="display-4">Seeds</h1>
@@ -11,189 +12,358 @@
     </div>
 </div>
 
-<div class="container py-5">
-    <div class="row">
-        <!-- Main Content -->
-        <div class="col-lg-8">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="h4 mb-0">Featured Seeds</h2>
-                {% if user.is_authenticated %}
-                <a href="{% url 'projects:submit_project' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-lg"></i> Share
-                </a>
-                {% endif %}
-            </div>
-
-            <div class="row g-4">
-                {% for project in page_obj %}
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 shadow-sm">
-                        {% if project.is_gold and project.token_reward %}
-                        <div class="card-badge position-absolute top-0 end-0 m-2">
-                            <span class="badge bg-warning text-dark">
-                                <i class="bi bi-trophy-fill me-1"></i>
-                                {{ project.token_reward }} Tokens
-                            </span>
+<div class="container my-4">
+    <div class="row g-4">
+        <!-- Filters Sidebar -->
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Filter Seeds</h5>
+                    <form method="GET" id="filterForm">
+                        <!-- Search Bar -->
+                        <div class="mb-4">
+                            <div class="input-group">
+                                <input type="text" 
+                                       name="query" 
+                                       class="form-control" 
+                                       placeholder="Search seeds..."
+                                       value="{{ request.GET.query|default:'' }}">
+                                <button class="btn btn-outline-secondary" type="submit">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
                         </div>
-                        {% endif %}
 
+                        <!-- Seed Categories -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Categories</label>
+                            <div class="d-grid gap-2">
+                                <input type="radio" 
+                                       class="btn-check" 
+                                       name="category" 
+                                       id="all" 
+                                       value="all"
+                                       {% if not request.GET.category or request.GET.category == 'all' %}checked{% endif %}>
+                                <label class="btn btn-outline-secondary" for="all">
+                                    <i class="bi bi-grid-fill me-2"></i>All Seeds
+                                </label>
+
+                                <input type="radio" 
+                                       class="btn-check" 
+                                       name="category" 
+                                       id="featured" 
+                                       value="featured"
+                                       {% if request.GET.category == 'featured' %}checked{% endif %}>
+                                <label class="btn btn-outline-primary" for="featured">
+                                    <i class="bi bi-star-fill me-2"></i>Featured Seeds
+                                </label>
+
+                                <input type="radio" 
+                                       class="btn-check" 
+                                       name="category" 
+                                       id="gold" 
+                                       value="gold"
+                                       {% if request.GET.category == 'gold' %}checked{% endif %}>
+                                <label class="btn btn-outline-warning" for="gold">
+                                    <i class="bi bi-trophy-fill me-2"></i>Gold Seeds
+                                </label>
+
+                                <input type="radio" 
+                                       class="btn-check" 
+                                       name="category" 
+                                       id="latest" 
+                                       value="latest"
+                                       {% if request.GET.category == 'latest' %}checked{% endif %}>
+                                <label class="btn btn-outline-success" for="latest">
+                                    <i class="bi bi-clock-fill me-2"></i>Latest Seeds
+                                </label>
+
+                                <input type="radio" 
+                                       class="btn-check" 
+                                       name="category" 
+                                       id="popular" 
+                                       value="popular"
+                                       {% if request.GET.category == 'popular' %}checked{% endif %}>
+                                <label class="btn btn-outline-info" for="popular">
+                                    <i class="bi bi-heart-fill me-2"></i>Popular Seeds
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Tags</label>
+                            <div class="tag-cloud">
+                                {% for tag in popular_tags %}
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           name="tags" 
+                                           value="{{ tag }}"
+                                           id="tag_{{ forloop.counter }}"
+                                           {% if tag in selected_tags %}checked{% endif %}>
+                                    <label class="form-check-label" for="tag_{{ forloop.counter }}">
+                                        {{ tag }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Sort -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Sort By</label>
+                            <select class="form-select" name="sort">
+                                <option value="-created_at" {% if request.GET.sort == '-created_at' %}selected{% endif %}>
+                                    Newest First
+                                </option>
+                                <option value="created_at" {% if request.GET.sort == 'created_at' %}selected{% endif %}>
+                                    Oldest First
+                                </option>
+                                <option value="-clap_count" {% if request.GET.sort == '-clap_count' %}selected{% endif %}>
+                                    Most Popular
+                                </option>
+                                <option value="-rating_avg" {% if request.GET.sort == '-rating_avg' %}selected{% endif %}>
+                                    Highest Rated
+                                </option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            Apply Filters
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Grid -->
+        <div class="col-md-9">
+            <!-- Active Filters Display -->
+            {% if request.GET %}
+            <div class="mb-4">
+                <h6 class="text-muted mb-2">Active Filters:</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if request.GET.query %}
+                    <span class="badge bg-light text-dark">
+                        Search: {{ request.GET.query }}
+                        <a href="?{% query_transform request.GET 'query' '' %}" class="text-dark text-decoration-none ms-2">×</a>
+                    </span>
+                    {% endif %}
+
+                    {% if request.GET.category and request.GET.category != 'all' %}
+                    <span class="badge bg-light text-dark">
+                        Category: {{ request.GET.category|title }}
+                        <a href="?{% query_transform request.GET 'category' '' %}" class="text-dark text-decoration-none ms-2">×</a>
+                    </span>
+                    {% endif %}
+
+                    {% for tag in selected_tags %}
+                    <span class="badge bg-light text-dark">
+                        Tag: {{ tag }}
+                        <a href="?{% query_transform request.GET 'tags' tag 'remove' %}" class="text-dark text-decoration-none ms-2">×</a>
+                    </span>
+                    {% endfor %}
+
+                    {% if request.GET %}
+                    <a href="{% url 'projects:project_list' %}" class="btn btn-sm btn-outline-secondary">
+                        Clear All Filters
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Projects Grid -->
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for project in page_obj %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm project-card">
+                        <!-- Badges -->
+                        <div class="card-badges">
+                            {% if project.is_featured %}
+                            <span class="badge bg-primary position-absolute top-0 start-0 m-2">
+                                <i class="bi bi-star-fill"></i>
+                            </span>
+                            {% endif %}
+                            
+                            {% if project.is_gold %}
+                            <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-2">
+                                <i class="bi bi-trophy-fill me-1"></i>{{ project.token_reward }}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Only show image section if image exists -->
                         {% if project.featured_image %}
                         <img src="{{ project.featured_image.url }}" 
-                             class="card-img-top" 
+                             class="card-img-top"
                              alt="{{ project.title }}"
-                             style="height: 200px; object-fit: cover;">
+                             style="height: 140px; object-fit: cover;">
                         {% endif %}
 
                         <div class="card-body">
-                            <h5 class="card-title">
-                                <a href="{% url 'projects:project_detail' project.pk %}" class="text-decoration-none text-dark">
+                            <h6 class="card-title mb-1">
+                                <a href="{% url 'projects:project_detail' project.pk %}" 
+                                   class="text-decoration-none text-dark stretched-link">
                                     {{ project.title }}
                                 </a>
-                            </h5>
-                            
+                            </h6>
+
                             {% if project.is_gold and project.deadline %}
-                            <div class="mb-2 text-muted small">
-                                <i class="bi bi-clock-fill me-1"></i>
-                                Deadline: {{ project.deadline|date:"F d, Y" }}
+                            <div class="text-muted mb-2" style="font-size: 0.8rem;">
+                                <i class="bi bi-clock me-1"></i>
+                                Deadline: {{ project.deadline|date:"M d, Y" }}
                             </div>
                             {% endif %}
 
-                            <p class="card-text text-muted small">
-                                {{ project.description|truncatewords:30 }}
+                            <p class="card-text small text-muted mb-2" style="font-size: 0.85rem;">
+                                {{ project.description|truncatechars:100 }}
                             </p>
 
-                            <!-- Project Tags -->
+                            {% if project.tags %}
                             <div class="mb-2">
-                                {% for tag in project.tags.split|slice:":3" %}
-                                <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                                {% for tag in project.tag_list|slice:":3" %}
+                                <a href="?tags={{ tag }}" 
+                                   class="badge bg-light text-dark text-decoration-none me-1"
+                                   style="font-size: 0.75rem;">
+                                    {{ tag }}
+                                </a>
                                 {% endfor %}
                             </div>
-
-                            <!-- Project Stats -->
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <div class="small text-muted">
-                                    <i class="bi bi-hand-thumbs-up me-1"></i>{{ project.clap_count }}
-                                    <i class="bi bi-chat ms-2 me-1"></i>{{ project.comment_count }}
-                                    {% if project.average_rating > 0 %}
-                                    <i class="bi bi-star-fill ms-2 me-1 text-warning"></i>{{ project.average_rating }}
-                                    {% endif %}
-                                </div>
-                                <small class="text-muted">
-                                    {{ project.created_at|timesince }} ago
-                                </small>
-                            </div>
+                            {% endif %}
                         </div>
 
-                        <div class="card-footer bg-transparent">
-                            <div class="d-flex align-items-center">
-                                <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}https://via.placeholder.com/32{% endif %}" 
-                                     class="rounded-circle me-2" 
-                                     alt="{{ project.author.username }}"
-                                     style="width: 32px; height: 32px; object-fit: cover;">
-                                <div class="small">
-                                    <a href="{% url 'projects:user_profile' username=project.author.username %}" 
-                                       class="text-decoration-none text-dark">
-                                        {{ project.author.get_full_name|default:project.author.username }}
-                                    </a>
-                                    {% if project.author.profile.is_faculty %}
-                                    <span class="badge bg-primary ms-1">Faculty</span>
-                                    {% endif %}
+                        <div class="card-footer bg-transparent py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <img src="{% if project.author.profile.avatar %}{{ project.author.profile.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                         class="rounded-circle me-2" 
+                                         alt="{{ project.author.username }}"
+                                         style="width: 24px; height: 24px; object-fit: cover;">
+                                    <div style="font-size: 0.85rem;">
+                                        <a href="{% url 'projects:user_profile' username=project.author.username %}" 
+                                           class="text-decoration-none text-dark">
+                                            {{ project.author.get_full_name|default:project.author.username|truncatechars:15 }}
+                                        </a>
+                                        {% if project.author.profile.is_faculty %}
+                                        <span class="badge bg-primary" style="font-size: 0.7rem;">Faculty</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="project-stats" style="font-size: 0.75rem;">
+                                    <span class="text-muted me-2" title="Claps">
+                                        <i class="bi bi-hand-thumbs-up"></i> {{ project.clap_count }}
+                                    </span>
+                                    <span class="text-muted" title="Comments">
+                                        <i class="bi bi-chat"></i> {{ project.comment_count }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 {% empty %}
-                <div class="col-12 text-center py-5">
-                    <p class="text-muted">No projects found.</p>
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        No projects found matching your criteria.
+                    </div>
                 </div>
                 {% endfor %}
             </div>
 
-            {% include "includes/pagination.html" %}
-        </div>
-
-        <!-- Sidebar -->
-        <div class="col-lg-4">
-            <!-- Welcome Card -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Welcome to KHCC AI Lab</h5>
-                    <p class="card-text">
-                        Discover innovative AI projects, share your work, and connect with 
-                        fellow developers.
-                    </p>
-                    {% if user.is_authenticated %}
-                    <a href="{% url 'projects:submit_project' %}" class="btn btn-primary w-100">
-                        Share Your Seed
-                    </a>
-                    {% else %}
-                    <a href="{% url 'account_login' %}" class="btn btn-primary w-100">
-                        Sign in to Share
-                    </a>
-                    {% endif %}
-                </div>
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="mt-4">
+                {% include "includes/pagination.html" with page_obj=page_obj %}
             </div>
-
-            <!-- Filter Card -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">Filter Seeds</h5>
-                    <form method="get" class="mb-0">
-                        {{ search_form.query|as_crispy_field }}
-                        {{ search_form.tags|as_crispy_field }}
-                        {{ search_form.sort|as_crispy_field }}
-                        <button type="submit" class="btn btn-primary w-100 mt-3">
-                            <i class="bi bi-search me-2"></i>Apply Filters
-                        </button>
-                        {% if request.GET %}
-                        <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary w-100 mt-2">
-                            <i class="bi bi-x-circle me-2"></i>Clear Filters
-                        </a>
-                        {% endif %}
-                    </form>
-                </div>
-            </div>
-
-            <!-- Popular Tags -->
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title">Popular Tags</h5>
-                    <div class="tag-cloud">
-                        {% for tag in popular_tags %}
-                        <a href="?tags={{ tag.name }}" 
-                           class="badge bg-light text-dark text-decoration-none">
-                            {{ tag.name }}
-                            <span class="text-muted">({{ tag.count }})</span>
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <style>
-.card-badge {
+.project-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.project-card:hover {
+    transform: translateY(-5px);
+}
+
+.project-card .card-title {
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+.project-card .badge {
+    font-weight: normal;
+}
+
+.card-badges {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 2;
 }
 
-.tag-cloud {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+/* Reduce spacing in card body */
+.project-card .card-body {
+    padding: 1rem;
 }
 
-.tag-cloud .badge {
-    padding: 0.5rem 0.75rem;
-    font-weight: normal;
-    transition: all 0.2s ease;
+.project-card .card-footer {
+    padding: 0.5rem 1rem;
+    border-top: 1px solid rgba(0,0,0,.075);
 }
 
-.tag-cloud .badge:hover {
-    background-color: var(--bs-primary) !important;
-    color: white !important;
+/* Make tags more compact */
+.project-card .badge {
+    padding: 0.35em 0.65em;
+}
+
+/* Improve accessibility */
+@media (hover: hover) {
+    .project-card a:hover {
+        text-decoration: underline !important;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .project-card .card-title {
+        font-size: 0.95rem;
+    }
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form when radio buttons change
+    const categoryRadios = document.querySelectorAll('input[name="category"]');
+    categoryRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            document.getElementById('filterForm').submit();
+        });
+    });
+
+    // Handle sort select change
+    const sortSelect = document.querySelector('select[name="sort"]');
+    sortSelect.addEventListener('change', () => {
+        document.getElementById('filterForm').submit();
+    });
+
+    // Preserve scroll position after form submit
+    const scrollPosition = sessionStorage.getItem('scrollPosition');
+    if (scrollPosition) {
+        window.scrollTo(0, parseInt(scrollPosition));
+        sessionStorage.removeItem('scrollPosition');
+    }
+
+    window.addEventListener('beforeunload', () => {
+        sessionStorage.setItem('scrollPosition', window.scrollY.toString());
+    });
+});
+</script>
 {% endblock %}

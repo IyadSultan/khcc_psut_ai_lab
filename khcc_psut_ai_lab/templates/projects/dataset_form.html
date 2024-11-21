@@ -1,0 +1,66 @@
+<!-- templates/projects/datasets/dataset_form.html -->
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-4">
+                        {% if form.instance.pk %}
+                            Edit Dataset
+                        {% else %}
+                            Add New Dataset
+                        {% endif %}
+                    </h2>
+                    
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Dataset Name</label>
+                            {{ form.name }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            {{ form.description }}
+                            <div class="form-text">
+                                Include information about data collection, format, and potential uses
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">File</label>
+                            {{ form.file }}
+                            <div class="form-text">Upload your dataset file (ZIP format recommended)</div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Format</label>
+                                {{ form.format }}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">License</label>
+                                {{ form.license }}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                {% if form.instance.pk %}
+                                    Update Dataset
+                                {% else %}
+                                    Add Dataset
+                                {% endif %}
+                            </button>
+                            <a href="{% url 'projects:dataset_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

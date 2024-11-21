@@ -9,6 +9,13 @@ from PIL import Image
 from io import BytesIO
 import os
 
+from django import forms
+from .models import (
+    Project, Comment, UserProfile, Rating, Bookmark, 
+    Notification, Startup, Product, Tool, Dataset,
+    VirtualMember, Application, Sponsorship
+)
+
 from .models import (
     Project,
     Comment,
@@ -927,3 +934,228 @@ class TeamForm(forms.ModelForm):
             # Rejoin cleaned tags
             return ', '.join(tag_list)
         return tags
+
+# forms.py additions
+
+
+
+
+class StartupForm(forms.ModelForm):
+    class Meta:
+        model = Startup
+        fields = ['name', 'logo', 'description', 'website']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter startup name'
+            }),
+            'logo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your startup'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+    def clean_logo(self):
+        logo = self.cleaned_data.get('logo')
+        if logo:
+            if logo.size > 5 * 1024 * 1024:  # 5MB limit
+                raise forms.ValidationError("Image file too large ( > 5MB )")
+            return logo
+        return None
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = ['name', 'description', 'image', 'url']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter product name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your product'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+class ToolForm(forms.ModelForm):
+    class Meta:
+        model = Tool
+        fields = ['name', 'description', 'image', 'url', 'github_url', 'documentation_url']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter tool name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your tool'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            }),
+            'github_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://github.com/...'
+            }),
+            'documentation_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+class DatasetForm(forms.ModelForm):
+    class Meta:
+        model = Dataset
+        fields = ['name', 'description', 'file', 'format', 'license']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter dataset name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your dataset'
+            }),
+            'file': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.zip,.csv,.json,.txt'
+            }),
+            'format': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., CSV, JSON, etc.'
+            }),
+            'license': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., MIT, Apache, etc.'
+            })
+        }
+
+    def clean_file(self):
+        file = self.cleaned_data.get('file')
+        if file:
+            if file.size > 50 * 1024 * 1024:  # 50MB limit
+                raise forms.ValidationError("File too large ( > 50MB )")
+        return file
+
+class SponsorshipForm(forms.ModelForm):
+    class Meta:
+        model = Sponsorship
+        fields = ['name', 'logo', 'level', 'website', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Organization name'
+            }),
+            'logo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your organization'
+            })
+        }
+
+class VirtualMemberForm(forms.ModelForm):
+    class Meta:
+        model = VirtualMember
+        fields = ['name', 'avatar', 'specialty', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Virtual member name'
+            }),
+            'avatar': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'specialty': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Area of expertise'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe this virtual member'
+            })
+        }
+
+class ApplicationForm(forms.ModelForm):
+    class Meta:
+        model = Application
+        fields = [
+            'type',
+            'name',
+            'email',
+            'organization',
+            'level',
+            'message',
+            'attachment'
+        ]
+        widgets = {
+            'type': forms.HiddenInput(),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your full name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your email address'
+            }),
+            'organization': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Organization name'
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'message': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Tell us about yourself or your organization'
+            }),
+            'attachment': forms.FileInput(attrs={
+                'class': 'form-control'
+            })
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make certain fields optional
+        self.fields['organization'].required = False
+        self.fields['level'].required = False
+        self.fields['attachment'].required = False
