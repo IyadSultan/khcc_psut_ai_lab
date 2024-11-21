@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="bg-success text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            Solution Submitted Successfully!
+        </h1>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                        What's Next?
+                    </h5>
+                    
+                    <div class="mb-4">
+                        <p>Your solution for <strong>{{ project.title }}</strong> has been submitted successfully.</p>
+                        {% if project.gold_goal %}
+                            <div class="alert alert-warning">
+                                <i class="bi bi-trophy-fill me-2"></i>
+                                {% if project.gold_goal == 'all' %}
+                                    You'll receive your tokens once your solution is verified.
+                                {% elif project.gold_goal == 'first' %}
+                                    If you're the first to submit a correct solution, you'll receive the tokens!
+                                {% else %}
+                                    The best solution will be selected to receive the tokens.
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'projects:project_detail' project.pk %}" class="btn btn-primary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Project
+                        </a>
+                        <a href="{% url 'projects:solution_detail' solution.pk %}" class="btn btn-outline-primary">
+                            <i class="bi bi-eye me-2"></i>View Your Solution
+                        </a>
+                        <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-grid me-2"></i>Browse More Projects
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

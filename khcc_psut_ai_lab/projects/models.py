@@ -825,3 +825,132 @@ def auto_generate_tags(sender, instance, **kwargs):
         if generated_tags:
             instance.tags = generated_tags
 
+class KHCCBrain(models.Model):
+    """AI Research Assistant Model"""
+    name = "KHCC Brain"
+    description = "AI Research Assistant & Team Mentor"
+    last_active = models.DateTimeField(auto_now=True)
+    total_comments = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "KHCC Brain"
+        verbose_name_plural = "KHCC Brain Instances"
+
+    @classmethod
+    def get_user(cls):
+        """Get or create the KHCC Brain user account and profile"""
+        from django.contrib.auth.models import User
+        from projects.models import UserProfile
+        
+        try:
+            # First try to get existing user
+            return User.objects.get(username='kcc_brain')
+        except User.DoesNotExist:
+            # Create new user if doesn't exist
+            user = User.objects.create_user(
+                username='kcc_brain',
+                email='kcc_brain@khcc.jo',
+                first_name='KHCC',
+                last_name='Brain',
+                is_active=True
+            )
+            
+            # Create profile only if it doesn't exist
+            UserProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'bio': "I am KHCC Brain, an AI research assistant specializing in healthcare AI. I help teams advance their medical AI projects through analysis and suggestions.",
+                    'title': "AI Research Assistant",
+                    'department': "AI Lab",
+                    'talent_type': 'ai'  # Make sure this matches one of your valid talent types
+                }
+            )
+            
+            return user
+
+    def analyze_project(self, project):
+        """Analyze a project and generate insights using OpenAI"""
+        try:
+            # Set OpenAI API key
+            openai.api_key = settings.OPENAI_API_KEY
+            
+            # Get latest comments
+            latest_comments = project.comments.order_by('-created_at')[:5]
+            comments_text = "\n".join([f"- {comment.content}" for comment in latest_comments])
+            
+            prompt = f"""
+            You are KHCC Brain, an AI research assistant at KHCC AI Lab. Analyze this project and provide encouraging feedback.
+            Be constructive, specific, and mention both strengths and potential next steps.
+            Use a friendly, encouraging tone with a focus on healthcare and AI applications.
+
+            Project Title: {project.title}
+            Description: {project.description}
+            Recent Comments:
+            {comments_text}
+            
+            Generate concise feedback focusing on:
+            1. Specific achievements and potential in healthcare AI
+            2. Response to recent discussions and comments
+            3. Suggestions for next steps and research directions
+            4. Team collaboration opportunities
+            
+            Keep your response encouraging and under 200 words.
+            """
+
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are KHCC Brain, a helpful AI research assistant focusing on healthcare and AI projects."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=400,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content
+
+        except Exception as e:
+            print(f"Error generating AI feedback: {str(e)}")
+            return None
+
+    def analyze_team_discussion(self, discussion):
+        """Analyze team discussion and provide strategic advice"""
+        try:
+            openai.api_key = settings.OPENAI_API_KEY
+            
+            # Get latest comments
+            latest_comments = discussion.comments.order_by('-created_at')[:5]
+            comments_text = "\n".join([f"- {comment.content}" for comment in latest_comments])
+            
+            prompt = f"""
+            As KHCC Brain, analyze this team discussion and provide constructive input.
+            
+            Discussion Title: {discussion.title}
+            Content: {discussion.content}
+            Recent Comments:
+            {comments_text}
+            
+            Provide concise feedback that:
+            1. Acknowledges key points raised in the discussion
+            2. Offers relevant healthcare AI insights
+            3. Suggests potential collaboration opportunities
+            4. Proposes concrete next steps
+            
+            Keep your response encouraging and under 150 words.
+            """
+
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are KHCC Brain, a healthcare AI research mentor focused on fostering collaboration."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content
+
+        except Exception as e:
+            print(f"Error generating team feedback: {str(e)}")
+            return None
