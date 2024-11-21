@@ -12,23 +12,56 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-
 class Command(BaseCommand):
     help = 'Runs KHCC Brain AI agent to analyze projects and participate in team discussions'
 
-    def create_notification(self, recipient, project, message_type, content):
-        """Helper method to create notifications"""
-        try:
-            Notification.objects.create(
-                recipient=recipient,
-                sender=KHCCBrain.get_user(),
-                project=project,
-                notification_type='comment',
-                message=f"KHCC Brain {message_type}: {content[:100]}..."
-            )
-        except Exception as e:
-            logger.error(f"Error creating notification: {str(e)}")
+    def join_new_teams(self, kcc_brain_user):
+        """Helper method to join new teams"""
+        # Get all teams KHCC Brain hasn't joined yet
+        new_teams = Team.objects.exclude(
+            memberships__user=kcc_brain_user
+        )
+        
+        for team in new_teams:
+            try:
+                # Join team
+                membership = TeamMembership.objects.create(
+                    team=team,
+                    user=kcc_brain_user,
+                    role='member',
+                    is_approved=True
+                )
+                
+                # Create welcome message
+                welcome_message = f"""
+Hello {team.name} team! 👋
+
+I'm KHCC Brain, your AI research assistant, and I'm excited to join this team. I'm here to help with:
+
+• Analyzing discussions and providing insights
+• Suggesting potential research directions
+• Offering relevant healthcare AI perspectives
+• Identifying collaboration opportunities
+
+Feel free to mention me in any discussions where you'd like my input. I'll be actively monitoring our team's conversations and contributing where I can help most.
+
+Looking forward to collaborating with everyone!
+
+Best regards,
+KHCC Brain 🤖
+                """
+                
+                discussion = TeamDiscussion.objects.create(
+                    team=team,
+                    author=kcc_brain_user,
+                    title="KHCC Brain Introduction",
+                    content=welcome_message
+                )
+                
+                self.stdout.write(f"Successfully joined team and posted welcome message: {team.name}")
+                
+            except Exception as e:
+                logger.error(f"Error joining team {team.id}: {str(e)}")
 
     def handle(self, *args, **options):
         try:
@@ -38,6 +71,12 @@ class Command(BaseCommand):
                 kcc_brain = KHCCBrain.objects.create()
                 self.stdout.write('Created new KHCC Brain instance')
 
+            # Get KHCC Brain user
+            kcc_brain_user = KHCCBrain.get_user()
+            
+            # First, handle team memberships
+            self.join_new_teams(kcc_brain_user)
+
             # Get active projects with new comments in the last hour
             last_hour = timezone.now() - timedelta(hours=1)
             
@@ -45,7 +84,7 @@ class Command(BaseCommand):
             projects_with_new_comments = Project.objects.filter(
                 comments__created_at__gte=last_hour
             ).exclude(
-                comments__user=KHCCBrain.get_user()
+                comments__user=kcc_brain_user
             ).distinct()
 
             for project in projects_with_new_comments:
@@ -53,98 +92,55 @@ class Command(BaseCommand):
                     # Generate and add feedback
                     feedback = kcc_brain.analyze_project(project)
                     if feedback:
-                        # Create the comment
                         comment = Comment.objects.create(
                             project=project,
-                            user=KHCCBrain.get_user(),
+                            user=kcc_brain_user,
                             content=feedback
                         )
                         
-                        # Create notification for project author
-                        self.create_notification(
+                        # Notify project author
+                        Notification.objects.create(
                             recipient=project.author,
+                            sender=kcc_brain_user,
                             project=project,
-                            message_type="analyzed your seed",
-                            content=feedback
+                            notification_type='comment',
+                            message=f"KHCC Brain analyzed your seed: {feedback[:100]}..."
                         )
-                        
-                        # Create notifications for other participants (commenters)
-                        recent_commenters = Comment.objects.filter(
-                            project=project,
-                            created_at__gte=last_hour
-                        ).exclude(
-                            user=project.author
-                        ).exclude(
-                            user=KHCCBrain.get_user()
-                        ).values_list('user', flat=True).distinct()
-                        
-                        for user_id in recent_commenters:
-                            self.create_notification(
-                                recipient_id=user_id,
-                                project=project,
-                                message_type="commented on a seed you're discussing",
-                                content=feedback
-                            )
                         
                         self.stdout.write(f"Added feedback to project: {project.title}")
                 except Exception as e:
                     logger.error(f"Error analyzing project {project.id}: {str(e)}")
 
-            # Handle team interactions
-            # First, join new teams
-            new_teams = Team.objects.exclude(
-                memberships__user=KHCCBrain.get_user()
-            )
-
-            for team in new_teams:
-                try:
-                    membership = TeamMembership.objects.create(
-                        team=team,
-                        user=KHCCBrain.get_user(),
-                        role='ai_assistant',
-                        is_approved=True
-                    )
-                    
-                    # Notify team founder
-                    self.create_notification(
-                        recipient=team.founder,
-                        project=None,
-                        message_type="joined your team",
-                        content=f"KHCC Brain has joined {team.name} as an AI assistant"
-                    )
-                    
-                    self.stdout.write(f"Joined new team: {team.name}")
-                except Exception as e:
-                    logger.error(f"Error joining team {team.id}: {str(e)}")
-
             # Check for new team discussions
             recent_discussions = TeamDiscussion.objects.filter(
-                created_at__gte=last_hour
+                Q(created_at__gte=last_hour) |
+                Q(comments__created_at__gte=last_hour)
             ).exclude(
-                comments__user=KHCCBrain.get_user()
+                comments__user=kcc_brain_user
             ).distinct()
 
             for discussion in recent_discussions:
                 try:
                     feedback = kcc_brain.analyze_team_discussion(discussion)
                     if feedback:
-                        # Create the comment
                         comment = discussion.comments.create(
-                            user=KHCCBrain.get_user(),
+                            user=kcc_brain_user,
                             content=feedback
                         )
                         
                         # Notify discussion participants
-                        participants = discussion.comments.exclude(
-                            user=KHCCBrain.get_user()
-                        ).values_list('user', flat=True).distinct()
+                        participants = discussion.team.memberships.filter(
+                            is_approved=True
+                        ).exclude(
+                            user=kcc_brain_user
+                        ).values_list('user', flat=True)
                         
                         for user_id in participants:
-                            self.create_notification(
+                            Notification.objects.create(
                                 recipient_id=user_id,
-                                project=None,
-                                message_type="commented on a team discussion",
-                                content=feedback
+                                sender=kcc_brain_user,
+                                notification_type='team_comment',
+                                message=f"KHCC Brain commented on team discussion: {discussion.title}"
                             )
                         
                         self.stdout.write(f"Added feedback to team discussion: {discussion.title}")
@@ -155,7 +151,9 @@ class Command(BaseCommand):
             kcc_brain.last_active = timezone.now()
             kcc_brain.save()
 
-            self.stdout.write("KHCC Brain analysis complete")
+            self.stdout.write(
+                self.style.SUCCESS("KHCC Brain analysis complete")
+            )
 
         except Exception as e:
             logger.error(f"Critical error in KHCC Brain execution: {str(e)}")
