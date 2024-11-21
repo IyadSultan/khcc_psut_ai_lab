@@ -314,3 +314,19 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # EMAIL_USE_TLS = True
 # EMAIL_HOST_USER = 'your-email@gmail.com'
 # EMAIL_HOST_PASSWORD = 'your-app-specific-password'
+
+
+
+# settings.py
+from dotenv import load_dotenv
+load_dotenv()
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+
+
+# Optional: Add OpenAI API configuration
+OPENAI_CONFIG = {
+    'model': 'gpt-4o-mini',
+    'temperature': 0.3,
+    'max_tokens': 100,
+}

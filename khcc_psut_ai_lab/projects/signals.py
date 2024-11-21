@@ -61,3 +61,27 @@ def handle_membership_changes(sender, instance, created, **kwargs):
 def handle_member_removal(sender, instance, **kwargs):
     # Update analytics
     instance.team.analytics.update_stats()
+
+
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from .models import Project
+from .services import OpenAITaggingService
+
+@receiver(pre_save, sender=Project)
+def auto_generate_tags(sender, instance, **kwargs):
+    """
+    Signal handler to automatically generate tags before saving a Project
+    
+    Only generates tags if:
+    1. No tags are currently set
+    2. The project is being created for the first time
+    """
+    if not instance.pk and not instance.tags:  # New project without tags
+        tagging_service = OpenAITaggingService()
+        generated_tags = tagging_service.generate_tags(
+            title=instance.title,
+            description=instance.description
+        )
+        if generated_tags:
+            instance.tags = generated_tags

@@ -183,10 +183,22 @@ def remove_virtual_member(request, project_pk, member_pk):
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+# views.py
+
+from django.conf import settings
+import openai
+from khcc_psut_ai_lab.constants import ALL_TAGS
+from difflib import get_close_matches
+
+def get_similar_tags(suggested_tag, valid_tags=ALL_TAGS, n=1, cutoff=0.6):
+    """Find the closest matching valid tag"""
+    matches = get_close_matches(suggested_tag.lower(), valid_tags, n=n, cutoff=cutoff)
+    return matches[0] if matches else suggested_tag
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def generate_tags(request, pk):
-    """Generate tags for a project using AI"""
+    """Generate tags for a project using OpenAI"""
     project = get_object_or_404(Project, pk=pk)
     
     # Check permissions
@@ -197,22 +209,69 @@ def generate_tags(request, pk):
         }, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # This is a placeholder for AI tag generation
-        # You would implement your actual AI logic here
-        description = project.description
-        title = project.title
+        # Set up OpenAI client
+        openai.api_key = settings.OPENAI_API_KEY
         
-        # Simple example tags (replace with actual AI processing)
-        generated_tags = ["ai", "machinelearning", "healthcare"]
+        # Prepare the prompt
+        prompt = f"""
+        Please analyze the following project and suggest relevant tags from the predefined list.
+        The tags should be highly relevant to AI and healthcare domains.
+        
+        Project Title: {project.title}
+        Project Description: {project.description}
+        
+        Available Tags: {', '.join(ALL_TAGS)}
+        
+        Please suggest 3-5 most relevant tags from the available tags list above.
+        Return only the tags in a comma-separated format.
+        Prefer exact matches from the available tags, but suggest close alternatives if needed.
+        """
+        
+        # Make API call to OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a specialized AI trained to analyze healthcare and AI projects and assign relevant tags."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # Lower temperature for more focused responses
+            max_tokens=100
+        )
+        
+        # Extract suggested tags from response
+        suggested_tags = response.choices[0].message['content'].strip().split(',')
+        suggested_tags = [tag.strip().lower() for tag in suggested_tags]
+        
+        # Map suggested tags to valid tags
+        final_tags = []
+        for tag in suggested_tags:
+            if tag in ALL_TAGS:
+                final_tags.append(tag)
+            else:
+                # Find similar valid tag
+                similar_tag = get_similar_tags(tag)
+                if similar_tag:
+                    final_tags.append(similar_tag)
+        
+        # Remove duplicates and limit to 5 tags
+        final_tags = list(dict.fromkeys(final_tags))[:5]
         
         # Update project's generated tags
-        project.generated_tags = ",".join(generated_tags)
+        project.generated_tags = ",".join(final_tags)
         project.save()
         
         return Response({
             "status": "success",
-            "tags": generated_tags
+            "tags": final_tags,
+            "message": "Tags generated successfully using AI"
         })
+        
+    except openai.error.OpenAIError as e:
+        return Response({
+            "status": "error",
+            "message": f"OpenAI API error: {str(e)}"
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        
     except Exception as e:
         return Response({
             "status": "error",

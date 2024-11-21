@@ -1,6 +1,6 @@
 # Combined Python and HTML files
 # Generated from directory: C:\Users\USER\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\projects
-# Total files found: 25
+# Total files found: 26
 
 
 
@@ -570,6 +570,13 @@ import mimetypes
 from PIL import Image
 from io import BytesIO
 import os
+
+from django import forms
+from .models import (
+    Project, Comment, UserProfile, Rating, Bookmark, 
+    Notification, Startup, Product, Tool, Dataset,
+    VirtualMember, Application, Sponsorship
+)
 
 from .models import (
     Project,
@@ -1490,6 +1497,231 @@ class TeamForm(forms.ModelForm):
             return ', '.join(tag_list)
         return tags
 
+# forms.py additions
+
+
+
+
+class StartupForm(forms.ModelForm):
+    class Meta:
+        model = Startup
+        fields = ['name', 'logo', 'description', 'website']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter startup name'
+            }),
+            'logo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your startup'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+    def clean_logo(self):
+        logo = self.cleaned_data.get('logo')
+        if logo:
+            if logo.size > 5 * 1024 * 1024:  # 5MB limit
+                raise forms.ValidationError("Image file too large ( > 5MB )")
+            return logo
+        return None
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = ['name', 'description', 'image', 'url']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter product name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your product'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+class ToolForm(forms.ModelForm):
+    class Meta:
+        model = Tool
+        fields = ['name', 'description', 'image', 'url', 'github_url', 'documentation_url']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter tool name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your tool'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            }),
+            'github_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://github.com/...'
+            }),
+            'documentation_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+class DatasetForm(forms.ModelForm):
+    class Meta:
+        model = Dataset
+        fields = ['name', 'description', 'file', 'format', 'license']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter dataset name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your dataset'
+            }),
+            'file': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.zip,.csv,.json,.txt'
+            }),
+            'format': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., CSV, JSON, etc.'
+            }),
+            'license': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., MIT, Apache, etc.'
+            })
+        }
+
+    def clean_file(self):
+        file = self.cleaned_data.get('file')
+        if file:
+            if file.size > 50 * 1024 * 1024:  # 50MB limit
+                raise forms.ValidationError("File too large ( > 50MB )")
+        return file
+
+class SponsorshipForm(forms.ModelForm):
+    class Meta:
+        model = Sponsorship
+        fields = ['name', 'logo', 'level', 'website', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Organization name'
+            }),
+            'logo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your organization'
+            })
+        }
+
+class VirtualMemberForm(forms.ModelForm):
+    class Meta:
+        model = VirtualMember
+        fields = ['name', 'avatar', 'specialty', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Virtual member name'
+            }),
+            'avatar': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'specialty': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Area of expertise'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe this virtual member'
+            })
+        }
+
+class ApplicationForm(forms.ModelForm):
+    class Meta:
+        model = Application
+        fields = [
+            'type',
+            'name',
+            'email',
+            'organization',
+            'level',
+            'message',
+            'attachment'
+        ]
+        widgets = {
+            'type': forms.HiddenInput(),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your full name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your email address'
+            }),
+            'organization': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Organization name'
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'message': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Tell us about yourself or your organization'
+            }),
+            'attachment': forms.FileInput(attrs={
+                'class': 'form-control'
+            })
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make certain fields optional
+        self.fields['organization'].required = False
+        self.fields['level'].required = False
+        self.fields['attachment'].required = False
+
 # Contents from: .\models.py
 # projects/models.py
 
@@ -1559,7 +1791,24 @@ def validate_youtube_url(url):
     except Exception:
         raise ValidationError('Invalid YouTube URL')
     
-    
+class VirtualMember(models.Model):
+    name = models.CharField(max_length=100)
+    avatar = models.ImageField(upload_to='virtual_members/')
+    specialty = models.CharField(max_length=100)
+    description = models.TextField()
+    projects = models.ManyToManyField('Project', related_name='virtual_team_members')
+
+    def __str__(self):
+        return self.name
+
+class Startup(models.Model):
+    name = models.CharField(max_length=200)
+    logo = models.ImageField(upload_to='startup_logos/')
+    description = models.TextField()
+    website = models.URLField()
+    founder = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    products = models.ManyToManyField('Product', related_name='startups')    
 # Models
 class Project(models.Model):
     title = models.CharField(max_length=200)
@@ -1575,6 +1824,9 @@ class Project(models.Model):
     clap_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_featured = models.BooleanField(default=False)
+    virtual_members = models.ManyToManyField(VirtualMember, related_name='assigned_projects')
+    generated_tags = models.TextField(blank=True)  # AI-generated tags
     
     # File fields
     pdf_file = models.FileField(
@@ -1668,14 +1920,17 @@ class Project(models.Model):
             
         super().save(*args, **kwargs)
     
+
+
+    @property
+    def comment_count(self):
+        """Get total number of comments"""
+        return self.comments.count()
+    
     @property
     def tag_list(self):
         return [tag.strip() for tag in self.tags.split(',') if tag.strip()]
-    
-    @property
-    def comment_count(self):
-        return self.comments.count()
-        
+
     def user_has_clapped(self, user):
         return self.claps.filter(user=user).exists()
     
@@ -1685,6 +1940,31 @@ class Project(models.Model):
             return 0
         return round(float(self.rating_total) / self.rating_count, 1)
 
+    
+    def generate_zip(self):
+        """Generate a ZIP file of the project"""
+        zip_filename = f"{self.slug}_project.zip"
+        zip_path = os.path.join(settings.MEDIA_ROOT, 'project_zips', zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w') as zip_file:
+            if self.pdf_file:
+                zip_file.write(self.pdf_file.path, os.path.basename(self.pdf_file.name))
+            if self.additional_files:
+                zip_file.write(self.additional_files.path, os.path.basename(self.additional_files.name))
+            
+            # Add README with project info
+            readme_content = f"""
+            Project: {self.title}
+            Author: {self.author.username}
+            Description: {self.description}
+            Tags: {self.tags}
+            Created: {self.created_at}
+            """
+            zip_file.writestr('README.txt', readme_content)
+        
+        return zip_path
+    
+    
     def clean(self):
         super().clean()
         # Validate file sizes
@@ -1720,6 +2000,39 @@ class Project(models.Model):
         if not self.is_gold or not self.deadline:
             return False
         return timezone.now() <= self.deadline
+
+class Application(models.Model):
+    APPLICATION_TYPES = [
+        ('sponsor', 'Sponsor'),
+        ('team', 'Team Member'),
+    ]
+    
+    LEVEL_CHOICES = [
+        ('bronze', 'Bronze'),
+        ('silver', 'Silver'),
+        ('gold', 'Gold'),
+        ('platinum', 'Platinum'),
+    ]
+
+    type = models.CharField(max_length=20, choices=APPLICATION_TYPES)
+    name = models.CharField(max_length=200)
+    email = models.EmailField()
+    organization = models.CharField(max_length=200, blank=True, null=True)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, blank=True, null=True)
+    message = models.TextField(help_text="Tell us about yourself or your organization")
+    attachment = models.FileField(
+        upload_to='applications/',
+        help_text="PDF format preferred, max 10MB",
+        blank=True,
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.get_type_display()}"
 
 class Comment(models.Model):
     project = models.ForeignKey(
@@ -2170,6 +2483,50 @@ class TeamAnalytics(models.Model):
         self.save()
 
 
+class Sponsorship(models.Model):
+    LEVELS = [
+        ('bronze', 'Bronze'),
+        ('silver', 'Silver'),
+        ('gold', 'Gold'),
+        ('platinum', 'Platinum')
+    ]
+    
+    name = models.CharField(max_length=200)
+    logo = models.ImageField(upload_to='sponsor_logos/')
+    level = models.CharField(max_length=20, choices=LEVELS)
+    website = models.URLField()
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+
+class Product(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField(upload_to='product_images/')
+    url = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Tool(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField(upload_to='tool_images/')
+    url = models.URLField()
+    github_url = models.URLField(blank=True)
+    documentation_url = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Dataset(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    file = models.FileField(upload_to='datasets/')
+    size = models.BigIntegerField()  # in bytes
+    format = models.CharField(max_length=50)
+    license = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    downloads = models.IntegerField(default=0)
+
+
 
 # Contents from: .\serializers.py
 # projects/serializers.py
@@ -2467,6 +2824,38 @@ def get_similar_projects(project):
     
     return similar_projects.distinct()[:3]
 
+# Contents from: .\templatetags\query_tags.py
+# templatetags/query_tags.py
+
+from django import template
+from django.utils.http import urlencode
+
+register = template.Library()
+
+@register.simple_tag
+def query_transform(request_get, param_name, value, action='add'):
+    """
+    Transform query parameters while preserving other parameters
+    """
+    updated = request_get.copy()
+    
+    if action == 'remove':
+        # Remove a specific value from a comma-separated list
+        current_values = updated.get(param_name, '').split(',')
+        current_values = [v for v in current_values if v and v != value]
+        if current_values:
+            updated[param_name] = ','.join(current_values)
+        else:
+            updated.pop(param_name, None)
+    else:
+        # Add or replace value
+        if value:
+            updated[param_name] = value
+        else:
+            updated.pop(param_name, None)
+    
+    return '?' + urlencode(updated)
+
 # Contents from: .\templatetags\search_tags.py
 # projects/templatetags/search_tags.py
 
@@ -2699,9 +3088,10 @@ class TeamAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 # Contents from: .\urls.py
-# projects/urls.py
+# urls.py
 
 from django.urls import path
+from django.contrib.auth.decorators import login_required
 from . import views
 
 app_name = 'projects'
@@ -2730,9 +3120,9 @@ urlpatterns = [
     path('project/<int:pk>/analytics/export/csv/', views.export_analytics_csv, name='export_analytics_csv'),
     path('project/<int:pk>/analytics/export/pdf/', views.export_analytics_pdf, name='export_analytics_pdf'),
     
-    # User Profiles - Note the reordered URLs
-    path('profile/edit/', views.edit_profile, name='edit_profile'),  # Moved before username pattern
-    path('profile/settings/', views.profile_settings, name='profile_settings'),  # Added settings
+    # User Profiles
+    path('profile/edit/', views.edit_profile, name='edit_profile'),
+    path('profile/settings/', views.profile_settings, name='profile_settings'),
     path('profile/<str:username>/', views.user_profile, name='user_profile'),
     path('profile/<str:username>/projects/', views.user_projects, name='user_projects'),
     path('profile/<str:username>/follow/', views.follow_user, name='follow_user'),
@@ -2748,31 +3138,66 @@ urlpatterns = [
     # Comments
     path('comment/<int:pk>/delete/', views.delete_comment, name='delete_comment'),
     path('comment/<int:pk>/edit/', views.edit_comment, name='edit_comment'),
+    path('comment/<int:pk>/clap/', views.clap_comment, name='clap_comment'),
     
-    # API Endpoints
-    path('api/projects/', views.ProjectListAPI.as_view(), name='api_project_list'),
-    path('api/projects/<int:pk>/', views.ProjectDetailAPI.as_view(), name='api_project_detail'),
-    path('api/projects/<int:pk>/analytics/', views.ProjectAnalyticsAPI.as_view(), name='api_project_analytics'),
+    # Startups
+    path('startups/', views.StartupListView.as_view(), name='startup_list'),
+    path('startups/create/', 
+         login_required(views.StartupCreateView.as_view()), 
+         name='create_startup'),
+    
+    # Tools
+    path('tools/', views.ToolListView.as_view(), name='tool_list'),
+    path('tools/create/', 
+         login_required(views.ToolCreateView.as_view()), 
+         name='create_tool'),
+    
+    # Datasets
+    path('datasets/', views.DatasetListView.as_view(), name='dataset_list'),
+    path('datasets/create/', 
+         login_required(views.DatasetCreateView.as_view()), 
+         name='create_dataset'),
+    
+    # Downloads
+    path('project/<int:pk>/download/', views.download_project, name='download_project'),
+    path('dataset/<int:pk>/download/', views.download_dataset, name='download_dataset'),
+    
+    # Sponsorships and Applications
+    path('sponsorships/', views.SponsorshipListView.as_view(), name='sponsorship_list'),
+    path('virtual-members/', views.VirtualMemberListView.as_view(), name='virtual_member_list'),
+    path('apply/', login_required(views.ApplicationCreateView.as_view()), name='apply'),
+    
+    # Other pages
     path('faculty/', views.faculty_page, name='faculty_page'),
     path('careers/', views.careers_page, name='careers'),
-    # urls.py
-     path('comment/<int:pk>/clap/', views.clap_comment, name='clap_comment'),
-     path('talents/', views.talents_page, name='talents'),
-     path('project/<int:pk>/submit-solution/', views.submit_solution, name='submit_solution'),
-     path('project/<int:project_pk>/solution/<int:solution_pk>/review/', 
-     views.review_solution, name='review_solution'),
-    # Team Management
-     path('teams/', views.team_list, name='team_list'),
-     path('teams/create/', views.create_team, name='create_team'),
-     path('teams/<slug:team_slug>/', views.team_detail, name='team_detail'),
-     path('teams/<slug:team_slug>/edit/', views.edit_team, name='edit_team'),
-     path('teams/<slug:team_slug>/delete/', views.delete_team, name='delete_team'),
-     path('teams/<slug:team_slug>/join/', views.join_team, name='join_team'),
-     path('teams/<slug:team_slug>/leave/', views.leave_team, name='leave_team'),
-     path('teams/<slug:team_slug>/members/', views.team_members, name='team_members'),
-     path('teams/<slug:team_slug>/members/<int:user_id>/promote/', views.promote_member, name='promote_member'),
-     path('teams/<slug:team_slug>/members/<int:user_id>/remove/', views.remove_member, name='remove_member'),
+    path('talents/', views.talents_page, name='talents'),
     path('help/', views.help_view, name='help'),
+    
+    path('api/projects/<int:pk>/generate-tags/', 
+         views.generate_tags, 
+         name='api_generate_tags'),
+    
+    path('api/projects/<int:project_pk>/add-virtual-member/', 
+         views.add_virtual_member, 
+         name='api_add_virtual_member'),
+    
+    path('api/projects/<int:project_pk>/remove-virtual-member/<int:member_pk>/',
+         views.remove_virtual_member,
+         name='api_remove_virtual_member'),
+    
+    path('api/projects/<int:pk>/analytics/', 
+         views.project_analytics_api,  # Changed to match the view function name
+         name='api_project_analytics'),
+    
+    # Solutions
+    path('project/<int:pk>/submit-solution/', 
+         views.submit_solution, name='submit_solution'),
+    path('project/<int:project_pk>/solution/<int:solution_pk>/review/', 
+         views.review_solution, name='review_solution'),
+    path('teams/', views.team_list, name='team_list'),
+    path('teams/create/', views.create_team, name='create_team'),
+    path('teams/<slug:team_slug>/', views.team_detail, name='team_detail'),
+    path('faq/', views.faq, name='faq'),
 ]
 
 # Contents from: .\utils\__init__.py
@@ -3066,26 +3491,29 @@ def send_role_change_notification(user, team, new_role):
 
 # Contents from: .\views.py
 from datetime import datetime, timedelta
-from io import StringIO
+from io import StringIO, BytesIO
 import csv
 import json
 import os
 import pytz
+import zipfile
 
-from django.conf import settings
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
+from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.urls import reverse, reverse_lazy
+from django.conf import settings
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.serializers import serialize
 from django.db.models import Count, Q, Avg, Sum, Case, When
-from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import DetailView
 from django.views.generic.edit import CreateView
@@ -3098,16 +3526,329 @@ from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
 from .filters.project_filters import ProjectFilter
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
-    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm, ExtendedUserCreationForm,
-    SolutionForm, TeamForm, TeamDiscussionForm, TeamCommentForm, TeamNotificationSettingsForm
+    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, 
+    NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm, TeamForm, TeamDiscussionForm, TeamCommentForm, 
+    TeamNotificationSettingsForm, StartupForm, ProductForm, ToolForm,
+    DatasetForm, SponsorshipForm, VirtualMemberForm, ApplicationForm
 )
+
 from .models import (
     Project, Comment, Clap, UserProfile, Rating,
     Bookmark, ProjectAnalytics, Notification, Follow,
-    CommentClap, Solution, Team, TeamMembership, TeamDiscussion, TeamComment, TeamAnalytics
+    CommentClap, Solution, Team, TeamMembership, 
+    TeamDiscussion, TeamComment, TeamAnalytics,
+    Sponsorship, Startup, Product, Tool, Dataset,
+    VirtualMember, Application
 )
+
 from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectAnalyticsSummarySerializer
 from .utils.pdf import generate_analytics_pdf
+
+from django.views import generic
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.urls import reverse
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
+import os
+import zipfile
+from io import BytesIO
+
+# DRF imports
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+# Import all models
+from .models import (
+    Project, Comment, UserProfile, Rating, Bookmark, 
+    ProjectAnalytics, Notification, Follow, CommentClap,
+    Solution, Startup, Product, Tool, Dataset,
+    VirtualMember, Application, Sponsorship
+)
+
+# Import all forms
+from .forms import (
+    ProjectForm, CommentForm, UserProfileForm, RatingForm,
+    BookmarkForm, AdvancedSearchForm, ProfileForm,
+    NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm, StartupForm, ProductForm, ToolForm,
+    DatasetForm, SponsorshipForm, VirtualMemberForm,
+    ApplicationForm
+)
+
+# Add these to your views.py file
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_virtual_member(request, project_pk):
+    """Add a virtual member to a project"""
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        member_id = request.data.get('member_id')
+        if not member_id:
+            return Response({
+                "status": "error",
+                "message": "member_id is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        virtual_member = get_object_or_404(VirtualMember, pk=member_id)
+        
+        # Check if member is already added
+        if virtual_member in project.virtual_members.all():
+            return Response({
+                "status": "error",
+                "message": "Virtual member already added to this project"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Add virtual member to project
+        project.virtual_members.add(virtual_member)
+        
+        return Response({
+            "status": "success",
+            "message": f"Added {virtual_member.name} to project",
+            "member": {
+                "id": virtual_member.id,
+                "name": virtual_member.name,
+                "specialty": virtual_member.specialty
+            }
+        })
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_virtual_member(request, project_pk, member_pk):
+    """Remove a virtual member from a project"""
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        virtual_member = get_object_or_404(VirtualMember, pk=member_pk)
+        
+        # Check if member is in project
+        if virtual_member not in project.virtual_members.all():
+            return Response({
+                "status": "error",
+                "message": "Virtual member not found in this project"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Remove virtual member from project
+        project.virtual_members.remove(virtual_member)
+        
+        return Response({
+            "status": "success",
+            "message": f"Removed {virtual_member.name} from project"
+        })
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# views.py
+
+from django.conf import settings
+import openai
+from khcc_psut_ai_lab.constants import ALL_TAGS
+from difflib import get_close_matches
+
+def get_similar_tags(suggested_tag, valid_tags=ALL_TAGS, n=1, cutoff=0.6):
+    """Find the closest matching valid tag"""
+    matches = get_close_matches(suggested_tag.lower(), valid_tags, n=n, cutoff=cutoff)
+    return matches[0] if matches else suggested_tag
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_tags(request, pk):
+    """Generate tags for a project using OpenAI"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Set up OpenAI client
+        openai.api_key = settings.OPENAI_API_KEY
+        
+        # Prepare the prompt
+        prompt = f"""
+        Please analyze the following project and suggest relevant tags from the predefined list.
+        The tags should be highly relevant to AI and healthcare domains.
+        
+        Project Title: {project.title}
+        Project Description: {project.description}
+        
+        Available Tags: {', '.join(ALL_TAGS)}
+        
+        Please suggest 3-5 most relevant tags from the available tags list above.
+        Return only the tags in a comma-separated format.
+        Prefer exact matches from the available tags, but suggest close alternatives if needed.
+        """
+        
+        # Make API call to OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a specialized AI trained to analyze healthcare and AI projects and assign relevant tags."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # Lower temperature for more focused responses
+            max_tokens=100
+        )
+        
+        # Extract suggested tags from response
+        suggested_tags = response.choices[0].message['content'].strip().split(',')
+        suggested_tags = [tag.strip().lower() for tag in suggested_tags]
+        
+        # Map suggested tags to valid tags
+        final_tags = []
+        for tag in suggested_tags:
+            if tag in ALL_TAGS:
+                final_tags.append(tag)
+            else:
+                # Find similar valid tag
+                similar_tag = get_similar_tags(tag)
+                if similar_tag:
+                    final_tags.append(similar_tag)
+        
+        # Remove duplicates and limit to 5 tags
+        final_tags = list(dict.fromkeys(final_tags))[:5]
+        
+        # Update project's generated tags
+        project.generated_tags = ",".join(final_tags)
+        project.save()
+        
+        return Response({
+            "status": "success",
+            "tags": final_tags,
+            "message": "Tags generated successfully using AI"
+        })
+        
+    except openai.error.OpenAIError as e:
+        return Response({
+            "status": "error",
+            "message": f"OpenAI API error: {str(e)}"
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def project_analytics_api(request, pk):
+    """Get project analytics data"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check permissions
+    if project.author != request.user and not request.user.is_staff:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        analytics = project.analytics
+        
+        # Get time period from query params
+        period = request.GET.get('period', 'all')  # all, week, month
+        
+        if period == 'week':
+            start_date = timezone.now() - timedelta(days=7)
+        elif period == 'month':
+            start_date = timezone.now() - timedelta(days=30)
+        else:
+            start_date = None
+            
+        data = {
+            "overview": {
+                "views": analytics.view_count,
+                "unique_visitors": analytics.unique_visitors,
+                "github_clicks": analytics.github_clicks,
+                "avg_time_spent": str(analytics.avg_time_spent),
+            },
+            "device_stats": {
+                "desktop": analytics.desktop_visits,
+                "mobile": analytics.mobile_visits,
+                "tablet": analytics.tablet_visits
+            },
+            "browser_stats": {
+                "chrome": analytics.chrome_visits,
+                "firefox": analytics.firefox_visits,
+                "safari": analytics.safari_visits,
+                "edge": analytics.edge_visits,
+                "other": analytics.other_browsers
+            },
+            "traffic_sources": {
+                "direct": analytics.direct_traffic,
+                "social": analytics.social_traffic,
+                "search": analytics.search_traffic,
+                "referral": analytics.referral_traffic
+            },
+            "engagement": {
+                "comments": project.comments.count(),
+                "claps": project.clap_count,
+                "bookmarks": project.bookmarks.count(),
+                "average_rating": project.average_rating
+            }
+        }
+        
+        # Add periodic stats if a period is specified
+        if start_date:
+            data["periodic_stats"] = {
+                "views": analytics.get_views_for_period(start_date),
+                "unique_visitors": analytics.get_unique_visitors_for_period(start_date),
+                "github_clicks": analytics.get_github_clicks_for_period(start_date),
+                "comments": project.comments.filter(created_at__gte=start_date).count(),
+                "claps": Clap.objects.filter(project=project, created_at__gte=start_date).count()
+            }
+        
+        return Response({
+            "status": "success",
+            "data": data
+        })
+        
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProjectAnalyticsView(LoginRequiredMixin, DetailView):
     model = Project
@@ -4724,3 +5465,152 @@ def help_view(request):
     return render(request, 'help.html', {
         'active_tab': 'Help'
     })
+
+
+    ############################
+
+
+
+
+# Class-based views for new features
+class StartupListView(generic.ListView):
+    model = Startup
+    template_name = 'projects/startups/startup_list.html'
+    context_object_name = 'startups'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['products'] = Product.objects.all()
+        return context
+
+class StartupCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Startup
+    form_class = StartupForm
+    template_name = 'projects/startups/startup_form.html'
+    
+    def form_valid(self, form):
+        form.instance.founder = self.request.user
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('projects:startup_list')
+
+class ToolListView(generic.ListView):
+    model = Tool
+    template_name = 'projects/tools/tool_list.html'
+    context_object_name = 'tools'
+
+class ToolCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Tool
+    form_class = ToolForm
+    template_name = 'projects/tools/tool_form.html'
+    
+    def get_success_url(self):
+        return reverse('projects:tool_list')
+
+class DatasetListView(generic.ListView):
+    model = Dataset
+    template_name = 'projects/datasets/dataset_list.html'
+    context_object_name = 'datasets'
+
+class DatasetCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Dataset
+    form_class = DatasetForm
+    template_name = 'projects/datasets/dataset_form.html'
+    
+    def form_valid(self, form):
+        instance = form.save(commit=False)
+        instance.size = instance.file.size
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('projects:dataset_list')
+
+class SponsorshipListView(generic.ListView):
+    model = Sponsorship
+    template_name = 'projects/sponsorships/sponsorship_list.html'
+    context_object_name = 'sponsorships'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Group sponsorships by level
+        sponsorships = {}
+        for level, _ in Sponsorship.LEVELS:
+            sponsorships[level] = self.get_queryset().filter(level=level)
+        context['sponsorships'] = sponsorships
+        return context
+
+class VirtualMemberListView(generic.ListView):
+    model = VirtualMember
+    template_name = 'projects/virtual_members/virtual_member_list.html'
+    context_object_name = 'virtual_members'
+
+class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Application
+    form_class = ApplicationForm
+    template_name = 'projects/application_form.html'
+    success_url = reverse_lazy('projects:homepage')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['type'] = self.request.GET.get('type', 'team')
+        return initial
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        application_type = self.request.GET.get('type')
+        
+        # Remove sponsor-specific fields for team applications
+        if application_type != 'sponsor':
+            del form.fields['organization']
+            del form.fields['level']
+        
+        return form
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, 'Your application has been submitted successfully!')
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_sponsor'] = self.request.GET.get('type') == 'sponsor'
+        return context
+
+@login_required
+def download_project(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    zip_path = project.generate_zip()
+    
+    with open(zip_path, 'rb') as zip_file:
+        response = HttpResponse(zip_file.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{project.slug}_project.zip"'
+    
+    # Clean up the temporary zip file
+    os.remove(zip_path)
+    return response
+
+@login_required
+def download_dataset(request, pk):
+    dataset = get_object_or_404(Dataset, pk=pk)
+    
+    # Increment download counter
+    dataset.downloads += 1
+    dataset.save()
+    
+    response = HttpResponse(dataset.file, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{dataset.name}.zip"'
+    return response
+
+class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Application
+    fields = ['type', 'cover_letter', 'resume', 'additional_info']
+    template_name = 'projects/application_form.html'
+    
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)
+
+def faq(request):
+    return render(request, 'projects/faq.html')
+

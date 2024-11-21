@@ -15,6 +15,12 @@ from django.conf import settings
 from khcc_psut_ai_lab.constants import TALENT_TYPES
 from django.utils import timezone
 
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from .services import OpenAITaggingService
+
+
+            
 # Add these constants
 gold_goalS = [
     ('all', 'All Complete'),
@@ -800,4 +806,22 @@ class Dataset(models.Model):
     license = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
     downloads = models.IntegerField(default=0)
+
+@receiver(pre_save, sender=Project)
+def auto_generate_tags(sender, instance, **kwargs):
+    """
+    Signal handler to automatically generate tags before saving a Project
+    
+    Only generates tags if:
+    1. No tags are currently set
+    2. The project is being created for the first time
+    """
+    if not instance.pk and not instance.tags:  # New project without tags
+        tagging_service = OpenAITaggingService()
+        generated_tags = tagging_service.generate_tags(
+            title=instance.title,
+            description=instance.description
+        )
+        if generated_tags:
+            instance.tags = generated_tags
 
