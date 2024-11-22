@@ -870,21 +870,43 @@ class TeamForm(forms.ModelForm):
                 raise forms.ValidationError('A team with this name already exists.')
         return name
 
+
 class TeamDiscussionForm(forms.ModelForm):
+    """Form for creating and editing team discussions"""
     class Meta:
         model = TeamDiscussion
         fields = ['title', 'content']
         widgets = {
-            'content': forms.Textarea(attrs={'rows': 6})
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Discussion title'
+            }),
+            'content': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Start your discussion here...'
+            })
         }
 
 class TeamCommentForm(forms.ModelForm):
+    """Form for adding comments to discussions"""
+    content = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'rows': 4,
+            'class': 'form-control',
+            'placeholder': 'Write your comment here...'
+        })
+    )
     class Meta:
         model = TeamComment
         fields = ['content']
         widgets = {
-            'content': forms.Textarea(attrs={'rows': 3})
+            'content': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Write your comment here...'
+            })
         }
+
 
 class TeamMembershipForm(forms.ModelForm):
     class Meta:

@@ -117,4 +117,18 @@ urlpatterns = [
      path('teams/<slug:team_slug>/members/<int:user_id>/remove/', views.remove_member, name='remove_member'),
     path('help/', views.help_view, name='help'),
     path('faq/', views.faq, name='faq'),
+    
+    # Team URLs
+    path('team/<slug:team_slug>/discussions/', 
+         views.team_discussions, 
+         name='team_discussions'),
+    path('team/<slug:team_slug>/discussions/<int:discussion_id>/', 
+         views.discussion_detail, 
+         name='discussion_detail'),
+    path('team/<slug:team_slug>/discussions/<int:discussion_id>/delete/', 
+         views.delete_discussion, 
+         name='delete_discussion'),
+    path('team/<slug:team_slug>/analytics/', 
+         views.team_analytics, 
+         name='team_analytics'),
 ]

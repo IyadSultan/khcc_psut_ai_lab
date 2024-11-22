@@ -21,7 +21,8 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.serializers import serialize
-from django.db.models import Count, Q, Avg, Sum, Case, When
+from django.db.models import Count, Q, Avg, Sum, Case, When, F
+from django.db import models
 from django.utils import timezone
 from django.views.generic import DetailView
 from django.views.generic.edit import CreateView
@@ -1813,36 +1814,28 @@ def create_team(request):
 
 @login_required
 def team_detail(request, team_slug):
-    """
-    Display team details, members, and activities
-    """
+    """View for showing team details"""
     team = get_object_or_404(Team, slug=team_slug)
     
-    # Get user's membership if exists
-    user_membership = TeamMembership.objects.filter(
-        team=team,
-        user=request.user
-    ).first()
+    # Get user's membership status
+    user_membership = team.memberships.filter(user=request.user).first()
     
-    # Get team members with profiles
-    members = TeamMembership.objects.filter(
-        team=team,
-        is_approved=True
-    ).select_related('user', 'user__profile').order_by('-role', 'user__username')
+    # Get team members
+    members = team.memberships.select_related('user').filter(is_approved=True)
     
-    # Get recent activities (if you have an Activity model)
-    # activities = team.activities.all().select_related('user')[:5]
+    # Get team discussions
+    discussions = team.discussions.select_related('author').order_by('-created_at')[:5]
     
     context = {
         'team': team,
         'user_membership': user_membership,
         'members': members,
-        # 'activities': activities,
-        'title': team.name,
-        'tags': [tag.strip() for tag in team.tags.split(',')] if team.tags else []
+        'discussions': discussions,
     }
     
     return render(request, 'teams/team_detail.html', context)
+    
+
 
 @login_required
 def edit_team(request, team_slug):
@@ -2122,3 +2115,230 @@ class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
 def faq(request):
     return render(request, 'projects/faq.html')
 
+@login_required
+def team_discussions(request, team_slug):
+    """View for showing team discussions"""
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Get user's membership status
+    user_membership = TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        is_approved=True
+    ).first()
+    
+    if not user_membership:
+        messages.error(request, "You must be an approved team member to view discussions.")
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Get discussions
+    discussions = team.discussions.select_related('author').order_by('-pinned', '-created_at')
+    
+    # Handle new discussion creation
+    if request.method == 'POST':
+        form = TeamDiscussionForm(request.POST)
+        if form.is_valid():
+            discussion = form.save(commit=False)
+            discussion.team = team
+            discussion.author = request.user
+            discussion.save()
+            
+            # Update analytics if they exist
+            if hasattr(team, 'analytics'):
+                team.analytics.update_stats()
+            
+            messages.success(request, 'Discussion created successfully!')
+            return redirect('projects:discussion_detail', 
+                          team_slug=team.slug, 
+                          discussion_id=discussion.id)
+    else:
+        form = TeamDiscussionForm()
+    
+    context = {
+        'team': team,
+        'discussions': discussions,
+        'form': form,
+        'user_membership': user_membership
+    }
+    
+    return render(request, 'teams/team_discussions.html', context)
+
+@login_required
+def discussion_detail(request, team_slug, discussion_id):
+    """View for showing discussion details and handling comments"""
+    team = get_object_or_404(Team, slug=team_slug)
+    discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
+    
+    # Get user's membership status without notification preferences
+    user_membership = TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        is_approved=True
+    ).first()
+    
+    if not user_membership:
+        messages.error(request, "You must be an approved team member to view discussions.")
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Handle new comment submission
+    if request.method == 'POST':
+        form = TeamCommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.discussion = discussion
+            comment.author = request.user
+            comment.save()
+            
+            # Update analytics if they exist
+            if hasattr(team, 'analytics'):
+                team.analytics.update_stats()
+            
+            messages.success(request, 'Comment added successfully!')
+            return redirect('projects:discussion_detail', 
+                          team_slug=team.slug, 
+                          discussion_id=discussion.id)
+    else:
+        form = TeamCommentForm()
+    
+    # Get comments
+    comments = discussion.comments.select_related('author').order_by('created_at')
+    
+    context = {
+        'team': team,
+        'discussion': discussion,
+        'comments': comments,
+        'form': form,
+        'user_membership': user_membership
+    }
+    
+    return render(request, 'teams/discussion_detail.html', context)
+
+@login_required
+def pin_discussion(request, team_slug, discussion_id):
+    """Toggle pin status of a discussion"""
+    team = get_object_or_404(Team, slug=team_slug)
+    discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
+    
+    # Check if user is team moderator or founder
+    membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        role__in=['founder', 'moderator'],
+        is_approved=True
+    )
+    
+    discussion.pinned = not discussion.pinned
+    discussion.save()
+    
+    return JsonResponse({
+        'status': 'success',
+        'pinned': discussion.pinned
+    })
+
+@login_required
+def team_analytics(request, team_slug):
+    """View for showing team analytics"""
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if user is team moderator or founder
+    membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        role__in=['founder', 'moderator'],
+        is_approved=True
+    )
+    
+    # Get time ranges
+    now = timezone.now()
+    thirty_days_ago = now - timedelta(days=30)
+    seven_days_ago = now - timedelta(days=7)
+    
+    # Calculate analytics
+    analytics = {
+        'total_discussions': team.discussions.count(),
+        'total_comments': TeamComment.objects.filter(discussion__team=team).count(),
+        'discussions_this_month': team.discussions.filter(created_at__gte=thirty_days_ago).count(),
+        'comments_this_month': TeamComment.objects.filter(
+            discussion__team=team,
+            created_at__gte=thirty_days_ago
+        ).count(),
+        'discussions_this_week': team.discussions.filter(created_at__gte=seven_days_ago).count(),
+        'comments_this_week': TeamComment.objects.filter(
+            discussion__team=team,
+            created_at__gte=seven_days_ago
+        ).count(),
+        'active_members': TeamMembership.objects.filter(
+            team=team,
+            user__last_login__gte=thirty_days_ago
+        ).count()
+    }
+    
+    # Get member activity
+    member_activity = TeamMembership.objects.filter(
+        team=team,
+        is_approved=True
+    ).annotate(
+        discussions_count=Count('user__teamdiscussion', filter=Q(user__teamdiscussion__team=team)),
+        comments_count=Count('user__teamcomment', filter=Q(user__teamcomment__discussion__team=team)),
+        last_activity=models.Max(
+            Case(
+                When(user__teamdiscussion__team=team, then='user__teamdiscussion__created_at'),
+                When(user__teamcomment__discussion__team=team, then='user__teamcomment__created_at'),
+                default=models.F('created_at')
+            )
+        )
+    ).order_by('-last_activity')
+    
+    # Calculate activity score
+    activity_score = (
+        (analytics['discussions_this_month'] * 5) +  # Weight discussions more
+        analytics['comments_this_month']
+    ) / max(analytics['active_members'], 1)  # Avoid division by zero
+    
+    return render(request, 'teams/team_analytics.html', {
+        'team': team,
+        'analytics': analytics,
+        'member_activity': member_activity,
+        'activity_score': round(activity_score, 1)
+    })
+
+@login_required
+def delete_discussion(request, team_slug, discussion_id):
+    """Delete a team discussion"""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+        
+    team = get_object_or_404(Team, slug=team_slug)
+    discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
+    
+    # Check if user is author, moderator, or founder
+    user_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        is_approved=True
+    )
+    
+    if not (discussion.author == request.user or 
+            user_membership.role in ['moderator', 'founder']):
+        raise PermissionDenied("You don't have permission to delete this discussion.")
+    
+    try:
+        # Delete the discussion
+        discussion.delete()
+        
+        # Update analytics if they exist
+        if hasattr(team, 'analytics'):
+            team.analytics.update_stats()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Discussion deleted successfully'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

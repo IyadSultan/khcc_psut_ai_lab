@@ -1,4 +1,7 @@
 <!-- templates/includes/navbar.html -->
+{% load project_tags %}
+{% load user_tags %}
+
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
     <div class="container">
         <a class="navbar-brand" href="{% url 'projects:homepage' %}">
@@ -69,6 +72,15 @@
                                 <i class="bi bi-award me-2"></i>Sponsors
                             </a>
                         </li>
+                        
+                        {% if user.is_authenticated and user|is_faculty %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'gold_analytics:dashboard' %}">
+                                    <i class="bi bi-graph-up me-2"></i>Analytics Dashboard
+                                </a>
+                            </li>
+                        {% endif %}
                     </ul>
                 </li>
                 <li class="nav-item">

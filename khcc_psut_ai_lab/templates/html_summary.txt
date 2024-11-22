@@ -1,0 +1,230 @@
+# HTML Files Summary
+# Generated from directory: C:\Users\isult\OneDrive\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\templates
+# Total HTML files found: 60
+
+
+### .\account\email_confirm.html ###
+--------------------------------------------------------------------------------
+
+### .\account\login.html ###
+--------------------------------------------------------------------------------
+
+### .\account\logout.html ###
+Description: Logout Header
+--------------------------------------------------------------------------------
+
+### .\account\signup.html ###
+--------------------------------------------------------------------------------
+
+### .\account\verification_sent.html ###
+--------------------------------------------------------------------------------
+
+### .\base.html ###
+Title: {% block title %}<a href="{% url 'projects:homepage' %}">KHCC AI Lab</a>{% endblock %}
+Description: Bootstrap CSS
+--------------------------------------------------------------------------------
+
+### .\emails\team_comment.html ###
+--------------------------------------------------------------------------------
+
+### .\emails\team_discussion.html ###
+--------------------------------------------------------------------------------
+
+### .\emails\team_invitation.html ###
+--------------------------------------------------------------------------------
+
+### .\emails\team_role_change.html ###
+--------------------------------------------------------------------------------
+
+### .\errors.html ###
+--------------------------------------------------------------------------------
+
+### .\help.html ###
+Description: Help Header
+--------------------------------------------------------------------------------
+
+### .\includes\navbar.html ###
+Description: templates/includes/navbar.html
+--------------------------------------------------------------------------------
+
+### .\includes\pagination.html ###
+Description: templates/projects/includes/pagination.html
+--------------------------------------------------------------------------------
+
+### .\projects\about.html ###
+Description: Hero Section
+--------------------------------------------------------------------------------
+
+### .\projects\application_form.html ###
+Description: Application Header
+--------------------------------------------------------------------------------
+
+### .\projects\application_forms.html ###
+Description: templates/projects/applications/application_form.html
+--------------------------------------------------------------------------------
+
+### .\projects\dataset_form.html ###
+Description: templates/projects/datasets/dataset_form.html
+--------------------------------------------------------------------------------
+
+### .\projects\dataset_list.html ###
+Description: Datasets Header
+--------------------------------------------------------------------------------
+
+### .\projects\edit_profile.html ###
+Description: Banner
+--------------------------------------------------------------------------------
+
+### .\projects\edit_project.html ###
+Description: templates/projects/edit_project.html
+--------------------------------------------------------------------------------
+
+### .\projects\email.html ###
+Title: {{ subject }}
+Description: templates/emails/base_email.html
+--------------------------------------------------------------------------------
+
+### .\projects\faculty_page.html ###
+Description: Faculty Header
+--------------------------------------------------------------------------------
+
+### .\projects\faq.html ###
+Description: Hero Section
+--------------------------------------------------------------------------------
+
+### .\projects\homepage.html ###
+Description: Hero Section
+--------------------------------------------------------------------------------
+
+### .\projects\leaderboard.html ###
+--------------------------------------------------------------------------------
+
+### .\projects\notification.html ###
+--------------------------------------------------------------------------------
+
+### .\projects\notifications.html ###
+Description: Notifications Header
+--------------------------------------------------------------------------------
+
+### .\projects\profile_settings.html ###
+Description: Banner
+--------------------------------------------------------------------------------
+
+### .\projects\project_analytics.html ###
+Description: templates/projects/project_analytics.html
+--------------------------------------------------------------------------------
+
+### .\projects\project_detail.html ###
+Description: Toast Messages
+--------------------------------------------------------------------------------
+
+### .\projects\project_list.html ###
+Description: Filters Sidebar
+--------------------------------------------------------------------------------
+
+### .\projects\project_solution.html ###
+Description: Header
+--------------------------------------------------------------------------------
+
+### .\projects\rating_model.html ###
+Description: templates/projects/includes/rating_modal.html
+--------------------------------------------------------------------------------
+
+### .\projects\review_solution.html ###
+--------------------------------------------------------------------------------
+
+### .\projects\search.html ###
+Description: templates/projects/search.html
+--------------------------------------------------------------------------------
+
+### .\projects\social_sharing.html ###
+Description: Add this where appropriate in your project_detail.html
+--------------------------------------------------------------------------------
+
+### .\projects\solution_submitted.html ###
+--------------------------------------------------------------------------------
+
+### .\projects\sponsorship_form.html ###
+Description: Application Header
+--------------------------------------------------------------------------------
+
+### .\projects\sponsorship_list.html ###
+Description: Sponsors Header
+--------------------------------------------------------------------------------
+
+### .\projects\startup_list.html ###
+Description: Startups Header
+--------------------------------------------------------------------------------
+
+### .\projects\startups\startup_form.html ###
+Description: Startup Form Header
+--------------------------------------------------------------------------------
+
+### .\projects\submit_project.html ###
+Description: Project Submission Header
+--------------------------------------------------------------------------------
+
+### .\projects\submit_solution.html ###
+Description: Solution Header Banner
+--------------------------------------------------------------------------------
+
+### .\projects\talents.html ###
+Description: Talents Header
+--------------------------------------------------------------------------------
+
+### .\projects\tool_form.html ###
+Description: templates/projects/tools/tool_form.html
+--------------------------------------------------------------------------------
+
+### .\projects\tool_list.html ###
+Description: Tools Header
+--------------------------------------------------------------------------------
+
+### .\projects\user_profile.html ###
+Description: Profile Info
+--------------------------------------------------------------------------------
+
+### .\projects\virtual_member_list.html ###
+Description: templates/projects/virtual_members/virtual_member_list.html
+--------------------------------------------------------------------------------
+
+### .\registration\login.html ###
+--------------------------------------------------------------------------------
+
+### .\registration\register.html ###
+--------------------------------------------------------------------------------
+
+### .\teams\create_team.html ###
+Description: Create Team Header
+--------------------------------------------------------------------------------
+
+### .\teams\delete_team.html ###
+Description: Delete Team Header
+--------------------------------------------------------------------------------
+
+### .\teams\discussion_detail.html ###
+Description: Comments
+--------------------------------------------------------------------------------
+
+### .\teams\edit_team.html ###
+Description: Edit Team Header
+--------------------------------------------------------------------------------
+
+### .\teams\leave_team.html ###
+--------------------------------------------------------------------------------
+
+### .\teams\team_analytics.html ###
+Description: Overview Cards
+--------------------------------------------------------------------------------
+
+### .\teams\team_detail.html ###
+Description: Team Detail Header
+--------------------------------------------------------------------------------
+
+### .\teams\team_list.html ###
+Description: Teams Header
+--------------------------------------------------------------------------------
+
+### .\teams\team_members.html ###
+Description: Team Members Header
+--------------------------------------------------------------------------------

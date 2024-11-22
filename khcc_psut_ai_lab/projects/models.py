@@ -658,6 +658,7 @@ class Team(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+        TeamAnalytics.objects.get_or_create(team=self)
 
     def __str__(self):
         return self.name
@@ -667,22 +668,24 @@ class Team(models.Model):
 
 class TeamMembership(models.Model):
     ROLE_CHOICES = [
-        ('founder', 'Founder'),
-        ('moderator', 'Moderator'),
         ('member', 'Member'),
+        ('moderator', 'Moderator'),
+        ('founder', 'Founder'),
     ]
     
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_memberships')
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='member')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    receive_notifications = models.BooleanField(default=True)
+    
     class Meta:
-        unique_together = ('team', 'user')
+        unique_together = ['team', 'user']
 
 class TeamDiscussion(models.Model):
+    """Model for team discussion threads"""
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='discussions')
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
@@ -690,6 +693,7 @@ class TeamDiscussion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     pinned = models.BooleanField(default=False)
+    views = models.PositiveIntegerField(default=0)
     
     class Meta:
         ordering = ['-pinned', '-created_at']
@@ -698,17 +702,20 @@ class TeamDiscussion(models.Model):
         return f"{self.title} - {self.team.name}"
 
 class TeamComment(models.Model):
+    """Model for comments on team discussions"""
     discussion = models.ForeignKey(TeamDiscussion, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     class Meta:
         ordering = ['created_at']
 
     def __str__(self):
         return f"Comment by {self.author.username} on {self.discussion.title}"
+
+
 
 class TeamAnalytics(models.Model):
     team = models.OneToOneField(Team, on_delete=models.CASCADE, related_name='analytics')

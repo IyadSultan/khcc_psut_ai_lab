@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1>Analytics Dashboard</h1>
+    
+    <!-- Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Visits</h5>
+                    <h2>{{ total_visits }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Unique Visitors</h5>
+                    <h2>{{ unique_visitors }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Avg. Session Duration</h5>
+                    <h2>{{ avg_session_duration|default:"0:00" }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Bounce Rate</h5>
+                    <h2>{{ bounce_rate|floatformat:1 }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Hourly Visits</h5>
+                    <canvas id="hourlyVisitsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Daily Visits</h5>
+                    <canvas id="dailyVisitsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Pages -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Popular Pages</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Page</th>
+                                    <th>Visits</th>
+                                    <th>Avg. Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for page in popular_pages %}
+                                <tr>
+                                    <td>{{ page.path }}</td>
+                                    <td>{{ page.visit_count }}</td>
+                                    <td>{{ page.avg_time|default:"0:00" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Hourly Visits Chart
+const hourlyData = {{ hourly_visits|safe }};
+new Chart(document.getElementById('hourlyVisitsChart'), {
+    type: 'line',
+    data: {
+        labels: hourlyData.map(d => new Date(d.hour).toLocaleTimeString()),
+        datasets: [{
+            label: 'Visits',
+            data: hourlyData.map(d => d.count),
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+        }]
+    }
+});
+
+// Daily Visits Chart
+const dailyData = {{ daily_visits|safe }};
+new Chart(document.getElementById('dailyVisitsChart'), {
+    type: 'bar',
+    data: {
+        labels: dailyData.map(d => new Date(d.date).toLocaleDateString()),
+        datasets: [{
+            label: 'Visits',
+            data: dailyData.map(d => d.count),
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgb(75, 192, 192)',
+            borderWidth: 1
+        }]
+    }
+});
+</script>
+{% endblock %} 

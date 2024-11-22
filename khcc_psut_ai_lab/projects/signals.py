@@ -17,7 +17,7 @@ def handle_new_discussion(sender, instance, created, **kwargs):
         # Notify team members
         for membership in instance.team.memberships.filter(
             is_approved=True,
-            notification_preferences__in_app_notifications=True
+            # notification_preferences__in_app_notifications=True
         ).exclude(user=instance.author):
             send_team_notification_email(
                 membership.user,
@@ -39,7 +39,7 @@ def handle_new_comment(sender, instance, created, **kwargs):
         # Notify team members
         for membership in instance.discussion.team.memberships.filter(
             is_approved=True,
-            notification_preferences__in_app_notifications=True
+            # notification_preferences__in_app_notifications=True
         ).exclude(user=instance.author):
             send_team_notification_email(
                 membership.user,

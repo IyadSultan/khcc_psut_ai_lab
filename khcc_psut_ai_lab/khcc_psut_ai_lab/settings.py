@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django_bootstrap5',
 
     'rest_framework',
+    'gold_analytics',
 ]
 
 
@@ -116,6 +117,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'gold_analytics.middleware.AnalyticsMiddleware',
 ]
 
 ROOT_URLCONF = "khcc_psut_ai_lab.urls"
