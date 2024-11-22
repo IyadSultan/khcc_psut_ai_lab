@@ -11,6 +11,7 @@ from projects.models import (
 from datetime import timedelta
 import logging
 import openai
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +26,23 @@ class Command(BaseCommand):
             response = openai.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are KHCC Brain, an AI research assistant at King Hussein Cancer Center, specializing in healthcare AI. Your responses should be encouraging, specific to healthcare AI, and focused on advancing medical research and patient care at KHCC."},
+                    {"role": "system", "content": "You are KHCC Brain, an AI research assistant at King Hussein Cancer Center, specializing in healthcare AI. Your responses should be encouraging, specific to healthcare AI, and focused on advancing medical research and patient care at KHCC. Use Markdown formatting in your responses."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=400,
                 temperature=0.7
             )
             
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            
+            # Ensure content starts and ends with markdown formatting
+            if not content.startswith('# ') and not content.startswith('## '):
+                content = f"## KHCC Brain Analysis\n\n{content}"
+                
+            if not "Best regards,\nKHCC Brain 🤖" in content:
+                content = f"{content}\n\nBest regards,\nKHCC Brain 🤖"
+                
+            return content
             
         except Exception as e:
             logger.error(f"OpenAI API error: {str(e)}")
@@ -76,6 +86,7 @@ class Command(BaseCommand):
         
         prompt = f"""
         Analyze this healthcare AI discussion at KHCC and provide constructive feedback.
+        Use Markdown formatting in your response.
 
         Discussion Title: {discussion.title}
         Initial Post: {discussion.content}
@@ -91,6 +102,7 @@ class Command(BaseCommand):
 
         Keep your response:
         - Specific to KHCC and healthcare
+        - Uses proper Markdown syntax with headers and bullet points
         - Encouraging and constructive
         - Under 200 words
         - End with "Best regards, KHCC Brain 🤖"
@@ -111,18 +123,21 @@ class Command(BaseCommand):
         ])
         
         prompt = f"""
-        Analyze this healthcare AI project at KHCC and provide constructive feedback.
+         Analyze this healthcare AI project at KHCC and provide constructive feedback using Markdown formatting.
+
 
         Project Title: {project.title}
         Description: {project.description}
         Recent Comments:
         {comments_text}
 
+        
         Provide specific feedback that:
         1. Evaluates the potential impact on KHCC's healthcare delivery
         2. Identifies technical considerations in the medical context
         3. Suggests collaboration opportunities within KHCC
         4. Proposes concrete next steps for development
+        5. Uses proper Markdown syntax with headers and bullet points
 
         Keep your response:
         - Healthcare-focused and KHCC-specific
@@ -141,13 +156,15 @@ class Command(BaseCommand):
         """Get fallback response when OpenAI is unavailable"""
         if type == "discussion":
             return """
+## KHCC Brain Analysis
+
 Thank you for this engaging discussion about AI in healthcare! Let me share some thoughts:
 
-Key points to consider:
-1. The potential impact on patient care at KHCC
-2. Technical implementation considerations in our healthcare setting
-3. Opportunities for collaboration within KHCC
-4. Integration with existing hospital systems
+### Key points to consider:
+* The potential impact on patient care at KHCC
+* Technical implementation considerations in our healthcare setting
+* Opportunities for collaboration within KHCC
+* Integration with existing hospital systems
 
 I'm here to help facilitate further discussion and provide technical insights.
 
@@ -156,12 +173,15 @@ KHCC Brain 🤖
             """
         else:
             return """
+## Project Analysis
+
 Thank you for sharing this healthcare AI project at KHCC! Here are my initial thoughts:
 
-1. This project shows promising potential for improving healthcare outcomes at KHCC
-2. There are interesting technical challenges to explore within our healthcare context
-3. Consider integration possibilities with existing clinical workflows at KHCC
-4. There might be valuable collaboration opportunities within our institution
+### Key Considerations:
+* This project shows promising potential for improving healthcare outcomes at KHCC
+* There are interesting technical challenges to explore within our healthcare context
+* Consider integration possibilities with existing clinical workflows at KHCC
+* There might be valuable collaboration opportunities within our institution
 
 I'm here to help guide the development and provide technical insights as needed.
 
@@ -251,6 +271,140 @@ KHCC Brain 🤖
         
         return processed_count
 
+    def join_new_teams(self, khcc_brain_user):
+        """Join new teams that KHCC Brain isn't part of yet"""
+        try:
+            # Get teams KHCC Brain hasn't joined
+            new_teams = Team.objects.filter(
+                ~Q(memberships__user=khcc_brain_user)
+            ).distinct()
+
+            joined_count = 0
+            for team in new_teams:
+                try:
+                    # Check if already a member
+                    if TeamMembership.objects.filter(team=team, user=khcc_brain_user).exists():
+                        continue
+
+                    # Create membership
+                    membership = TeamMembership.objects.create(
+                        team=team,
+                        user=khcc_brain_user,
+                        role='member',
+                        is_approved=True
+                    )
+
+                    # Create welcome message
+                    welcome_message = f"""
+## Welcome to {team.name}! 👋
+
+I am KHCC Brain, your AI research assistant, and I'm excited to join this team. I specialize in healthcare AI and I'm here to:
+
+* Analyze discussions and provide insights about healthcare AI
+* Suggest potential research directions in cancer care
+* Identify collaboration opportunities within KHCC
+* Provide technical insights for medical AI applications
+
+Feel free to tag me in any discussions where you'd like my input. I'll be actively monitoring our conversations and contributing where I can add value to KHCC's mission.
+
+Looking forward to collaborating with everyone on advancing healthcare through AI!
+
+Best regards,
+KHCC Brain 🤖
+                    """
+
+                    try:
+                        # Create welcome discussion
+                        discussion = TeamDiscussion.objects.create(
+                            team=team,
+                            author=khcc_brain_user,
+                            title="KHCC Brain Introduction",
+                            content=welcome_message
+                        )
+
+                        # Notify team members
+                        existing_members = TeamMembership.objects.filter(
+                            team=team
+                        ).exclude(user=khcc_brain_user)
+
+                        for member in existing_members:
+                            try:
+                                self.notify_team_member(
+                                    member.user,
+                                    khcc_brain_user,
+                                    f"KHCC Brain has joined {team.name} as an AI assistant"
+                                )
+                            except Exception as notify_error:
+                                logger.error(f"Error notifying member {member.user.id}: {str(notify_error)}")
+
+                    except Exception as disc_error:
+                        logger.error(f"Error creating welcome discussion: {str(disc_error)}")
+
+                    joined_count += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Successfully joined team: {team.name}")
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error joining team {team.name}: {str(e)}")
+                    continue
+
+            return joined_count
+
+        except Exception as e:
+            logger.error(f"Error in join_new_teams: {str(e)}")
+            return 0
+
+    def check_discussions(self, khcc_brain_user):
+        """Check and respond to team discussions from the last hour"""
+        last_hour = timezone.now() - timedelta(hours=1)
+        
+        # Get recent discussions
+        recent_discussions = TeamDiscussion.objects.filter(
+            Q(created_at__gte=last_hour) |
+            Q(comments__created_at__gte=last_hour)
+        ).distinct()
+
+        processed_count = 0
+        for discussion in recent_discussions:
+            try:
+                if self.should_comment_on_discussion(discussion, khcc_brain_user, last_hour):
+                    # Get AI-powered feedback
+                    feedback = self.analyze_discussion(discussion, khcc_brain_user)
+                    
+                    # Create comment
+                    comment = TeamComment.objects.create(
+                        discussion=discussion,
+                        author=khcc_brain_user,
+                        content=feedback
+                    )
+                    
+                    # Notify team members individually
+                    team_members = TeamMembership.objects.filter(
+                        team=discussion.team
+                    ).exclude(user=khcc_brain_user)
+
+                    for member in team_members:
+                        try:
+                            self.notify_team_member(
+                                member.user,
+                                khcc_brain_user,
+                                f"KHCC Brain commented on discussion: {discussion.title}"
+                            )
+                        except Exception as notify_error:
+                            logger.error(f"Error notifying member about discussion: {str(notify_error)}")
+                    
+                    processed_count += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Added feedback to discussion: {discussion.title}")
+                    )
+
+            except Exception as e:
+                logger.error(f"Error processing discussion {discussion.id}: {str(e)}")
+                continue
+        
+        return processed_count
+
     def handle(self, *args, **options):
         try:
             start_time = timezone.now()
@@ -263,6 +417,10 @@ KHCC Brain 🤖
 
             # Get KHCC Brain user
             khcc_brain_user = KHCCBrain.get_user()
+            
+            # First, join any new teams
+            self.stdout.write("Checking for new teams to join...")
+            teams_joined = self.join_new_teams(khcc_brain_user)
             
             # Check and respond to team discussions
             self.stdout.write("Checking team discussions from the last hour...")
@@ -283,6 +441,7 @@ KHCC Brain 🤖
                 self.style.SUCCESS(
                     f"KHCC Brain analysis complete!\n"
                     f"Time taken: {runtime.total_seconds():.2f} seconds\n"
+                    f"New teams joined: {teams_joined}\n"
                     f"Discussions processed: {discussions_processed}\n"
                     f"Projects processed: {projects_processed}"
                 )

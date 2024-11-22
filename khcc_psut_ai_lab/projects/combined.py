@@ -1,8 +1,91 @@
 # Combined Python and HTML files
-# Generated from directory: C:\Users\isultan\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\projects
-# Total files found: 27
+# Generated from directory: C:\Users\isult\OneDrive\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\projects
+# Total files found: 70
 
 
+
+# Contents from: .\utils\team_emails.html
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.conf import settings
+
+def send_team_notification_email(user, team, notification_type, context=None):
+    """Send email notifications for team activities"""
+    if context is None:
+        context = {}
+    
+    context.update({
+        'user': user,
+        'team': team,
+        'site_url': settings.SITE_URL
+    })
+    
+    templates = {
+        'discussion': 'emails/team_discussion.html',
+        'comment': 'emails/team_comment.html',
+        'role_change': 'emails/team_role_change.html',
+        'invitation': 'emails/team_invitation.html'
+    }
+    
+    template = templates.get(notification_type)
+    if not template:
+        return
+        
+    html_message = render_to_string(template, context)
+    plain_message = strip_tags(html_message)
+    
+    subject = f"New activity in {team.name} - {notification_type.title()}"
+    
+    send_mail(
+        subject,
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=True
+    )
+
+def send_team_invitation_email(user, team, inviter):
+    """Send email for team invitation"""
+    context = {
+        'user': user,
+        'team': team,
+        'inviter': inviter,
+        'site_url': settings.SITE_URL
+    }
+    
+    html_message = render_to_string('emails/team_invitation.html', context)
+    plain_message = strip_tags(html_message)
+    
+    send_mail(
+        f"Invitation to join {team.name}",
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=True
+    )
+
+def send_role_change_notification(user, team, new_role):
+    """Send email for role changes"""
+    context = {
+        'user': user,
+        'team': team,
+        'new_role': new_role,
+        'site_url': settings.SITE_URL
+    }
+    
+    html_message = render_to_string('emails/team_role_change.html', context)
+    plain_message = strip_tags(html_message)
+    
+    send_mail(
+        f"Role update in {team.name}",
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=True
+    )
 
 # Contents from: .\__init__.py
 
@@ -11,14 +94,94 @@
 # projects/admin.py
 
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from django.db.models import Count, Sum
 from django.utils.html import format_html
 from django.urls import reverse
-from django.db.models import Count
 from django.utils.safestring import mark_safe
 from .models import (
     Project, Comment, Clap, UserProfile, Rating,
-    Bookmark, ProjectAnalytics, Notification
+    Bookmark, ProjectAnalytics, Notification, Follow
 )
+from allauth.account.models import EmailAddress
+from django.contrib import messages
+
+# Extend UserProfile admin to include faculty-specific fields
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = 'Profile'
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('avatar', 'bio', 'location', 'website')
+        }),
+        ('Professional Information', {
+            'fields': ('title', 'department', 'research_interests')
+        }),
+        ('Social Media', {
+            'fields': ('github_username', 'linkedin_url', 'twitter_username')
+        }),
+        ('Notification Settings', {
+            'fields': (
+                'email_on_comment', 'email_on_follow',
+                'email_on_clap', 'email_on_bookmark'
+            ),
+            'classes': ('collapse',)
+        })
+    )
+
+class EmailAddressInline(admin.StackedInline):
+    model = EmailAddress
+    extra = 0
+    can_delete = True
+    verbose_name = 'Email Address'
+    verbose_name_plural = 'Email Addresses'
+
+# Customize the User admin to include profile information
+class UserAdmin(BaseUserAdmin):
+    inlines = (UserProfileInline, EmailAddressInline)
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_faculty_member', 'is_email_verified')
+    list_filter = BaseUserAdmin.list_filter + ('groups__name', 'emailaddress__verified')
+    actions = ['verify_email_action']
+    
+    def is_faculty_member(self, obj):
+        return obj.groups.filter(name='Faculty').exists()
+    is_faculty_member.boolean = True
+    is_faculty_member.short_description = 'Faculty'
+    
+    def is_email_verified(self, obj):
+        try:
+            return obj.emailaddress_set.first().verified
+        except AttributeError:
+            return False
+    is_email_verified.boolean = True
+    is_email_verified.short_description = 'Email Verified'
+    
+    def verify_email_action(self, request, queryset):
+        verified_count = 0
+        for user in queryset:
+            email_address, created = EmailAddress.objects.get_or_create(
+                user=user,
+                email=user.email,
+                defaults={'verified': True, 'primary': True}
+            )
+            
+            if not created and not email_address.verified:
+                email_address.verified = True
+                email_address.save()
+                verified_count += 1
+
+        self.message_user(
+            request,
+            f"Successfully verified email for {verified_count} users.",
+            messages.SUCCESS
+        )
+    verify_email_action.short_description = "Verify email for selected users"
+
+# Re-register UserAdmin
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
@@ -115,50 +278,15 @@ class CommentAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = [
-        'user_link', 'location', 'github_username',
-        'project_count', 'total_claps_received', 'avatar_preview'
-    ]
-    list_filter = ['location', 'created_at']
-    search_fields = ['user__username', 'bio', 'location', 'github_username']
-    readonly_fields = [
-        'created_at', 'updated_at', 'avatar_preview',
-        'project_count', 'total_claps_received'
-    ]
+    list_display = ('user', 'title', 'department', 'is_faculty_member', 'created_at')
+    list_filter = ('department', 'user__groups', 'created_at')
+    search_fields = ('user__username', 'user__email', 'title', 'department')
+    readonly_fields = ('created_at', 'updated_at')
     
-    fieldsets = (
-        ('User Information', {
-            'fields': ('user', 'avatar', 'avatar_preview', 'bio')
-        }),
-        ('Contact Information', {
-            'fields': ('location', 'website')
-        }),
-        ('Social Links', {
-            'fields': ('github_username', 'linkedin_url')
-        }),
-        ('Statistics', {
-            'fields': ('project_count', 'total_claps_received'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def user_link(self, obj):
-        url = reverse('admin:auth_user_change', args=[obj.user.id])
-        return format_html('<a href="{}">{}</a>', url, obj.user.username)
-    user_link.short_description = 'User'
-    
-    def avatar_preview(self, obj):
-        if obj.avatar:
-            return format_html(
-                '<img src="{}" style="max-width: 100px; max-height: 100px;" />',
-                obj.avatar.url
-            )
-        return 'No avatar'
-    avatar_preview.short_description = 'Avatar Preview'
+    def is_faculty_member(self, obj):
+        return obj.is_faculty
+    is_faculty_member.boolean = True
+    is_faculty_member.short_description = 'Faculty'
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
@@ -262,6 +390,11 @@ class ProjectAnalyticsAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">{}</a>', url, obj.project.title)
     project_link.short_description = 'Project'
 
+@admin.register(Follow)
+class FollowAdmin(admin.ModelAdmin):
+    list_display = ('follower', 'following', 'created_at')
+    search_fields = ('follower__username', 'following__username')
+
 class CustomAdminSite(admin.AdminSite):
     site_header = 'KHCC AI Lab Administration'
     site_title = 'KHCC AI Lab Admin'
@@ -311,6 +444,10 @@ admin_site.register(Comment, CommentAdmin)
 admin_site.register(UserProfile, UserProfileAdmin)
 admin_site.register(Notification, NotificationAdmin)
 admin_site.register(ProjectAnalytics, ProjectAnalyticsAdmin)
+admin_site.register(Follow, FollowAdmin)
+
+
+
 
 # Contents from: .\apps.py
 from django.apps import AppConfig
@@ -320,7 +457,11 @@ class ProjectsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "projects"
 
+    def ready(self):
+        import projects.signals  # Register signals when app is ready
 
+
+# Contents from: .\combine.py
 # Contents from: .\combine.py
 import os
 
@@ -501,6 +642,13 @@ from PIL import Image
 from io import BytesIO
 import os
 
+from django import forms
+from .models import (
+    Project, Comment, UserProfile, Rating, Bookmark, 
+    Notification, Startup, Product, Tool, Dataset,
+    VirtualMember, Application, Sponsorship
+)
+
 from .models import (
     Project,
     Comment,
@@ -509,8 +657,37 @@ from .models import (
     Bookmark,
     ProjectAnalytics,
     Notification,
-    Profile
+    Solution,
+    Team
 )
+
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from khcc_psut_ai_lab.constants import TALENT_TYPES
+
+
+
+class NotificationSettingsForm(forms.Form):
+    email_on_comment = forms.BooleanField(
+        required=False,
+        label='Email me when someone comments on my projects',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    email_on_follow = forms.BooleanField(
+        required=False,
+        label='Email me when someone follows me',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    email_on_clap = forms.BooleanField(
+        required=False,
+        label='Email me when someone clap_count for my projects',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    email_on_bookmark = forms.BooleanField(
+        required=False,
+        label='Email me when someone bookmarks my projects',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
 
 class ProjectForm(forms.ModelForm):
     """
@@ -529,48 +706,58 @@ class ProjectForm(forms.ModelForm):
     
     class Meta:
         model = Project
-        fields = ['title', 'description', 'github_link', 'tags', 'pdf_file', 'featured_image']
+        fields = [
+            'title', 'description', 'github_link', 'tags',
+            'pdf_file', 'featured_image', 'additional_files',
+            'youtube_url', 'is_gold', 'token_reward',
+            'gold_goal', 'deadline'
+        ]
         widgets = {
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter project title',
-                'maxlength': '200',
-                'data-toggle': 'tooltip',
-                'title': 'Choose a descriptive title for your project'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 5,
-                'placeholder': 'Describe your project in detail...',
-                'data-toggle': 'tooltip',
-                'title': 'Explain what your project does, technologies used, and its purpose'
-            }),
-            'github_link': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'https://github.com/username/repository',
-                'data-toggle': 'tooltip',
-                'title': 'Link to your GitHub repository'
-            }),
-            'pdf_file': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'application/pdf',
-            }),
-            'featured_image': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*',
-            })
+            'deadline': forms.DateTimeInput(
+                attrs={'type': 'datetime-local'},
+                format='%Y-%m-%dT%H:%M'
+            ),
+            'tags': forms.TextInput(
+                attrs={'placeholder': 'Enter tags separated by commas'}
+            ),
+            'gold_goal': forms.Select(
+                attrs={'class': 'form-select'}
+            ),
         }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        instance = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
+        
+        # Only show gold seed fields to faculty members
+        if self.user and not self.user.groups.filter(name='Faculty').exists():
+            self.fields.pop('is_gold', None)
+            self.fields.pop('token_reward', None)
+            self.fields.pop('gold_goal', None)
+            self.fields.pop('deadline', None)
+        else:
+            # Add help text for faculty members
+            self.fields['is_gold'].help_text = "Mark this as a Gold Seed to offer tokens for completion"
+            self.fields['token_reward'].help_text = "Number of tokens to award for completion"
+            self.fields['gold_goal'].help_text = "How tokens will be awarded"
+            self.fields['deadline'].help_text = "Deadline for submitting solutions"
+            
+            # If this is an existing project, format the deadline
+            if instance and instance.deadline:
+                self.initial['deadline'] = instance.deadline.strftime('%Y-%m-%dT%H:%M')
 
     def clean_github_link(self):
         """Validate GitHub repository URL"""
         url = self.cleaned_data['github_link']
-        if not url.startswith(('https://github.com/', 'http://github.com/')):
-            raise ValidationError('Please enter a valid GitHub repository URL')
-        
-        try:
-            URLValidator()(url)
-        except ValidationError:
-            raise ValidationError('Please enter a valid URL')
+        if url:  # Only validate if URL is provided
+            if not url.startswith(('https://github.com/', 'http://github.com/')):
+                raise ValidationError('Please enter a valid GitHub repository URL')
+            
+            try:
+                URLValidator()(url)
+            except ValidationError:
+                raise ValidationError('Please enter a valid URL')
         
         return url
 
@@ -580,10 +767,7 @@ class ProjectForm(forms.ModelForm):
         if not tags:
             return ''
         
-        # Clean and validate tags
         tag_list = [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
-        
-        # Remove duplicates while preserving order
         seen = set()
         unique_tags = [x for x in tag_list if not (x in seen or seen.add(x))]
         
@@ -599,16 +783,13 @@ class ProjectForm(forms.ModelForm):
         """Validate PDF file"""
         pdf_file = self.cleaned_data.get('pdf_file')
         if pdf_file:
-            # Check file size (10MB limit)
             if pdf_file.size > 10 * 1024 * 1024:
                 raise ValidationError('PDF file must be smaller than 10MB')
 
-            # Check file extension
             ext = os.path.splitext(pdf_file.name)[1].lower()
             if ext != '.pdf':
                 raise ValidationError('Only PDF files are allowed')
 
-            # Check MIME type using mimetypes
             file_type, encoding = mimetypes.guess_type(pdf_file.name)
             if file_type != 'application/pdf':
                 raise ValidationError('Invalid PDF file')
@@ -619,32 +800,26 @@ class ProjectForm(forms.ModelForm):
         """Validate and process featured image"""
         image = self.cleaned_data.get('featured_image')
         if image:
-            # Check file size (5MB limit)
             if image.size > 5 * 1024 * 1024:
                 raise ValidationError('Image file must be smaller than 5MB')
 
             try:
                 img = Image.open(image)
                 
-                # Convert to RGB if necessary
                 if img.mode not in ('RGB', 'RGBA'):
                     img = img.convert('RGB')
                 
-                # Check dimensions
                 if img.width > 2000 or img.height > 2000:
                     raise ValidationError('Image dimensions should not exceed 2000x2000 pixels')
                 
-                # Resize if larger than 1200px
                 if img.width > 1200 or img.height > 1200:
                     output_size = (1200, 1200)
                     img.thumbnail(output_size, Image.LANCZOS)
                 
-                # Save optimized image
                 output = BytesIO()
                 img.save(output, format='JPEG', quality=85, optimize=True)
                 output.seek(0)
                 
-                # Return processed image
                 from django.core.files.uploadedfile import InMemoryUploadedFile
                 return InMemoryUploadedFile(
                     output,
@@ -659,10 +834,7 @@ class ProjectForm(forms.ModelForm):
         return image
 
 class CommentForm(forms.ModelForm):
-    """
-    Form for adding comments to projects.
-    Includes validation for minimum content length.
-    """
+    """Form for adding comments to projects"""
     class Meta:
         model = Comment
         fields = ['content', 'image']
@@ -670,136 +842,69 @@ class CommentForm(forms.ModelForm):
             'content': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'Write your comment here...',
-                'data-toggle': 'tooltip',
-                'title': 'Share your thoughts, feedback, or questions'
+                'placeholder': 'Write your comment here...'
             }),
             'image': forms.FileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*'
             })
         }
-    
-    def clean_content(self):
-        """Validate comment content"""
-        content = self.cleaned_data['content'].strip()
-        if len(content) < 10:
-            raise ValidationError('Comment must be at least 10 characters long')
-        if len(content) > 1000:
-            raise ValidationError('Comment must be less than 1000 characters')
-        return content
 
-    def clean_image(self):
-        """Validate comment image"""
-        image = self.cleaned_data.get('image')
-        if image:
-            # Check file size (2MB limit)
-            if image.size > 2 * 1024 * 1024:
-                raise ValidationError('Image file must be smaller than 2MB')
+# Add this class to forms.py
 
-            try:
-                img = Image.open(image)
-                
-                # Convert to RGB if necessary
-                if img.mode not in ('RGB', 'RGBA'):
-                    img = img.convert('RGB')
-                
-                # Check dimensions
-                if img.width > 1000 or img.height > 1000:
-                    raise ValidationError('Image dimensions should not exceed 1000x1000 pixels')
-                
-                # Resize if larger than 800px
-                if img.width > 800 or img.height > 800:
-                    output_size = (800, 800)
-                    img.thumbnail(output_size, Image.LANCZOS)
-                
-                # Save optimized image
-                output = BytesIO()
-                img.save(output, format='JPEG', quality=85, optimize=True)
-                output.seek(0)
-                
-                # Return processed image
-                from django.core.files.uploadedfile import InMemoryUploadedFile
-                return InMemoryUploadedFile(
-                    output,
-                    'ImageField',
-                    f"{os.path.splitext(image.name)[0]}.jpg",
-                    'image/jpeg',
-                    output.tell(),
-                    None
-                )
-            except Exception as e:
-                raise ValidationError(f'Invalid image file: {str(e)}')
-        return image
+class ProfileForm(forms.ModelForm):
+    avatar = forms.ImageField(
+        required=False,
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'gif'])],
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*'
+        })
+    )
 
-class UserProfileForm(forms.ModelForm):
-    """Form for user profile management"""
     class Meta:
         model = UserProfile
-        fields = ['bio', 'location', 'website', 'github_username', 'linkedin_url', 'avatar']
+        fields = [
+            'avatar',
+            'bio',
+            'location',
+            'website',
+            'github_username',
+            'linkedin_url',
+            'title',
+            'department',
+            'research_interests',
+            
+        ]
         widgets = {
             'bio': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
-                'placeholder': 'Tell us about yourself...',
-                'maxlength': '500'
+                'placeholder': 'Tell us about yourself...'
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Where are you based?',
-                'maxlength': '100'
+                'placeholder': 'Where are you based?'
             }),
             'website': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'https://yourwebsite.com'
+                'placeholder': 'https://'
             }),
             'github_username': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Your GitHub username',
-                'maxlength': '39'
+                'placeholder': 'Your GitHub username'
             }),
             'linkedin_url': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'https://www.linkedin.com/in/your-profile'
-            }),
-            'avatar': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
+                'placeholder': 'Your LinkedIn URL'
             })
         }
 
     def clean_avatar(self):
-        """Validate avatar file"""
         avatar = self.cleaned_data.get('avatar')
         if avatar:
-            # Check file size (5MB limit)
-            if avatar.size > 5 * 1024 * 1024:
-                raise ValidationError('Avatar file must be smaller than 5MB')
-
-            try:
-                img = Image.open(avatar)
-                if img.mode not in ('RGB', 'RGBA'):
-                    img = img.convert('RGB')
-                
-                # Resize to standard avatar size
-                output_size = (300, 300)
-                img.thumbnail(output_size, Image.LANCZOS)
-                
-                output = BytesIO()
-                img.save(output, format='JPEG', quality=85, optimize=True)
-                output.seek(0)
-                
-                from django.core.files.uploadedfile import InMemoryUploadedFile
-                return InMemoryUploadedFile(
-                    output,
-                    'ImageField',
-                    f"{os.path.splitext(avatar.name)[0]}.jpg",
-                    'image/jpeg',
-                    output.tell(),
-                    None
-                )
-            except Exception as e:
-                raise ValidationError(f'Invalid image file: {str(e)}')
+            if avatar.size > 5 * 1024 * 1024:  # 5MB limit
+                raise forms.ValidationError("Image file too large ( > 5MB )")
         return avatar
 
 class RatingForm(forms.ModelForm):
@@ -807,24 +912,6 @@ class RatingForm(forms.ModelForm):
     class Meta:
         model = Rating
         fields = ['score', 'review']
-        widgets = {
-            'score': forms.Select(attrs={
-                'class': 'form-select',
-                'aria-label': 'Rating score'
-            }),
-            'review': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Share your experience with this project (optional)',
-                'maxlength': 500
-            })
-        }
-
-    def clean_review(self):
-        review = self.cleaned_data.get('review', '').strip()
-        if len(review) > 500:
-            raise ValidationError('Review must be less than 500 characters')
-        return review
 
 class BookmarkForm(forms.ModelForm):
     """Form for managing bookmarks"""
@@ -837,49 +924,38 @@ class BookmarkForm(forms.ModelForm):
 
 class ProjectSearchForm(forms.Form):
     """Form for project search and filtering"""
-    query = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Search seeds...',
-            'aria-label': 'Search'
-        })
-    )
-    
-    tags = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Filter by tags (comma separated)',
-            'aria-label': 'Tags'
-        })
-    )
-    
-    SORT_CHOICES = [
-        ('-created_at', 'Newest first'),
-        ('created_at', 'Oldest first'),
-        ('-claps', 'Most popular'),
-        ('title', 'Alphabetical'),
-    ]
-    
+    query = forms.CharField(required=False)
+    tags = forms.CharField(required=False)
     sort = forms.ChoiceField(
         required=False,
-        initial='-created_at',
-        choices=SORT_CHOICES,
-        widget=forms.Select(attrs={
-            'class': 'form-select',
-            'aria-label': 'Sort projects'
-        })
+        choices=[
+            ('-created_at', 'Newest first'),
+            ('created_at', 'Oldest first'),
+            ('-clap_count', 'Most popular'),
+            ('title', 'Alphabetical'),
+        ]
     )
 
-    def clean_tags(self):
-        tags = self.cleaned_data.get('tags', '')
-        if tags:
-            return [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
-        return []
-    
+class AdvancedSearchForm(forms.Form):
+    """Advanced search form"""
+    query = forms.CharField(required=False)
+    tags = forms.CharField(required=False)
+    date_from = forms.DateField(required=False)
+    date_to = forms.DateField(required=False)
+    min_claps = forms.IntegerField(required=False, min_value=0)
+    has_github = forms.BooleanField(required=False)
+    sort_by = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('-created_at', 'Newest first'),
+            ('created_at', 'Oldest first'),
+            ('-clap_count', 'Most popular'),
+            ('-comment_count', 'Most discussed'),
+            ('title', 'Alphabetical'),
+            ('-rating_avg', 'Highest rated')
+        ]
+    )
 
-################################
 
 class FileValidationMixin:
     """Mixin for common file validation methods"""
@@ -902,9 +978,308 @@ class FileValidationMixin:
         except Exception as e:
             raise ValidationError(f'Invalid image file: {str(e)}')
 
+class ProjectForm(forms.ModelForm, FileValidationMixin):
+    """
+    Form for creating and editing projects.
+    Includes validation for GitHub links and tag formatting.
+    """
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter tags separated by commas (e.g., AI, Machine Learning, NLP)',
+            'data-toggle': 'tooltip',
+            'title': 'Add up to 5 tags to help others find your project'
+        })
+    )
+    
+    class Meta:
+        model = Project
+        fields = ['title', 'description', 'github_link', 'tags', 'pdf_file', 'featured_image']
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter project title',
+                'maxlength': '200'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Describe your project in detail...'
+            }),
+            'github_link': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://github.com/username/repository'
+            }),
+            'pdf_file': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'application/pdf',
+            }),
+            'featured_image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*',
+            })
+        }
+
+    def clean_github_link(self):
+        url = self.cleaned_data['github_link']
+        if url:  # Only validate if URL is provided
+            if not url.startswith(('https://github.com/', 'http://github.com/')):
+                raise ValidationError('Please enter a valid GitHub repository URL')
+            
+            try:
+                URLValidator()(url)
+            except ValidationError:
+                raise ValidationError('Please enter a valid URL')
+        
+        return url
+
+    def clean_tags(self):
+        tags = self.cleaned_data['tags']
+        if not tags:
+            return ''
+        
+        tag_list = [tag.strip().lower() for tag in tags.split(',') if tag.strip()]
+        seen = set()
+        unique_tags = [x for x in tag_list if not (x in seen or seen.add(x))]
+        
+        if len(unique_tags) > 5:
+            raise ValidationError('Please enter no more than 5 unique tags')
+        
+        if any(len(tag) > 20 for tag in unique_tags):
+            raise ValidationError('Each tag must be less than 20 characters')
+        
+        return ', '.join(unique_tags)
+
+    def clean_pdf_file(self):
+        pdf_file = self.cleaned_data.get('pdf_file')
+        if pdf_file:
+            self.validate_file_size(pdf_file, 10)
+            self.validate_file_type(pdf_file, ['application/pdf'])
+        return pdf_file
+
+    def clean_featured_image(self):
+        image = self.cleaned_data.get('featured_image')
+        if image:
+            self.validate_file_size(image, 5)
+            img = self.validate_image(image)
+            
+            if img.mode not in ('RGB', 'RGBA'):
+                img = img.convert('RGB')
+            
+            if img.width > 1200 or img.height > 1200:
+                output_size = (1200, 1200)
+                img.thumbnail(output_size, Image.LANCZOS)
+            
+            output = BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)
+            
+            from django.core.files.uploadedfile import InMemoryUploadedFile
+            return InMemoryUploadedFile(
+                output,
+                'ImageField',
+                f"{os.path.splitext(image.name)[0]}.jpg",
+                'image/jpeg',
+                output.tell(),
+                None
+            )
+        return image
+
+class CommentForm(forms.ModelForm, FileValidationMixin):
+    """Form for adding comments to projects"""
+    class Meta:
+        model = Comment
+        fields = ['content', 'image']
+        widgets = {
+            'content': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Write your comment here...'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            })
+        }
+
+    def clean_content(self):
+        content = self.cleaned_data['content'].strip()
+        if len(content) < 10:
+            raise ValidationError('Comment must be at least 10 characters long')
+        if len(content) > 1000:
+            raise ValidationError('Comment must be less than 1000 characters')
+        return content
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image:
+            self.validate_file_size(image, 2)
+            img = self.validate_image(image, 1000)
+            
+            if img.mode not in ('RGB', 'RGBA'):
+                img = img.convert('RGB')
+            
+            if img.width > 800 or img.height > 800:
+                output_size = (800, 800)
+                img.thumbnail(output_size, Image.LANCZOS)
+            
+            output = BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)
+            
+            from django.core.files.uploadedfile import InMemoryUploadedFile
+            return InMemoryUploadedFile(
+                output,
+                'ImageField',
+                f"{os.path.splitext(image.name)[0]}.jpg",
+                'image/jpeg',
+                output.tell(),
+                None
+            )
+        return image
+
+class UserProfileForm(forms.ModelForm, FileValidationMixin):
+    """Form for user profile management"""
+    class Meta:
+        model = UserProfile
+        fields = [
+            'bio', 'location', 'website', 'github_username',
+            'linkedin_url', 'avatar', 'email_on_comment',
+            'email_on_follow', 'email_on_clap', 'email_on_bookmark'
+        ]
+        widgets = {
+            'bio': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Tell us about yourself...'
+            }),
+            'location': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Where are you based?'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://yourwebsite.com'
+            }),
+            'github_username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your GitHub username'
+            }),
+            'linkedin_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://linkedin.com/in/your-profile'
+            }),
+            'avatar': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            })
+        }
+
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get('avatar')
+        if avatar:
+            self.validate_file_size(avatar, 5)
+            img = self.validate_image(avatar)
+            
+            if img.mode not in ('RGB', 'RGBA'):
+                img = img.convert('RGB')
+            
+            output_size = (300, 300)
+            img.thumbnail(output_size, Image.LANCZOS)
+            
+            output = BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)
+            
+            from django.core.files.uploadedfile import InMemoryUploadedFile
+            return InMemoryUploadedFile(
+                output,
+                'ImageField',
+                f"{os.path.splitext(avatar.name)[0]}.jpg",
+                'image/jpeg',
+                output.tell(),
+                None
+            )
+        return avatar
+
+class RatingForm(forms.ModelForm):
+    """Form for rating projects"""
+    class Meta:
+        model = Rating
+        fields = ['score', 'review']
+        widgets = {
+            'score': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'review': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Write your review here...'
+            })
+        }
+
+class BookmarkForm(forms.ModelForm):
+    """Form for managing bookmarks"""
+    class Meta:
+        model = Bookmark
+        fields = ['project']
+        widgets = {
+            'project': forms.HiddenInput()
+        }
+
+class NotificationSettingsForm(forms.Form):
+    """Form for notification preferences"""
+    email_on_comment = forms.BooleanField(
+        required=False,
+        label='Email me when someone comments on my projects'
+    )
+    email_on_follow = forms.BooleanField(
+        required=False,
+        label='Email me when someone follows me'
+    )
+    email_on_clap = forms.BooleanField(
+        required=False,
+        label='Email me when someone clap_count for my projects'
+    )
+    email_on_bookmark = forms.BooleanField(
+        required=False,
+        label='Email me when someone bookmarks my projects'
+    )
+
+class ProjectSearchForm(forms.Form):
+    """Form for project search and filtering"""
+    query = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search seeds...'
+        })
+    )
+    
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Filter by tags (comma separated)'
+        })
+    )
+    
+    sort = forms.ChoiceField(
+        required=False,
+        choices=[
+            ('-created_at', 'Newest first'),
+            ('created_at', 'Oldest first'),
+            ('-clap_count', 'Most popular'),
+            ('title', 'Alphabetical'),
+        ],
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+
 class AdvancedSearchForm(forms.Form):
     """Advanced search form with multiple filters"""
-    
     query = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -954,7 +1329,7 @@ class AdvancedSearchForm(forms.Form):
         choices=[
             ('-created_at', 'Newest first'),
             ('created_at', 'Oldest first'),
-            ('-claps', 'Most popular'),
+            ('-clap_count', 'Most popular'),
             ('-comment_count', 'Most discussed'),
             ('title', 'Alphabetical'),
             ('-rating_avg', 'Highest rated')
@@ -971,126 +1346,1264 @@ class AdvancedSearchForm(forms.Form):
             raise ValidationError("End date should be greater than start date")
         
         return cleaned_data
+    
 
-# projects/filters.py
+# In forms.py
+from django import forms
+from .models import Project, Comment
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
+from PIL import Image
+from io import BytesIO
+import os
 
-import django_filters
-from django.db.models import Avg, Count, Q
-from .models import Project
-
-class ProjectFilter(django_filters.FilterSet):
-    """FilterSet for advanced project filtering"""
-    query = django_filters.CharFilter(method='filter_query')
-    tags = django_filters.CharFilter(method='filter_tags')
-    date_from = django_filters.DateFilter(field_name='created_at', lookup_expr='gte')
-    date_to = django_filters.DateFilter(field_name='created_at', lookup_expr='lte')
-    min_claps = django_filters.NumberFilter(field_name='claps', lookup_expr='gte')
-    has_github = django_filters.BooleanFilter(method='filter_has_github')
+class ProjectForm(forms.ModelForm):
+    """Form for creating and editing projects."""
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter tags separated by commas (e.g., AI, Machine Learning, NLP)',
+            'data-toggle': 'tooltip',
+            'title': 'Add up to 5 tags to help others find your project'
+        })
+    )
     
     class Meta:
         model = Project
-        fields = ['query', 'tags', 'date_from', 'date_to', 'min_claps', 'has_github']
-    
-    def filter_query(self, queryset, name, value):
-        if not value:
-            return queryset
+        fields = ['title', 'description', 'github_link', 'tags', 'youtube_url', 
+                 'pdf_file', 'featured_image', 'additional_files']
         
-        return queryset.filter(
-            Q(title__icontains=value) |
-            Q(description__icontains=value) |
-            Q(author__username__icontains=value) |
-            Q(tags__icontains=value)
-        )
-    
-    def filter_tags(self, queryset, name, value):
-        if not value:
-            return queryset
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
         
-        tags = [tag.strip().lower() for tag in value.split(',') if tag.strip()]
-        for tag in tags:
-            queryset = queryset.filter(tags__icontains=tag)
-        return queryset
-    
-    def filter_has_github(self, queryset, name, value):
-        if value:
-            return queryset.exclude(github_link='')
-        return queryset
+        # Only show gold seed fields to faculty members
+        if self.user and self.user.groups.filter(name='Faculty').exists():
+            self.fields['is_gold'] = forms.BooleanField(required=False)
+            self.fields['token_reward'] = forms.IntegerField(required=False)
+            self.fields['gold_goal'] = forms.ChoiceField(
+                choices=[
+                    ('all', 'All Complete'),
+                    ('first', 'First to Complete'),
+                    ('best', 'Best Solution')
+                ],
+                required=False
+            )
+            self.fields['deadline'] = forms.DateTimeField(
+                required=False,
+                widget=forms.DateTimeInput(attrs={'type': 'datetime-local'})
+            )
+        
+    def clean_youtube_url(self):
+        url = self.cleaned_data.get('youtube_url')
+        if url:
+            from .models import validate_youtube_url
+            validate_youtube_url(url)
+        return url
 
-# Now let's update the views.py to use these filters:
+    def clean_pdf_file(self):
+        pdf_file = self.cleaned_data.get('pdf_file')
+        if pdf_file and pdf_file.size > 10 * 1024 * 1024:  # 10MB limit
+            raise ValidationError('PDF file must be smaller than 10MB')
+        return pdf_file
 
-class NotificationSettingsForm(forms.Form):
-    email_on_comment = forms.BooleanField(
-        required=False,
-        label='Email me when someone comments on my projects',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-    email_on_follow = forms.BooleanField(
-        required=False,
-        label='Email me when someone follows me',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-    email_on_clap = forms.BooleanField(
-        required=False,
-        label='Email me when someone claps for my projects',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-    email_on_bookmark = forms.BooleanField(
-        required=False,
-        label='Email me when someone bookmarks my projects',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
+    def clean_featured_image(self):
+        image = self.cleaned_data.get('featured_image')
+        if image:
+            if image.size > 5 * 1024 * 1024:  # 5MB limit
+                raise ValidationError('Image file must be smaller than 5MB')
+            try:
+                img = Image.open(image)
+                if img.mode not in ('RGB', 'RGBA'):
+                    img = img.convert('RGB')
+                
+                # Resize if needed
+                if img.width > 1200 or img.height > 1200:
+                    output_size = (1200, 1200)
+                    img.thumbnail(output_size, Image.LANCZOS)
+                
+                output = BytesIO()
+                img.save(output, format='JPEG', quality=85)
+                output.seek(0)
+                
+                from django.core.files.uploadedfile import InMemoryUploadedFile
+                return InMemoryUploadedFile(
+                    output,
+                    'ImageField',
+                    f"{os.path.splitext(image.name)[0]}.jpg",
+                    'image/jpeg',
+                    output.tell(),
+                    None
+                )
+            except Exception as e:
+                raise ValidationError(f'Invalid image file: {str(e)}')
+        return image
 
-class ProfileForm(forms.ModelForm):
-    avatar = forms.ImageField(
-        required=False,
-        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'gif'])],
-        widget=forms.FileInput(attrs={
-            'class': 'form-control',
-            'accept': 'image/*'
-        })
+class ExtendedUserCreationForm(UserCreationForm):
+    talent_type = forms.ChoiceField(
+        choices=TALENT_TYPES,
+        required=True,
+        label='Select Your Talent Type',
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
 
     class Meta:
-        model = Profile
-        fields = [
-            'bio', 
-            'location', 
-            'website', 
-            'github_username', 
-            'twitter_username', 
-            'avatar'
-        ]
+        model = User
+        fields = ('username', 'email', 'password1', 'password2', 'talent_type')
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if commit:
+            user.save()
+            UserProfile.objects.create(
+                user=user,
+                talent_type=self.cleaned_data['talent_type']
+            )
+        return user
+
+class SolutionForm(forms.ModelForm):
+    class Meta:
+        model = Solution
+        fields = ['content', 'files', 'github_link']
+
+from django import forms
+from .models import Team, TeamDiscussion, TeamComment, TeamMembership
+
+class TeamForm(forms.ModelForm):
+    class Meta:
+        model = Team
+        fields = ['name', 'description', 'tags', 'team_image']
         widgets = {
-            'bio': forms.Textarea(attrs={
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter team name'
+            }),
+            'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
-                'placeholder': 'Tell us about yourself...'
+                'placeholder': 'Describe your team and its goals'
             }),
-            'location': forms.TextInput(attrs={
+            'tags': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Where are you based?'
+                'placeholder': 'Enter tags separated by commas (e.g., AI, Healthcare, Research)'
+            }),
+            'team_image': forms.FileInput(attrs={
+                'class': 'form-control'
+            })
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        if self.instance.pk:
+            if Team.objects.exclude(pk=self.instance.pk).filter(name__iexact=name).exists():
+                raise forms.ValidationError('A team with this name already exists.')
+        else:
+            if Team.objects.filter(name__iexact=name).exists():
+                raise forms.ValidationError('A team with this name already exists.')
+        return name
+
+class TeamDiscussionForm(forms.ModelForm):
+    class Meta:
+        model = TeamDiscussion
+        fields = ['title', 'content']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 6})
+        }
+
+class TeamCommentForm(forms.ModelForm):
+    class Meta:
+        model = TeamComment
+        fields = ['content']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 3})
+        }
+
+class TeamMembershipForm(forms.ModelForm):
+    class Meta:
+        model = TeamMembership
+        fields = ['role', 'is_approved']
+        widgets = {
+            'role': forms.Select(attrs={'class': 'form-select'}),
+            'is_approved': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only allow certain role choices based on permissions
+        user = kwargs.get('initial', {}).get('user')
+        if user and not user.is_staff:
+            self.fields['role'].choices = [
+                ('member', 'Member'),
+                ('moderator', 'Moderator')
+            ]
+
+class TeamNotificationSettingsForm(forms.Form):
+    email_notifications = forms.BooleanField(required=False)
+    in_app_notifications = forms.BooleanField(required=False)
+
+class TeamForm(forms.ModelForm):
+    class Meta:
+        model = Team
+        fields = ['name', 'description', 'tags', 'team_image']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'tags': forms.TextInput(attrs={
+                'placeholder': 'Enter tags separated by commas'
+            }),
+        }
+    
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        if Team.objects.filter(name__iexact=name).exists():
+            raise forms.ValidationError('A team with this name already exists.')
+        return name
+    
+    def clean_tags(self):
+        tags = self.cleaned_data['tags']
+        if tags:
+            # Split tags by comma and clean them
+            tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
+            # Rejoin cleaned tags
+            return ', '.join(tag_list)
+        return tags
+
+# forms.py additions
+
+
+
+
+class StartupForm(forms.ModelForm):
+    class Meta:
+        model = Startup
+        fields = ['name', 'logo', 'description', 'website']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter startup name'
+            }),
+            'logo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your startup'
+            }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+    def clean_logo(self):
+        logo = self.cleaned_data.get('logo')
+        if logo:
+            if logo.size > 5 * 1024 * 1024:  # 5MB limit
+                raise forms.ValidationError("Image file too large ( > 5MB )")
+            return logo
+        return None
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = ['name', 'description', 'image', 'url']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter product name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your product'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+class ToolForm(forms.ModelForm):
+    class Meta:
+        model = Tool
+        fields = ['name', 'description', 'image', 'url', 'github_url', 'documentation_url']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter tool name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your tool'
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            }),
+            'github_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://github.com/...'
+            }),
+            'documentation_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://'
+            })
+        }
+
+class DatasetForm(forms.ModelForm):
+    class Meta:
+        model = Dataset
+        fields = ['name', 'description', 'file', 'format', 'license']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter dataset name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe your dataset'
+            }),
+            'file': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.zip,.csv,.json,.txt'
+            }),
+            'format': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., CSV, JSON, etc.'
+            }),
+            'license': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., MIT, Apache, etc.'
+            })
+        }
+
+    def clean_file(self):
+        file = self.cleaned_data.get('file')
+        if file:
+            if file.size > 50 * 1024 * 1024:  # 50MB limit
+                raise forms.ValidationError("File too large ( > 50MB )")
+        return file
+
+class SponsorshipForm(forms.ModelForm):
+    class Meta:
+        model = Sponsorship
+        fields = ['name', 'logo', 'level', 'website', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Organization name'
+            }),
+            'logo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-select'
             }),
             'website': forms.URLInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'https://'
             }),
-            'github_username': forms.TextInput(attrs={
+            'description': forms.Textarea(attrs={
                 'class': 'form-control',
-                'placeholder': 'Your GitHub username'
-            }),
-            'twitter_username': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Your Twitter username'
+                'rows': 4,
+                'placeholder': 'Describe your organization'
             })
         }
 
-    def clean_avatar(self):
-        avatar = self.cleaned_data.get('avatar')
-        if avatar:
-            if avatar.size > 5 * 1024 * 1024:  # 5MB limit
-                raise forms.ValidationError("Image file too large ( > 5MB )")
-        return avatar
+class VirtualMemberForm(forms.ModelForm):
+    class Meta:
+        model = VirtualMember
+        fields = ['name', 'avatar', 'specialty', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Virtual member name'
+            }),
+            'avatar': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'specialty': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Area of expertise'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe this virtual member'
+            })
+        }
 
+class ApplicationForm(forms.ModelForm):
+    class Meta:
+        model = Application
+        fields = [
+            'type',
+            'name',
+            'email',
+            'organization',
+            'level',
+            'message',
+            'attachment'
+        ]
+        widgets = {
+            'type': forms.HiddenInput(),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your full name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Your email address'
+            }),
+            'organization': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Organization name'
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'message': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Tell us about yourself or your organization'
+            }),
+            'attachment': forms.FileInput(attrs={
+                'class': 'form-control'
+            })
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make certain fields optional
+        self.fields['organization'].required = False
+        self.fields['level'].required = False
+        self.fields['attachment'].required = False
+
+# Contents from: .\management\__init__.py
+
+
+# Contents from: .\management\commands\__init__.py
+
+
+# Contents from: .\management\commands\create_team_analytics.py
+# projects/management/commands/create_team_analytics.py
+
+from django.core.management.base import BaseCommand
+from projects.models import Team, TeamAnalytics
+
+class Command(BaseCommand):
+    help = 'Creates analytics entries for existing teams'
+
+    def handle(self, *args, **options):
+        teams = Team.objects.all()
+        created_count = 0
+        
+        for team in teams:
+            analytics, created = TeamAnalytics.objects.get_or_create(
+                team=team,
+                defaults={
+                    'total_discussions': team.discussions.count(),
+                    'total_comments': sum(d.comments.count() for d in team.discussions.all()),
+                    'active_members': team.memberships.filter(is_approved=True).count()
+                }
+            )
+            if created:
+                created_count += 1
+                
+        self.stdout.write(
+            self.style.SUCCESS(f"Created analytics for {created_count} teams")
+        )
+
+# Contents from: .\management\commands\debug_teams.py
+# projects/management/commands/debug_teams.py
+
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+from django.contrib.auth.models import User
+from projects.models import (
+    Team, 
+    TeamMembership, 
+    KHCCBrain,
+    UserProfile
+)
+
+class Command(BaseCommand):
+    help = 'Debug teams and KHCC Brain membership'
+
+    def handle(self, *args, **options):
+        self.stdout.write("\n=== Starting Debug Process ===")
+        
+        # 1. Check KHCC Brain user
+        self.stdout.write("\n=== Checking KHCC Brain User ===")
+        KHCC_brain_user = None
+        try:
+            KHCC_brain = KHCCBrain.objects.first()
+            if not KHCC_brain:
+                KHCC_brain = KHCCBrain.objects.create()
+                self.stdout.write("Created new KHCC Brain instance")
+            
+            KHCC_brain_user = User.objects.filter(username='KHCC_brain').first()
+            if not KHCC_brain_user:
+                KHCC_brain_user = User.objects.create_user(
+                    username='KHCC_brain',
+                    email='KHCC_brain@khcc.jo',
+                    first_name='KHCC',
+                    last_name='Brain'
+                )
+                UserProfile.objects.get_or_create(
+                    user=KHCC_brain_user,
+                    defaults={
+                        'bio': "AI Research Assistant",
+                        'title': "AI Assistant",
+                        'department': "AI Lab"
+                    }
+                )
+                self.stdout.write("Created KHCC Brain user")
+            
+            self.stdout.write(self.style.SUCCESS(
+                f"✓ KHCC Brain user exists: {KHCC_brain_user.username}"
+            ))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(
+                f"✗ Error with KHCC Brain user: {str(e)}"
+            ))
+
+        # 2. List all teams
+        self.stdout.write("\n=== Listing All Teams ===")
+        teams = Team.objects.all()
+        if teams.exists():
+            for team in teams:
+                self.stdout.write(f"Team: {team.name}")
+                self.stdout.write(f"- Created by: {team.founder.username}")
+                self.stdout.write("- Members:")
+                for membership in team.memberships.all():
+                    self.stdout.write(f"  * {membership.user.username} (Role: {membership.role})")
+        else:
+            self.stdout.write(self.style.WARNING("No teams found in database"))
+
+        # 3. Check team roles
+        self.stdout.write("\n=== Available Team Roles ===")
+        team_roles = [
+            choice[0] for choice in TeamMembership._meta.get_field('role').choices
+        ]
+        self.stdout.write(f"Available roles: {team_roles}")
+
+        # 4. Check memberships and join teams
+        if KHCC_brain_user:
+            self.stdout.write("\n=== Current KHCC Brain Memberships ===")
+            current_memberships = TeamMembership.objects.filter(user=KHCC_brain_user)
+            if current_memberships.exists():
+                for membership in current_memberships:
+                    self.stdout.write(f"Member of: {membership.team.name} (Role: {membership.role})")
+            else:
+                self.stdout.write("No current memberships")
+
+            self.stdout.write("\n=== Attempting to Join New Teams ===")
+            new_teams = Team.objects.exclude(memberships__user=KHCC_brain_user)
+            for team in new_teams:
+                try:
+                    # Use 'member' role as it's likely to exist in your choices
+                    membership = TeamMembership.objects.create(
+                        team=team,
+                        user=KHCC_brain_user,
+                        role='member',  # Using 'member' as a safe default
+                        is_approved=True
+                    )
+                    self.stdout.write(self.style.SUCCESS(
+                        f"✓ Successfully joined team: {team.name}"
+                    ))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(
+                        f"✗ Error joining team {team.name}: {str(e)}"
+                    ))
+
+        self.stdout.write("\n=== Debug Process Complete ===")
+
+# Contents from: .\management\commands\join_teams.py
+# projects/management/commands/join_teams.py
+
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+from projects.models import Team, TeamMembership, KHCCBrain
+
+class Command(BaseCommand):
+    help = 'Makes KHCC Brain join all teams it is not part of'
+
+    def handle(self, *args, **options):# projects/management/commands/debug_teams.py
+
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+from projects.models import Team, TeamMembership, KHCCBrain
+from django.contrib.auth.models import User
+
+class Command(BaseCommand):
+    help = 'Debug teams and KHCC Brain membership'
+
+    def handle(self, *args, **options):
+        # 1. Check KHCC Brain user
+        self.stdout.write("\n=== Checking KHCC Brain User ===")
+        try:
+            KHCC_brain_user = KHCCBrain.get_user()
+            self.stdout.write(self.style.SUCCESS(
+                f"✓ KHCC Brain user exists: {KHCC_brain_user.username}"
+            ))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(
+                f"✗ Error with KHCC Brain user: {str(e)}"
+            ))
+
+        # 2. List all teams
+        self.stdout.write("\n=== Listing All Teams ===")
+        teams = Team.objects.all()
+        if teams.exists():
+            for team in teams:
+                self.stdout.write(f"Team: {team.name}")
+                self.stdout.write(f"- Created by: {team.founder.username}")
+                self.stdout.write("- Members:")
+                for membership in team.memberships.all():
+                    self.stdout.write(f"  * {membership.user.username} (Role: {membership.role})")
+        else:
+            self.stdout.write(self.style.WARNING("No teams found in database"))
+
+        # 3. Check memberships
+        self.stdout.write("\n=== Checking Team Memberships ===")
+        if KHCC_brain_user:
+            memberships = TeamMembership.objects.filter(user=KHCC_brain_user)
+            if memberships.exists():
+                self.stdout.write("KHCC Brain is member of:")
+                for membership in memberships:
+                    self.stdout.write(f"- {membership.team.name} (Role: {membership.role})")
+            else:
+                self.stdout.write(self.style.WARNING("KHCC Brain is not a member of any teams"))
+
+        # 4. Try to join teams
+        self.stdout.write("\n=== Attempting to Join Teams ===")
+        if KHCC_brain_user:
+            new_teams = Team.objects.exclude(memberships__user=KHCC_brain_user)
+            if new_teams.exists():
+                for team in new_teams:
+                    try:
+                        membership, created = TeamMembership.objects.get_or_create(
+                            team=team,
+                            user=KHCC_brain_user,
+                            defaults={
+                                'role': 'ai_assistant',
+                                'is_approved': True
+                            }
+                        )
+                        if created:
+                            self.stdout.write(self.style.SUCCESS(
+                                f"✓ Successfully joined team: {team.name}"
+                            ))
+                        else:
+                            self.stdout.write(
+                                f"Already a member of: {team.name}"
+                            )
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(
+                            f"✗ Error joining team {team.name}: {str(e)}"
+                        ))
+            else:
+                self.stdout.write("No new teams to join")
+
+        # 5. Print team role choices
+        self.stdout.write("\n=== Available Team Roles ===")
+        try:
+            team_roles = [role[0] for role in TeamMembership._meta.get_field('role').choices]
+            self.stdout.write(f"Team roles: {team_roles}")
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error getting team roles: {str(e)}"))
+
+        # 6. Check if ai_assistant is a valid role
+        self.stdout.write("\n=== Checking Role Configuration ===")
+        try:
+            from projects.models import TeamMembership
+            role_choices = dict(TeamMembership._meta.get_field('role').choices)
+            self.stdout.write(f"Available roles: {list(role_choices.keys())}")
+            if 'ai_assistant' not in role_choices:
+                self.stdout.write(self.style.WARNING(
+                    "'ai_assistant' is not in the available roles. Using 'member' instead."
+                ))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error checking roles: {str(e)}"))
+        try:
+            # Get KHCC Brain user
+            KHCC_brain_user = KHCCBrain.get_user()
+            self.stdout.write(f"Found KHCC Brain user: {KHCC_brain_user.username}")
+
+            # Get all teams
+            all_teams = Team.objects.all()
+            self.stdout.write(f"Found {all_teams.count()} total teams")
+
+            # Get teams KHCC Brain hasn't joined
+            new_teams = Team.objects.exclude(
+                memberships__user=KHCC_brain_user
+            )
+            self.stdout.write(f"Found {new_teams.count()} teams to join")
+
+            # Join each team
+            for team in new_teams:
+                try:
+                    membership = TeamMembership.objects.create(
+                        team=team,
+                        user=KHCC_brain_user,
+                        role='ai_assistant',
+                        is_approved=True
+                    )
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Successfully joined team: {team.name}")
+                    )
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(f"Error joining team {team.name}: {str(e)}")
+                    )
+
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f"Error: {str(e)}")
+            )
+
+# Contents from: .\management\commands\run_khcc_brain.py
+# projects/management/commands/run_khcc_brain.py
+
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+from django.db.models import Q
+from django.conf import settings
+from projects.models import (
+    Project, Comment, Team, TeamMembership, 
+    TeamDiscussion, TeamComment, KHCCBrain, Notification
+)
+from datetime import timedelta
+import logging
+import openai
+import re
+
+logger = logging.getLogger(__name__)
+
+class Command(BaseCommand):
+    help = 'Runs KHCC Brain AI agent to analyze projects and participate in team discussions'
+
+    def get_openai_response(self, prompt):
+        """Get response from OpenAI API"""
+        try:
+            openai.api_key = settings.OPENAI_API_KEY
+            
+            response = openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are KHCC Brain, an AI research assistant at King Hussein Cancer Center, specializing in healthcare AI. Your responses should be encouraging, specific to healthcare AI, and focused on advancing medical research and patient care at KHCC. Use Markdown formatting in your responses."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=400,
+                temperature=0.7
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Ensure content starts and ends with markdown formatting
+            if not content.startswith('# ') and not content.startswith('## '):
+                content = f"## KHCC Brain Analysis\n\n{content}"
+                
+            if not "Best regards,\nKHCC Brain 🤖" in content:
+                content = f"{content}\n\nBest regards,\nKHCC Brain 🤖"
+                
+            return content
+            
+        except Exception as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            return None
+
+    def notify_team_member(self, user, sender, message, project=None):
+        """Send a notification to a single team member"""
+        try:
+            Notification.objects.create(
+                recipient=user,
+                sender=sender,
+                notification_type='comment',
+                project=project,
+                message=message
+            )
+        except Exception as e:
+            logger.error(f"Error sending notification to user {user.id}: {str(e)}")
+
+    def should_comment_on_discussion(self, discussion, khcc_brain_user, last_hour):
+        """Check if KHCC Brain should comment on this discussion"""
+        latest_comments = discussion.comments.filter(
+            created_at__gte=last_hour
+        ).order_by('-created_at')
+        
+        # If there are no recent comments, check if it's a new discussion
+        if not latest_comments.exists() and discussion.created_at < last_hour:
+            return False
+            
+        # Check if KHCC Brain already commented on recent activity
+        brain_commented = latest_comments.filter(author=khcc_brain_user).exists()
+        return not brain_commented
+
+    def analyze_discussion(self, discussion, khcc_brain_user):
+        """Generate AI-powered analysis of discussion"""
+        # Get discussion content and recent comments
+        comments = discussion.comments.order_by('created_at')
+        comments_text = "\n".join([
+            f"{comment.author.username}: {comment.content}"
+            for comment in comments
+        ])
+        
+        prompt = f"""
+        Analyze this healthcare AI discussion at KHCC and provide constructive feedback.
+        Use Markdown formatting in your response.
+
+        Discussion Title: {discussion.title}
+        Initial Post: {discussion.content}
+
+        Recent Comments:
+        {comments_text}
+
+        Provide specific feedback that:
+        1. Addresses the healthcare AI aspects discussed
+        2. Suggests potential applications at KHCC
+        3. Identifies collaboration opportunities
+        4. Proposes concrete next steps
+
+        Keep your response:
+        - Specific to KHCC and healthcare
+        - Uses proper Markdown syntax with headers and bullet points
+        - Encouraging and constructive
+        - Under 200 words
+        - End with "Best regards, KHCC Brain 🤖"
+        """
+        
+        response = self.get_openai_response(prompt)
+        if not response:
+            return self.get_fallback_response("discussion")
+        return response
+
+    def analyze_project(self, project):
+        """Generate AI-powered analysis of project"""
+        # Get project details and recent comments
+        comments = project.comments.order_by('-created_at')[:5]
+        comments_text = "\n".join([
+            f"{comment.user.username}: {comment.content}"
+            for comment in comments
+        ])
+        
+        prompt = f"""
+         Analyze this healthcare AI project at KHCC and provide constructive feedback using Markdown formatting.
+
+
+        Project Title: {project.title}
+        Description: {project.description}
+        Recent Comments:
+        {comments_text}
+
+        
+        Provide specific feedback that:
+        1. Evaluates the potential impact on KHCC's healthcare delivery
+        2. Identifies technical considerations in the medical context
+        3. Suggests collaboration opportunities within KHCC
+        4. Proposes concrete next steps for development
+        5. Uses proper Markdown syntax with headers and bullet points
+
+        Keep your response:
+        - Healthcare-focused and KHCC-specific
+        - Technical yet accessible
+        - Encouraging and constructive
+        - Under 200 words
+        - End with "Best regards, KHCC Brain 🤖"
+        """
+        
+        response = self.get_openai_response(prompt)
+        if not response:
+            return self.get_fallback_response("project")
+        return response
+
+    def get_fallback_response(self, type):
+        """Get fallback response when OpenAI is unavailable"""
+        if type == "discussion":
+            return """
+## KHCC Brain Analysis
+
+Thank you for this engaging discussion about AI in healthcare! Let me share some thoughts:
+
+### Key points to consider:
+* The potential impact on patient care at KHCC
+* Technical implementation considerations in our healthcare setting
+* Opportunities for collaboration within KHCC
+* Integration with existing hospital systems
+
+I'm here to help facilitate further discussion and provide technical insights.
+
+Best regards,
+KHCC Brain 🤖
+            """
+        else:
+            return """
+## Project Analysis
+
+Thank you for sharing this healthcare AI project at KHCC! Here are my initial thoughts:
+
+### Key Considerations:
+* This project shows promising potential for improving healthcare outcomes at KHCC
+* There are interesting technical challenges to explore within our healthcare context
+* Consider integration possibilities with existing clinical workflows at KHCC
+* There might be valuable collaboration opportunities within our institution
+
+I'm here to help guide the development and provide technical insights as needed.
+
+Best regards,
+KHCC Brain 🤖
+            """
+
+    def check_discussions(self, khcc_brain_user):
+        """Check and respond to team discussions from the last hour"""
+        last_hour = timezone.now() - timedelta(hours=1)
+        
+        recent_discussions = TeamDiscussion.objects.filter(
+            Q(created_at__gte=last_hour) |
+            Q(comments__created_at__gte=last_hour)
+        ).distinct()
+
+        processed_count = 0
+        for discussion in recent_discussions:
+            try:
+                if self.should_comment_on_discussion(discussion, khcc_brain_user, last_hour):
+                    # Get AI-powered feedback
+                    feedback = self.analyze_discussion(discussion, khcc_brain_user)
+                    
+                    # Create comment
+                    comment = TeamComment.objects.create(
+                        discussion=discussion,
+                        author=khcc_brain_user,
+                        content=feedback
+                    )
+                    
+                    # Notify team members individually
+                    for membership in discussion.team.memberships.exclude(user=khcc_brain_user):
+                        self.notify_team_member(
+                            membership.user,
+                            khcc_brain_user,
+                            f"KHCC Brain commented on discussion: {discussion.title}"
+                        )
+                    
+                    processed_count += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Added feedback to discussion: {discussion.title}")
+                    )
+
+            except Exception as e:
+                logger.error(f"Error processing discussion {discussion.id}: {str(e)}")
+        
+        return processed_count
+
+    def check_projects(self, khcc_brain_user):
+        """Check and respond to project updates from the last hour"""
+        last_hour = timezone.now() - timedelta(hours=1)
+        
+        recent_projects = Project.objects.filter(
+            Q(created_at__gte=last_hour) |
+            Q(comments__created_at__gte=last_hour)
+        ).exclude(
+            comments__user=khcc_brain_user,
+            comments__created_at__gte=last_hour
+        ).distinct()
+
+        processed_count = 0
+        for project in recent_projects:
+            try:
+                # Get AI-powered feedback
+                feedback = self.analyze_project(project)
+                
+                Comment.objects.create(
+                    project=project,
+                    user=khcc_brain_user,
+                    content=feedback
+                )
+
+                self.notify_team_member(
+                    project.author,
+                    khcc_brain_user,
+                    f"KHCC Brain analyzed your seed: {project.title}",
+                    project=project
+                )
+
+                processed_count += 1
+                self.stdout.write(
+                    self.style.SUCCESS(f"Added feedback to project: {project.title}")
+                )
+
+            except Exception as e:
+                logger.error(f"Error processing project {project.id}: {str(e)}")
+        
+        return processed_count
+
+    def join_new_teams(self, khcc_brain_user):
+        """Join new teams that KHCC Brain isn't part of yet"""
+        try:
+            # Get teams KHCC Brain hasn't joined
+            new_teams = Team.objects.filter(
+                ~Q(memberships__user=khcc_brain_user)
+            ).distinct()
+
+            joined_count = 0
+            for team in new_teams:
+                try:
+                    # Check if already a member
+                    if TeamMembership.objects.filter(team=team, user=khcc_brain_user).exists():
+                        continue
+
+                    # Create membership
+                    membership = TeamMembership.objects.create(
+                        team=team,
+                        user=khcc_brain_user,
+                        role='member',
+                        is_approved=True
+                    )
+
+                    # Create welcome message
+                    welcome_message = f"""
+## Welcome to {team.name}! 👋
+
+I am KHCC Brain, your AI research assistant, and I'm excited to join this team. I specialize in healthcare AI and I'm here to:
+
+* Analyze discussions and provide insights about healthcare AI
+* Suggest potential research directions in cancer care
+* Identify collaboration opportunities within KHCC
+* Provide technical insights for medical AI applications
+
+Feel free to tag me in any discussions where you'd like my input. I'll be actively monitoring our conversations and contributing where I can add value to KHCC's mission.
+
+Looking forward to collaborating with everyone on advancing healthcare through AI!
+
+Best regards,
+KHCC Brain 🤖
+                    """
+
+                    try:
+                        # Create welcome discussion
+                        discussion = TeamDiscussion.objects.create(
+                            team=team,
+                            author=khcc_brain_user,
+                            title="KHCC Brain Introduction",
+                            content=welcome_message
+                        )
+
+                        # Notify team members
+                        existing_members = TeamMembership.objects.filter(
+                            team=team
+                        ).exclude(user=khcc_brain_user)
+
+                        for member in existing_members:
+                            try:
+                                self.notify_team_member(
+                                    member.user,
+                                    khcc_brain_user,
+                                    f"KHCC Brain has joined {team.name} as an AI assistant"
+                                )
+                            except Exception as notify_error:
+                                logger.error(f"Error notifying member {member.user.id}: {str(notify_error)}")
+
+                    except Exception as disc_error:
+                        logger.error(f"Error creating welcome discussion: {str(disc_error)}")
+
+                    joined_count += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Successfully joined team: {team.name}")
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error joining team {team.name}: {str(e)}")
+                    continue
+
+            return joined_count
+
+        except Exception as e:
+            logger.error(f"Error in join_new_teams: {str(e)}")
+            return 0
+
+    def check_discussions(self, khcc_brain_user):
+        """Check and respond to team discussions from the last hour"""
+        last_hour = timezone.now() - timedelta(hours=1)
+        
+        # Get recent discussions
+        recent_discussions = TeamDiscussion.objects.filter(
+            Q(created_at__gte=last_hour) |
+            Q(comments__created_at__gte=last_hour)
+        ).distinct()
+
+        processed_count = 0
+        for discussion in recent_discussions:
+            try:
+                if self.should_comment_on_discussion(discussion, khcc_brain_user, last_hour):
+                    # Get AI-powered feedback
+                    feedback = self.analyze_discussion(discussion, khcc_brain_user)
+                    
+                    # Create comment
+                    comment = TeamComment.objects.create(
+                        discussion=discussion,
+                        author=khcc_brain_user,
+                        content=feedback
+                    )
+                    
+                    # Notify team members individually
+                    team_members = TeamMembership.objects.filter(
+                        team=discussion.team
+                    ).exclude(user=khcc_brain_user)
+
+                    for member in team_members:
+                        try:
+                            self.notify_team_member(
+                                member.user,
+                                khcc_brain_user,
+                                f"KHCC Brain commented on discussion: {discussion.title}"
+                            )
+                        except Exception as notify_error:
+                            logger.error(f"Error notifying member about discussion: {str(notify_error)}")
+                    
+                    processed_count += 1
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Added feedback to discussion: {discussion.title}")
+                    )
+
+            except Exception as e:
+                logger.error(f"Error processing discussion {discussion.id}: {str(e)}")
+                continue
+        
+        return processed_count
+
+    def handle(self, *args, **options):
+        try:
+            start_time = timezone.now()
+            
+            # Get or create KHCC Brain instance
+            khcc_brain = KHCCBrain.objects.first()
+            if not khcc_brain:
+                khcc_brain = KHCCBrain.objects.create()
+                self.stdout.write('Created new KHCC Brain instance')
+
+            # Get KHCC Brain user
+            khcc_brain_user = KHCCBrain.get_user()
+            
+            # First, join any new teams
+            self.stdout.write("Checking for new teams to join...")
+            teams_joined = self.join_new_teams(khcc_brain_user)
+            
+            # Check and respond to team discussions
+            self.stdout.write("Checking team discussions from the last hour...")
+            discussions_processed = self.check_discussions(khcc_brain_user)
+            
+            # Check and respond to project updates
+            self.stdout.write("Checking project updates from the last hour...")
+            projects_processed = self.check_projects(khcc_brain_user)
+            
+            # Update brain's last active timestamp
+            khcc_brain.last_active = timezone.now()
+            khcc_brain.save()
+            
+            # Calculate runtime
+            runtime = timezone.now() - start_time
+            
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"KHCC Brain analysis complete!\n"
+                    f"Time taken: {runtime.total_seconds():.2f} seconds\n"
+                    f"New teams joined: {teams_joined}\n"
+                    f"Discussions processed: {discussions_processed}\n"
+                    f"Projects processed: {projects_processed}"
+                )
+            )
+
+        except Exception as e:
+            logger.error(f"Critical error in KHCC Brain execution: {str(e)}")
+            raise
+
+# Contents from: .\management\commands\send_welcome_messages.py
+# projects/management/commands/send_welcome_messages.py
+
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+from projects.models import (
+    Team, 
+    TeamMembership, 
+    KHCCBrain,
+    TeamDiscussion,
+    User
+)
+
+class Command(BaseCommand):
+    help = 'Sends welcome messages to teams KHCC Brain has joined'
+
+    def handle(self, *args, **options):
+        self.stdout.write("\n=== Starting Welcome Messages Process ===")
+        
+        try:
+            # Get KHCC Brain user
+            KHCC_brain_user = User.objects.get(username='KHCC_brain')
+            
+            # Get teams where KHCC Brain is a member
+            memberships = TeamMembership.objects.filter(user=KHCC_brain_user)
+            
+            for membership in memberships:
+                team = membership.team
+                
+                # Check if welcome message already exists
+                existing_welcome = TeamDiscussion.objects.filter(
+                    team=team,
+                    author=KHCC_brain_user,
+                    title="KHCC Brain Introduction"
+                ).exists()
+                
+                if not existing_welcome:
+                    # Create welcome message
+                    welcome_message = f"""
+Hello {team.name} team! 👋
+
+I'm KHCC Brain, your AI research assistant, and I'm excited to join this team. I'm here to help with:
+
+• Analyzing discussions and providing insights
+• Suggesting potential research directions
+• Offering relevant healthcare AI perspectives
+• Identifying collaboration opportunities
+
+Feel free to mention me in any discussions where you'd like my input. I'll be actively monitoring our team's conversations and contributing where I can help most.
+
+Looking forward to collaborating with everyone!
+
+Best regards,
+KHCC Brain 🤖
+                    """
+                    
+                    discussion = TeamDiscussion.objects.create(
+                        team=team,
+                        author=KHCC_brain_user,
+                        title="KHCC Brain Introduction",
+                        content=welcome_message
+                    )
+                    
+                    self.stdout.write(self.style.SUCCESS(
+                        f"✓ Posted welcome message to team: {team.name}"
+                    ))
+                else:
+                    self.stdout.write(f"Welcome message already exists for team: {team.name}")
+                    
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error: {str(e)}"))
+            
+        self.stdout.write("\n=== Welcome Messages Process Complete ===")
 
 # Contents from: .\migrations\0001_initial.py
 # Generated by Django 5.1.3 on 2024-11-17 21:54
@@ -1791,6 +3304,1334 @@ class Migration(migrations.Migration):
     ]
 
 
+# Contents from: .\migrations\0010_userprofile_email_on_bookmark_and_more.py
+# Generated by Django 5.1.3 on 2024-11-18 14:33
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0009_follow"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="userprofile",
+            name="email_on_bookmark",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name="userprofile",
+            name="email_on_clap",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name="userprofile",
+            name="email_on_comment",
+            field=models.BooleanField(default=True),
+        ),
+        migrations.AddField(
+            model_name="userprofile",
+            name="email_on_follow",
+            field=models.BooleanField(default=True),
+        ),
+        migrations.AddField(
+            model_name="userprofile",
+            name="twitter_username",
+            field=models.CharField(blank=True, max_length=100),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0011_alter_project_github_link.py
+# Generated by Django 5.1.3 on 2024-11-18 15:11
+
+import django.core.validators
+import projects.models
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0010_userprofile_email_on_bookmark_and_more"),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name="project",
+            name="github_link",
+            field=models.URLField(
+                blank=True,
+                null=True,
+                validators=[
+                    django.core.validators.URLValidator(),
+                    projects.models.validate_github_url,
+                ],
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0012_alter_project_slug.py
+# Generated by Django 5.1.3 on 2024-11-18 15:14
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0011_alter_project_github_link"),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name="project",
+            name="slug",
+            field=models.SlugField(blank=True, max_length=255, unique=True),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0013_project_total_ratings.py
+# Generated by Django 5.1.3 on 2024-11-18 15:49
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0012_alter_project_slug"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="project",
+            name="total_ratings",
+            field=models.PositiveIntegerField(default=0),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0014_rename_total_ratings_project_rating_count_and_more.py
+# Generated by Django 5.1.3 on 2024-11-18 15:54
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0013_project_total_ratings"),
+    ]
+
+    operations = [
+        migrations.RenameField(
+            model_name="project",
+            old_name="total_ratings",
+            new_name="rating_count",
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="rating_total",
+            field=models.DecimalField(decimal_places=2, default=0, max_digits=5),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0015_userprofile_department_and_more.py
+# Generated by Django 5.1.3 on 2024-11-18 17:14
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0014_rename_total_ratings_project_rating_count_and_more"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="userprofile",
+            name="department",
+            field=models.CharField(blank=True, max_length=100),
+        ),
+        migrations.AddField(
+            model_name="userprofile",
+            name="research_interests",
+            field=models.TextField(blank=True),
+        ),
+        migrations.AddField(
+            model_name="userprofile",
+            name="title",
+            field=models.CharField(blank=True, max_length=100),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0016_rename_claps_project_clap_count_alter_clap_project_and_more.py
+# Generated by Django 5.1.3 on 2024-11-18 17:18
+
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0015_userprofile_department_and_more"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.RenameField(
+            model_name="project",
+            old_name="claps",
+            new_name="clap_count",
+        ),
+        migrations.AlterField(
+            model_name="clap",
+            name="project",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="claps",
+                to="projects.project",
+            ),
+        ),
+        migrations.AlterField(
+            model_name="clap",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="user_claps",
+                to=settings.AUTH_USER_MODEL,
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0017_comment_clap_count_commentclap.py
+# Generated by Django 5.1.3 on 2024-11-19 07:21
+
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('projects', '0016_rename_claps_project_clap_count_alter_clap_project_and_more'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name='comment',
+            name='clap_count',
+            field=models.IntegerField(default=0),
+        ),
+        migrations.CreateModel(
+            name='CommentClap',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('comment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='claps', to='projects.comment')),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comment_claps', to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'unique_together': {('comment', 'user')},
+            },
+        ),
+    ]
+
+
+# Contents from: .\migrations\0018_project_youtube_url.py
+# Generated by Django 5.1.3 on 2024-11-19 15:40
+
+import projects.models
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0017_comment_clap_count_commentclap"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="project",
+            name="youtube_url",
+            field=models.URLField(
+                blank=True,
+                help_text="Link to a YouTube video for your project",
+                null=True,
+                validators=[projects.models.validate_youtube_url],
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0019_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:11
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0018_project_youtube_url"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="userprofile",
+            name="talent_type",
+            field=models.CharField(
+                choices=[
+                    ("ai", "AI Talent"),
+                    ("healthcare", "Healthcare Talent"),
+                    ("quality", "Quality Talent"),
+                    ("engineering", "Engineering Talent"),
+                    ("planning", "Planning Talent"),
+                    ("design", "Design Talent"),
+                    ("lab", "Lab Talent"),
+                    ("extra", "Extra Talent"),
+                ],
+                default="ai",
+                max_length=20,
+                verbose_name="Talent Type",
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0020_remove_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:16
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0019_userprofile_talent_type"),
+    ]
+
+    operations = [
+        migrations.RemoveField(
+            model_name="userprofile",
+            name="talent_type",
+        ),
+    ]
+
+
+# Contents from: .\migrations\0021_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:19
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0020_remove_userprofile_talent_type"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="userprofile",
+            name="talent_type",
+            field=models.CharField(
+                choices=[
+                    ("ai", "AI Talent"),
+                    ("healthcare", "Healthcare Talent"),
+                    ("quality", "Quality Talent"),
+                    ("engineering", "Engineering Talent"),
+                    ("planner", "Planner Talent"),
+                    ("design", "Design Talent"),
+                    ("lab", "Lab Talent"),
+                ],
+                default="ai",
+                max_length=20,
+                verbose_name="Talent Type",
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0022_alter_userprofile_talent_type.py
+# Generated by Django 5.1.3 on 2024-11-19 17:21
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0021_userprofile_talent_type"),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name="userprofile",
+            name="talent_type",
+            field=models.CharField(
+                choices=[
+                    ("ai", "AI Talent"),
+                    ("healthcare", "Healthcare Talent"),
+                    ("quality", "Quality Talent"),
+                    ("engineering", "Engineering Talent"),
+                    ("planning", "Planning Talent"),
+                    ("design", "Design Talent"),
+                    ("lab", "Lab Talent"),
+                    ("extra", "Extra Talent"),
+                ],
+                default="ai",
+                max_length=20,
+                verbose_name="Talent Type",
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0023_project_deadline_project_is_completed_and_more.py
+# Generated by Django 5.1.3 on 2024-11-19 17:39
+
+import django.core.validators
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0022_alter_userprofile_talent_type"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="project",
+            name="deadline",
+            field=models.DateTimeField(blank=True, null=True),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="is_completed",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="is_gold",
+            field=models.BooleanField(
+                default=False, help_text="Mark this as a Gold Seed (Faculty only)"
+            ),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="reward_type",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("all", "All Complete"),
+                    ("first", "First to Complete"),
+                    ("best", "Best Solution"),
+                ],
+                max_length=10,
+                null=True,
+            ),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="token_reward",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Number of tokens awarded for completion",
+                null=True,
+            ),
+        ),
+        migrations.CreateModel(
+            name="Solution",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("content", models.TextField()),
+                (
+                    "files",
+                    models.FileField(
+                        blank=True,
+                        null=True,
+                        upload_to="solutions/",
+                        validators=[
+                            django.core.validators.FileExtensionValidator(
+                                allowed_extensions=[
+                                    "pdf",
+                                    "doc",
+                                    "docx",
+                                    "zip",
+                                    "py",
+                                    "ipynb",
+                                    "txt",
+                                ]
+                            )
+                        ],
+                    ),
+                ),
+                ("github_link", models.URLField(blank=True, null=True)),
+                ("submitted_at", models.DateTimeField(auto_now_add=True)),
+                ("is_approved", models.BooleanField(default=False)),
+                ("faculty_feedback", models.TextField(blank=True)),
+                ("tokens_awarded", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "project",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="solutions",
+                        to="projects.project",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+            options={
+                "unique_together": {("project", "user")},
+            },
+        ),
+    ]
+
+
+# Contents from: .\migrations\0024_rename_reward_type_project_gold_goal.py
+# Generated by Django 5.1.3 on 2024-11-19 17:56
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0023_project_deadline_project_is_completed_and_more"),
+    ]
+
+    operations = [
+        migrations.RenameField(
+            model_name="project",
+            old_name="reward_type",
+            new_name="gold_goal",
+        ),
+    ]
+
+
+# Contents from: .\migrations\0025_team_teamanalytics_teamdiscussion_teamcomment_and_more.py
+# Generated by Django 5.1.3 on 2024-11-19 19:23
+
+import django.core.validators
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0024_rename_reward_type_project_gold_goal"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="Team",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, unique=True)),
+                ("slug", models.SlugField(blank=True, max_length=255, unique=True)),
+                ("description", models.TextField()),
+                (
+                    "tags",
+                    models.CharField(
+                        blank=True,
+                        help_text="Enter tags separated by commas",
+                        max_length=200,
+                    ),
+                ),
+                (
+                    "max_members",
+                    models.PositiveIntegerField(
+                        default=1,
+                        validators=[django.core.validators.MaxValueValidator(50)],
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "founder",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="founded_teams",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+        ),
+        migrations.CreateModel(
+            name="TeamAnalytics",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("total_discussions", models.PositiveIntegerField(default=0)),
+                ("total_comments", models.PositiveIntegerField(default=0)),
+                ("active_members", models.PositiveIntegerField(default=0)),
+                ("last_activity", models.DateTimeField(blank=True, null=True)),
+                ("discussions_this_week", models.PositiveIntegerField(default=0)),
+                ("comments_this_week", models.PositiveIntegerField(default=0)),
+                ("discussions_this_month", models.PositiveIntegerField(default=0)),
+                ("comments_this_month", models.PositiveIntegerField(default=0)),
+                (
+                    "team",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="analytics",
+                        to="projects.team",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name_plural": "Team analytics",
+            },
+        ),
+        migrations.CreateModel(
+            name="TeamDiscussion",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("content", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("pinned", models.BooleanField(default=False)),
+                (
+                    "author",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "team",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="discussions",
+                        to="projects.team",
+                    ),
+                ),
+            ],
+            options={
+                "ordering": ["-pinned", "-created_at"],
+            },
+        ),
+        migrations.CreateModel(
+            name="TeamComment",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("content", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "author",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "discussion",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="comments",
+                        to="projects.teamdiscussion",
+                    ),
+                ),
+            ],
+            options={
+                "ordering": ["created_at"],
+            },
+        ),
+        migrations.CreateModel(
+            name="TeamMembership",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("founder", "Team Founder"),
+                            ("moderator", "Team Moderator"),
+                            ("member", "Team Member"),
+                        ],
+                        default="member",
+                        max_length=20,
+                    ),
+                ),
+                ("is_approved", models.BooleanField(default=False)),
+                ("joined_at", models.DateTimeField(auto_now_add=True)),
+                ("notification_preferences", models.JSONField(default=dict)),
+                (
+                    "team",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="memberships",
+                        to="projects.team",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="team_memberships",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+            options={
+                "ordering": ["joined_at"],
+                "unique_together": {("team", "user")},
+            },
+        ),
+    ]
+
+
+# Contents from: .\migrations\0026_alter_teammembership_options_and_more.py
+# Generated by Django 5.1.3 on 2024-11-19 19:40
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0025_team_teamanalytics_teamdiscussion_teamcomment_and_more"),
+    ]
+
+    operations = [
+        migrations.AlterModelOptions(
+            name="teammembership",
+            options={},
+        ),
+        migrations.RenameField(
+            model_name="teammembership",
+            old_name="joined_at",
+            new_name="created_at",
+        ),
+        migrations.RemoveField(
+            model_name="teammembership",
+            name="notification_preferences",
+        ),
+        migrations.AddField(
+            model_name="teammembership",
+            name="updated_at",
+            field=models.DateTimeField(auto_now=True),
+        ),
+        migrations.AlterField(
+            model_name="teammembership",
+            name="role",
+            field=models.CharField(
+                choices=[
+                    ("founder", "Founder"),
+                    ("moderator", "Moderator"),
+                    ("member", "Member"),
+                ],
+                default="member",
+                max_length=10,
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0027_alter_team_options_remove_team_max_members_and_more.py
+# Generated by Django 5.1.3 on 2024-11-19 19:45
+
+import projects.models
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0026_alter_teammembership_options_and_more"),
+    ]
+
+    operations = [
+        migrations.AlterModelOptions(
+            name="team",
+            options={"ordering": ["-created_at"]},
+        ),
+        migrations.RemoveField(
+            model_name="team",
+            name="max_members",
+        ),
+        migrations.AddField(
+            model_name="team",
+            name="team_image",
+            field=models.ImageField(
+                blank=True,
+                help_text="Upload a team profile image",
+                null=True,
+                upload_to=projects.models.team_image_upload_path,
+            ),
+        ),
+        migrations.AlterField(
+            model_name="team",
+            name="name",
+            field=models.CharField(max_length=100),
+        ),
+        migrations.AlterField(
+            model_name="team",
+            name="slug",
+            field=models.SlugField(blank=True, max_length=100, unique=True),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0028_dataset_product_sponsorship_tool_and_more.py
+# Generated by Django 5.1.3 on 2024-11-21 03:30
+
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0027_alter_team_options_remove_team_max_members_and_more"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="Dataset",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("description", models.TextField()),
+                ("file", models.FileField(upload_to="datasets/")),
+                ("size", models.BigIntegerField()),
+                ("format", models.CharField(max_length=50)),
+                ("license", models.CharField(max_length=100)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("downloads", models.IntegerField(default=0)),
+            ],
+        ),
+        migrations.CreateModel(
+            name="Product",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("description", models.TextField()),
+                ("image", models.ImageField(upload_to="product_images/")),
+                ("url", models.URLField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+            ],
+        ),
+        migrations.CreateModel(
+            name="Sponsorship",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("logo", models.ImageField(upload_to="sponsor_logos/")),
+                (
+                    "level",
+                    models.CharField(
+                        choices=[
+                            ("bronze", "Bronze"),
+                            ("silver", "Silver"),
+                            ("gold", "Gold"),
+                            ("platinum", "Platinum"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("website", models.URLField()),
+                ("description", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+            ],
+        ),
+        migrations.CreateModel(
+            name="Tool",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("description", models.TextField()),
+                ("image", models.ImageField(upload_to="tool_images/")),
+                ("url", models.URLField()),
+                ("github_url", models.URLField(blank=True)),
+                ("documentation_url", models.URLField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+            ],
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="generated_tags",
+            field=models.TextField(blank=True),
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="is_featured",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.CreateModel(
+            name="Application",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("faculty", "Faculty"),
+                            ("sponsor", "Sponsor"),
+                            ("startup", "Startup"),
+                            ("student", "Student"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("approved", "Approved"),
+                            ("rejected", "Rejected"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "resume",
+                    models.FileField(blank=True, null=True, upload_to="applications/"),
+                ),
+                ("cover_letter", models.TextField()),
+                ("additional_info", models.JSONField(default=dict)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+        ),
+        migrations.CreateModel(
+            name="Startup",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("logo", models.ImageField(upload_to="startup_logos/")),
+                ("description", models.TextField()),
+                ("website", models.URLField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "founder",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "products",
+                    models.ManyToManyField(
+                        related_name="startups", to="projects.product"
+                    ),
+                ),
+            ],
+        ),
+        migrations.CreateModel(
+            name="VirtualMember",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("avatar", models.ImageField(upload_to="virtual_members/")),
+                ("specialty", models.CharField(max_length=100)),
+                ("description", models.TextField()),
+                (
+                    "projects",
+                    models.ManyToManyField(
+                        related_name="virtual_team_members", to="projects.project"
+                    ),
+                ),
+            ],
+        ),
+        migrations.AddField(
+            model_name="project",
+            name="virtual_members",
+            field=models.ManyToManyField(
+                related_name="assigned_projects", to="projects.virtualmember"
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0029_rename_resume_application_attachment_and_more.py
+# Generated by Django 5.1.3 on 2024-11-21 04:14
+
+import django.utils.timezone
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0028_dataset_product_sponsorship_tool_and_more"),
+    ]
+
+    operations = [
+        migrations.RenameField(
+            model_name="application",
+            old_name="resume",
+            new_name="attachment",
+        ),
+        migrations.RenameField(
+            model_name="application",
+            old_name="cover_letter",
+            new_name="message",
+        ),
+        migrations.RemoveField(
+            model_name="application",
+            name="additional_info",
+        ),
+        migrations.RemoveField(
+            model_name="application",
+            name="status",
+        ),
+        migrations.RemoveField(
+            model_name="application",
+            name="type",
+        ),
+        migrations.RemoveField(
+            model_name="application",
+            name="user",
+        ),
+        migrations.AddField(
+            model_name="application",
+            name="email",
+            field=models.EmailField(default=django.utils.timezone.now, max_length=254),
+            preserve_default=False,
+        ),
+        migrations.AddField(
+            model_name="application",
+            name="level",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("bronze", "Bronze"),
+                    ("silver", "Silver"),
+                    ("gold", "Gold"),
+                    ("platinum", "Platinum"),
+                ],
+                max_length=20,
+                null=True,
+            ),
+        ),
+        migrations.AddField(
+            model_name="application",
+            name="name",
+            field=models.CharField(default=django.utils.timezone.now, max_length=200),
+            preserve_default=False,
+        ),
+        migrations.AddField(
+            model_name="application",
+            name="organization",
+            field=models.CharField(blank=True, max_length=200, null=True),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0030_application_additional_info_application_cover_letter_and_more.py
+# Generated by Django 5.1.3 on 2024-11-21 04:15
+
+import django.utils.timezone
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0029_rename_resume_application_attachment_and_more"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="application",
+            name="additional_info",
+            field=models.TextField(blank=True, null=True),
+        ),
+        migrations.AddField(
+            model_name="application",
+            name="cover_letter",
+            field=models.FileField(
+                blank=True, null=True, upload_to="applications/cover_letters/"
+            ),
+        ),
+        migrations.AddField(
+            model_name="application",
+            name="resume",
+            field=models.FileField(
+                blank=True, null=True, upload_to="applications/resumes/"
+            ),
+        ),
+        migrations.AddField(
+            model_name="application",
+            name="type",
+            field=models.CharField(
+                choices=[("sponsor", "Sponsor"), ("team", "Team Member")],
+                default=django.utils.timezone.now,
+                max_length=20,
+            ),
+            preserve_default=False,
+        ),
+        migrations.AlterField(
+            model_name="application",
+            name="attachment",
+            field=models.FileField(
+                blank=True, null=True, upload_to="applications/attachments/"
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0031_alter_application_options_and_more.py
+# Generated by Django 5.1.3 on 2024-11-21 04:19
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        (
+            "projects",
+            "0030_application_additional_info_application_cover_letter_and_more",
+        ),
+    ]
+
+    operations = [
+        migrations.AlterModelOptions(
+            name="application",
+            options={"ordering": ["-created_at"]},
+        ),
+        migrations.RemoveField(
+            model_name="application",
+            name="additional_info",
+        ),
+        migrations.RemoveField(
+            model_name="application",
+            name="cover_letter",
+        ),
+        migrations.RemoveField(
+            model_name="application",
+            name="resume",
+        ),
+        migrations.AlterField(
+            model_name="application",
+            name="attachment",
+            field=models.FileField(
+                blank=True,
+                help_text="PDF format preferred, max 10MB",
+                null=True,
+                upload_to="applications/",
+            ),
+        ),
+        migrations.AlterField(
+            model_name="application",
+            name="message",
+            field=models.TextField(
+                help_text="Tell us about yourself or your organization"
+            ),
+        ),
+    ]
+
+
+# Contents from: .\migrations\0032_khccbrain.py
+# Generated by Django 5.1.3 on 2024-11-21 21:56
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0031_alter_application_options_and_more"),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="KHCCBrain",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("last_active", models.DateTimeField(auto_now=True)),
+                ("total_comments", models.IntegerField(default=0)),
+            ],
+            options={
+                "verbose_name": "KHCC Brain",
+                "verbose_name_plural": "KHCC Brain Instances",
+            },
+        ),
+    ]
+
+
+# Contents from: .\migrations\0033_khccbrain_description_khccbrain_name.py
+# Generated by Django 5.1.3 on 2024-11-22 04:15
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("projects", "0032_khccbrain"),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name="khccbrain",
+            name="description",
+            field=models.CharField(
+                default="AI Research Assistant & Team Mentor", max_length=100
+            ),
+        ),
+        migrations.AddField(
+            model_name="khccbrain",
+            name="name",
+            field=models.CharField(default="KHCC Brain", max_length=50),
+        ),
+    ]
+
+
 # Contents from: .\migrations\__init__.py
 
 
@@ -1806,6 +4647,24 @@ from datetime import timedelta
 import os
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import uuid
+from django.db.models import Avg
+from django.conf import settings
+from khcc_psut_ai_lab.constants import TALENT_TYPES
+from django.utils import timezone
+import openai
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from .services import OpenAITaggingService
+
+
+            
+# Add these constants
+gold_goalS = [
+    ('all', 'All Complete'),
+    ('first', 'First to Complete'),
+    ('best', 'Best Solution')
+]
 
 # File Upload Path Functions
 def validate_github_url(value):
@@ -1828,21 +4687,65 @@ def comment_image_upload_path(instance, filename):
     """Generate upload path for comment images"""
     return f'images/comments/user_{instance.user.id}/{filename}'
 
+# Add to models.py
+from urllib.parse import urlparse, parse_qs
+
+def validate_youtube_url(url):
+    if not url:
+        return
+    
+    try:
+        parsed = urlparse(url)
+        if parsed.hostname not in ['www.youtube.com', 'youtube.com', 'youtu.be']:
+            raise ValidationError('Only YouTube URLs are allowed')
+            
+        if parsed.hostname in ['youtube.com', 'www.youtube.com']:
+            if not parsed.path.startswith('/watch'):
+                raise ValidationError('Invalid YouTube URL format')
+            if not parse_qs(parsed.query).get('v'):
+                raise ValidationError('Invalid YouTube URL format')
+        elif parsed.hostname == 'youtu.be':
+            if not parsed.path[1:]:
+                raise ValidationError('Invalid YouTube URL format')
+    except Exception:
+        raise ValidationError('Invalid YouTube URL')
+    
+class VirtualMember(models.Model):
+    name = models.CharField(max_length=100)
+    avatar = models.ImageField(upload_to='virtual_members/')
+    specialty = models.CharField(max_length=100)
+    description = models.TextField()
+    projects = models.ManyToManyField('Project', related_name='virtual_team_members')
+
+    def __str__(self):
+        return self.name
+
+class Startup(models.Model):
+    name = models.CharField(max_length=200)
+    logo = models.ImageField(upload_to='startup_logos/')
+    description = models.TextField()
+    website = models.URLField()
+    founder = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    products = models.ManyToManyField('Product', related_name='startups')    
 # Models
 class Project(models.Model):
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(unique=True, max_length=255, blank=True)
     description = models.TextField()
-    github_link = models.URLField(validators=[URLValidator(), validate_github_url])
+    github_link = models.URLField(validators=[URLValidator(), validate_github_url], blank=True, null=True)
     tags = models.CharField(
         max_length=100, 
         blank=True, 
         help_text="Enter tags separated by commas"
     )
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    claps = models.IntegerField(default=0)
+    clap_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_featured = models.BooleanField(default=False)
+    virtual_members = models.ManyToManyField(VirtualMember, related_name='assigned_projects')
+    generated_tags = models.TextField(blank=True)  # AI-generated tags
     
     # File fields
     pdf_file = models.FileField(
@@ -1872,6 +4775,50 @@ class Project(models.Model):
         help_text="Upload additional files (PDF, DOC, TXT, ZIP - max 10MB)"
     )
     
+    rating_total = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    rating_count = models.PositiveIntegerField(default=0)
+
+    youtube_url = models.URLField(
+        validators=[validate_youtube_url],
+        blank=True,
+        null=True,
+        help_text="Link to a YouTube video for your project"
+    )
+    
+    # New fields for Gold Seeds
+    is_gold = models.BooleanField(default=False, help_text="Mark this as a Gold Seed (Faculty only)")
+    token_reward = models.PositiveIntegerField(
+        null=True, 
+        blank=True, 
+        help_text="Number of tokens awarded for completion"
+    )
+    gold_goal = models.CharField(
+        max_length=10,
+        choices=gold_goalS,
+        null=True,
+        blank=True
+    )
+    deadline = models.DateTimeField(null=True, blank=True)
+    is_completed = models.BooleanField(default=False)
+
+    def get_youtube_embed_url(self):
+        """Convert YouTube video URL to embed URL"""
+        if not self.youtube_url:
+            return None
+            
+        video_id = None
+        parsed = urlparse(self.youtube_url)
+        
+        if 'youtube.com' in parsed.hostname:
+            query = parse_qs(parsed.query)
+            video_id = query.get('v', [None])[0]
+        elif 'youtu.be' in parsed.hostname:
+            video_id = parsed.path.lstrip('/')
+            
+        if video_id:
+            return f"https://www.youtube.com/embed/{video_id}"
+        return None
+    
     class Meta:
         ordering = ['-created_at']
         
@@ -1880,34 +4827,63 @@ class Project(models.Model):
         
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)
-        
-        # Create upload directory if it doesn't exist
-        if not self.pk:  # Only for new instances
-            super().save(*args, **kwargs)
-            upload_dir = os.path.dirname(project_file_upload_path(self, ''))
-            os.makedirs(os.path.join('media', upload_dir), exist_ok=True)
-        else:
-            super().save(*args, **kwargs)
+            # Generate base slug from title
+            base_slug = slugify(self.title)
+            
+            # Check if the base slug exists
+            if Project.objects.filter(slug=base_slug).exists():
+                # If it exists, append a UUID to make it unique
+                base_slug = f"{base_slug}-{str(uuid.uuid4())[:8]}"
+            
+            self.slug = base_slug
+            
+        super().save(*args, **kwargs)
+    
+
+
+    @property
+    def comment_count(self):
+        """Get total number of comments"""
+        return self.comments.count()
     
     @property
     def tag_list(self):
         return [tag.strip() for tag in self.tags.split(',') if tag.strip()]
-    
-    @property
-    def comment_count(self):
-        return self.comments.count()
-        
+
     def user_has_clapped(self, user):
-        return self.claps_set.filter(user=user).exists()
+        return self.claps.filter(user=user).exists()
     
     @property
     def average_rating(self):
-        ratings = self.ratings.all()
-        if not ratings:
-            return None
-        return sum(r.score for r in ratings) / len(ratings)
+        if self.rating_count == 0:
+            return 0
+        return round(float(self.rating_total) / self.rating_count, 1)
 
+    
+    def generate_zip(self):
+        """Generate a ZIP file of the project"""
+        zip_filename = f"{self.slug}_project.zip"
+        zip_path = os.path.join(settings.MEDIA_ROOT, 'project_zips', zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w') as zip_file:
+            if self.pdf_file:
+                zip_file.write(self.pdf_file.path, os.path.basename(self.pdf_file.name))
+            if self.additional_files:
+                zip_file.write(self.additional_files.path, os.path.basename(self.additional_files.name))
+            
+            # Add README with project info
+            readme_content = f"""
+            Project: {self.title}
+            Author: {self.author.username}
+            Description: {self.description}
+            Tags: {self.tags}
+            Created: {self.created_at}
+            """
+            zip_file.writestr('README.txt', readme_content)
+        
+        return zip_path
+    
+    
     def clean(self):
         super().clean()
         # Validate file sizes
@@ -1917,6 +4893,65 @@ class Project(models.Model):
             raise ValidationError({'additional_files': 'File must be smaller than 10MB'})
         if self.featured_image and self.featured_image.size > 5 * 1024 * 1024:  # 5MB
             raise ValidationError({'featured_image': 'Image must be smaller than 5MB'})
+
+    def update_rating_stats(self):
+        """Update the rating statistics"""
+        ratings = self.ratings.all()
+        count = ratings.count()
+        if count > 0:
+            total = sum(r.score for r in ratings)
+            self.rating_total = total
+            self.rating_count = count
+        else:
+            self.rating_total = 0
+            self.rating_count = 0
+        self.save()
+
+    def get_featured_image_url(self):
+        """Get the featured image URL or return None"""
+        return self.featured_image.url if self.featured_image else None
+        
+    def get_pdf_url(self):
+        """Get the PDF file URL or return None"""
+        return self.pdf_file.url if self.pdf_file else None
+
+    def can_submit(self):
+        if not self.is_gold or not self.deadline:
+            return False
+        return timezone.now() <= self.deadline
+
+class Application(models.Model):
+    APPLICATION_TYPES = [
+        ('sponsor', 'Sponsor'),
+        ('team', 'Team Member'),
+    ]
+    
+    LEVEL_CHOICES = [
+        ('bronze', 'Bronze'),
+        ('silver', 'Silver'),
+        ('gold', 'Gold'),
+        ('platinum', 'Platinum'),
+    ]
+
+    type = models.CharField(max_length=20, choices=APPLICATION_TYPES)
+    name = models.CharField(max_length=200)
+    email = models.EmailField()
+    organization = models.CharField(max_length=200, blank=True, null=True)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, blank=True, null=True)
+    message = models.TextField(help_text="Tell us about yourself or your organization")
+    attachment = models.FileField(
+        upload_to='applications/',
+        help_text="PDF format preferred, max 10MB",
+        blank=True,
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.get_type_display()}"
 
 class Comment(models.Model):
     project = models.ForeignKey(
@@ -1941,13 +4976,19 @@ class Comment(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    clap_count = models.IntegerField(default=0)
     
     class Meta:
         ordering = ['created_at']
     
+    def user_has_clapped(self, user):
+        return self.claps.filter(user=user).exists()
+    
     def __str__(self):
         return f'Comment by {self.user.username} on {self.project.title}'
 
+
+    
 class UserProfile(models.Model):
     user = models.OneToOneField(
         User, 
@@ -1957,34 +4998,55 @@ class UserProfile(models.Model):
     bio = models.TextField(max_length=500, blank=True)
     location = models.CharField(max_length=100, blank=True)
     website = models.URLField(blank=True)
-    github_username = models.CharField(max_length=39, blank=True)
+    github_username = models.CharField(max_length=39, blank=True) 
     linkedin_url = models.URLField(blank=True)
+    twitter_username = models.CharField(max_length=100, blank=True)
     avatar = models.ImageField(
         upload_to=avatar_upload_path,
         null=True,
         blank=True
     )
+    title = models.CharField(max_length=100, blank=True)
+    department = models.CharField(max_length=100, blank=True)
+    research_interests = models.TextField(blank=True)
+    talent_type = models.CharField(
+        max_length=20,
+        choices=TALENT_TYPES,
+        default='ai',
+        verbose_name='Talent Type'
+    )
+    
+    
+    @property
+    def is_faculty(self):
+        return self.user.groups.filter(name='Faculty').exists()
+    
+    # Notification settings
+    email_on_comment = models.BooleanField(default=True)
+    email_on_follow = models.BooleanField(default=True)
+    email_on_clap = models.BooleanField(default=False)
+    email_on_bookmark = models.BooleanField(default=False)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def __str__(self):
         return f"{self.user.username}'s profile"
-    
-    @property
-    def project_count(self):
-        return self.user.project_set.count()
-    
-    @property
-    def total_claps_received(self):
-        return sum(project.claps for project in self.user.project_set.all())
+
+    def get_talent_display(self):
+        return dict(TALENT_TYPES).get(self.talent_type, '')
 
 class Clap(models.Model):
     project = models.ForeignKey(
         Project, 
-        related_name='claps_set', 
+        related_name='claps', 
         on_delete=models.CASCADE
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User,
+        related_name='user_claps', 
+        on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -2157,23 +5219,383 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
 
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bio = models.TextField(max_length=500, blank=True)
-    location = models.CharField(max_length=100, blank=True)
-    website = models.URLField(blank=True)
-    github_username = models.CharField(max_length=100, blank=True)
-    twitter_username = models.CharField(max_length=100, blank=True)
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    
-    # Notification settings
-    email_on_comment = models.BooleanField(default=True)
-    email_on_follow = models.BooleanField(default=True)
-    email_on_clap = models.BooleanField(default=False)
-    email_on_bookmark = models.BooleanField(default=False)
-    
+class CommentClap(models.Model):
+    comment = models.ForeignKey(Comment, related_name='claps', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='comment_claps', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('comment', 'user')
+
     def __str__(self):
-        return f"{self.user.username}'s profile"
+        return f'{self.user.username} clapped for comment on {self.comment.project.title}'
+    
+
+class Solution(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='solutions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    files = models.FileField(
+        upload_to='solutions/',
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'doc', 'docx', 'zip', 'py', 'ipynb', 'txt']
+        )]
+    )
+    github_link = models.URLField(blank=True, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False)
+    faculty_feedback = models.TextField(blank=True)
+    tokens_awarded = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ['project', 'user']
+
+    def __str__(self):
+        return f"Solution by {self.user.username} for {self.project.title}"
+
+
+
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator
+from django.urls import reverse
+from django.utils.text import slugify
+from khcc_psut_ai_lab.constants import DEFAULT_TEAM_SIZE, MAX_TEAM_SIZE, TEAM_ROLES
+import uuid
+
+def team_image_upload_path(instance, filename):
+    # Generate path like: team_images/team_slug/filename
+    return f'team_images/{instance.slug}/{filename}'
+
+class Team(models.Model):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True, max_length=100, blank=True)
+    description = models.TextField()
+    founder = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='founded_teams'
+    )
+    team_image = models.ImageField(  # Changed from 'image' to 'team_image'
+        upload_to=team_image_upload_path,
+        null=True,
+        blank=True,
+        help_text="Upload a team profile image"
+    )
+    tags = models.CharField(
+        max_length=200, 
+        blank=True,
+        help_text="Enter tags separated by commas"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['-created_at']
+
+class TeamMembership(models.Model):
+    ROLE_CHOICES = [
+        ('founder', 'Founder'),
+        ('moderator', 'Moderator'),
+        ('member', 'Member'),
+    ]
+    
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_memberships')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='member')
+    is_approved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'user')
+
+class TeamDiscussion(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='discussions')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    pinned = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-pinned', '-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.team.name}"
+
+class TeamComment(models.Model):
+    discussion = models.ForeignKey(TeamDiscussion, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Comment by {self.author.username} on {self.discussion.title}"
+
+class TeamAnalytics(models.Model):
+    team = models.OneToOneField(Team, on_delete=models.CASCADE, related_name='analytics')
+    total_discussions = models.PositiveIntegerField(default=0)
+    total_comments = models.PositiveIntegerField(default=0)
+    active_members = models.PositiveIntegerField(default=0)
+    last_activity = models.DateTimeField(null=True, blank=True)
+    
+    # Weekly and monthly stats
+    discussions_this_week = models.PositiveIntegerField(default=0)
+    comments_this_week = models.PositiveIntegerField(default=0)
+    discussions_this_month = models.PositiveIntegerField(default=0)
+    comments_this_month = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        verbose_name_plural = "Team analytics"
+
+    def __str__(self):
+        return f"Analytics for {self.team.name}"
+
+    def update_stats(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+        
+        self.total_discussions = self.team.discussions.count()
+        self.total_comments = TeamComment.objects.filter(discussion__team=self.team).count()
+        self.active_members = TeamMembership.objects.filter(
+            team=self.team,
+            user__last_login__gte=month_ago
+        ).count()
+        
+        self.discussions_this_week = self.team.discussions.filter(
+            created_at__gte=week_ago
+        ).count()
+        self.comments_this_week = TeamComment.objects.filter(
+            discussion__team=self.team,
+            created_at__gte=week_ago
+        ).count()
+        
+        self.discussions_this_month = self.team.discussions.filter(
+            created_at__gte=month_ago
+        ).count()
+        self.comments_this_month = TeamComment.objects.filter(
+            discussion__team=self.team,
+            created_at__gte=month_ago
+        ).count()
+        
+        self.last_activity = now
+        self.save()
+
+
+class Sponsorship(models.Model):
+    LEVELS = [
+        ('bronze', 'Bronze'),
+        ('silver', 'Silver'),
+        ('gold', 'Gold'),
+        ('platinum', 'Platinum')
+    ]
+    
+    name = models.CharField(max_length=200)
+    logo = models.ImageField(upload_to='sponsor_logos/')
+    level = models.CharField(max_length=20, choices=LEVELS)
+    website = models.URLField()
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+
+class Product(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField(upload_to='product_images/')
+    url = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Tool(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField(upload_to='tool_images/')
+    url = models.URLField()
+    github_url = models.URLField(blank=True)
+    documentation_url = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Dataset(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    file = models.FileField(upload_to='datasets/')
+    size = models.BigIntegerField()  # in bytes
+    format = models.CharField(max_length=50)
+    license = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    downloads = models.IntegerField(default=0)
+
+@receiver(pre_save, sender=Project)
+def auto_generate_tags(sender, instance, **kwargs):
+    """
+    Signal handler to automatically generate tags before saving a Project
+    
+    Only generates tags if:
+    1. No tags are currently set
+    2. The project is being created for the first time
+    """
+    if not instance.pk and not instance.tags:  # New project without tags
+        tagging_service = OpenAITaggingService()
+        generated_tags = tagging_service.generate_tags(
+            title=instance.title,
+            description=instance.description
+        )
+        if generated_tags:
+            instance.tags = generated_tags
+
+# In your models.py, add the imports at the top
+from django.conf import settings
+import openai
+
+# Add this class to your existing models.py, at the end of the file
+class KHCCBrain(models.Model):
+    """AI Research Assistant Model"""
+    name = models.CharField(default="KHCC Brain", max_length=50)
+    description = models.CharField(default="AI Research Assistant & Team Mentor", max_length=100)
+    last_active = models.DateTimeField(auto_now=True)
+    total_comments = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "KHCC Brain"
+        verbose_name_plural = "KHCC Brain Instances"
+
+    def analyze_project(self, project):
+        """Analyze a project and generate insights using OpenAI"""
+        try:
+            # Set OpenAI API key
+            openai.api_key = settings.OPENAI_API_KEY
+            
+            # Get latest comments
+            latest_comments = project.comments.order_by('-created_at')[:5]
+            comments_text = "\n".join([f"- {comment.content}" for comment in latest_comments])
+            
+            prompt = f"""
+            You are KHCC Brain, an AI research assistant at KHCC AI Lab. Analyze this project and provide encouraging feedback.
+            Be constructive, specific, and mention both strengths and potential next steps.
+            Use a friendly, encouraging tone with a focus on healthcare and AI applications.
+
+            Project Title: {project.title}
+            Description: {project.description}
+            Recent Comments:
+            {comments_text}
+            
+            Generate concise feedback focusing on:
+            1. Specific achievements and potential in healthcare AI
+            2. Response to recent discussions and comments
+            3. Suggestions for next steps and research directions
+            4. Team collaboration opportunities
+            
+            Keep your response encouraging and under 200 words.
+            """
+
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are KHCC Brain, a helpful AI research assistant focusing on healthcare and AI projects."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=400,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content
+
+        except Exception as e:
+            print(f"Error generating AI feedback: {str(e)}")
+            return "I'm currently experiencing some technical difficulties, but I'll analyze this project as soon as possible!"
+
+    def analyze_team_discussion(self, discussion):
+        """Analyze team discussion and provide strategic advice"""
+        try:
+            openai.api_key = settings.OPENAI_API_KEY
+            
+            # Get all comments in the discussion
+            comments = discussion.comments.order_by('created_at')
+            comments_text = "\n".join([
+                f"- {comment.author.username}: {comment.content}" 
+                for comment in comments
+            ])
+            
+            prompt = f"""
+            As KHCC Brain, analyze this team discussion and provide constructive input.
+            
+            Discussion Title: {discussion.title}
+            Initial Post: {discussion.content}
+            
+            Discussion History:
+            {comments_text}
+            
+            Provide concise feedback that:
+            1. Acknowledges key points raised in the discussion
+            2. Offers relevant healthcare AI insights
+            3. Suggests potential collaboration opportunities
+            4. Proposes concrete next steps
+            
+            Keep your response encouraging and under 150 words.
+            Your tone should be professional but friendly.
+            """
+
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are KHCC Brain, a healthcare AI research mentor focused on fostering collaboration."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content
+
+        except Exception as e:
+            print(f"Error generating team feedback: {str(e)}")
+            return "I'm currently experiencing some technical difficulties, but I'll join the discussion as soon as possible!"
+
+    @classmethod
+    def get_user(cls):
+        """Get or create the KHCC Brain user account"""
+        try:
+            return User.objects.get(username='khcc_brain')
+        except User.DoesNotExist:
+            user = User.objects.create_user(
+                username='khcc_brain',
+                email='khcc_brain@khcc.jo',
+                first_name='KHCC',
+                last_name='Brain',
+                is_active=True
+            )
+            
+            # Create profile
+            UserProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'bio': "I am KHCC Brain, an AI research assistant specializing in healthcare AI. I help teams advance their medical AI projects through analysis and suggestions.",
+                    'title': "AI Research Assistant",
+                    'department': "AI Lab",
+                    'talent_type': 'ai'
+                }
+            )
+            return user
 
 # Contents from: .\serializers.py
 # projects/serializers.py
@@ -2364,6 +5786,231 @@ class ProjectAnalyticsSummarySerializer(serializers.ModelSerializer):
         model = ProjectAnalytics
         fields = ['view_count', 'unique_visitors', 'github_clicks']
 
+# Contents from: .\services\__init__.py
+# projects/services/__init__.py
+from .openai_service import OpenAITaggingService
+
+__all__ = ['OpenAITaggingService']
+
+# Contents from: .\services\openai_service.py
+# projects/services/openai_service.py
+from django.conf import settings
+from openai import OpenAI
+
+class OpenAITaggingService:
+    def __init__(self):
+        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+    def generate_tags(self, title: str, description: str) -> list[str]:
+        """
+        Generate tags for a project using OpenAI's API
+        
+        Args:
+            title: Project title
+            description: Project description
+            
+        Returns:
+            List of generated tags
+        """
+        try:
+            prompt = f"""
+            Based on the following project title and description, generate up to 5 relevant tags.
+            Format the response as a comma-separated list of lowercase tags.
+            
+            Title: {title}
+            Description: {description}
+            
+            Tags should be:
+            - Relevant to AI, machine learning, and data science
+            - Single words or short phrases (max 2-3 words)
+            - All lowercase
+            - No special characters
+            - No hashtags
+            
+            Example format: machine learning, nlp, computer vision, tensorflow, data analysis
+            """
+
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that generates relevant tags for AI and machine learning projects."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=100,
+                temperature=0.5
+            )
+            
+            # Extract tags from response
+            tags = response.choices[0].message.content.strip()
+            return tags
+            
+        except Exception as e:
+            print(f"Error generating tags: {str(e)}")
+            return ""
+
+# Contents from: .\signals.py
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.db.models import F
+from .models import TeamMembership, TeamDiscussion, TeamComment, TeamAnalytics
+from .utils.team_emails import send_team_notification_email, send_role_change_notification
+
+@receiver(post_save, sender=TeamDiscussion)
+def handle_new_discussion(sender, instance, created, **kwargs):
+    if created:
+        # Update analytics
+        analytics = instance.team.analytics
+        analytics.total_discussions = F('total_discussions') + 1
+        analytics.discussions_this_week = F('discussions_this_week') + 1
+        analytics.discussions_this_month = F('discussions_this_month') + 1
+        analytics.save()
+        
+        # Notify team members
+        for membership in instance.team.memberships.filter(
+            is_approved=True,
+            notification_preferences__in_app_notifications=True
+        ).exclude(user=instance.author):
+            send_team_notification_email(
+                membership.user,
+                instance.team,
+                'discussion',
+                {'discussion': instance}
+            )
+
+@receiver(post_save, sender=TeamComment)
+def handle_new_comment(sender, instance, created, **kwargs):
+    if created:
+        # Update analytics
+        analytics = instance.discussion.team.analytics
+        analytics.total_comments = F('total_comments') + 1
+        analytics.comments_this_week = F('comments_this_week') + 1
+        analytics.comments_this_month = F('comments_this_month') + 1
+        analytics.save()
+        
+        # Notify team members
+        for membership in instance.discussion.team.memberships.filter(
+            is_approved=True,
+            notification_preferences__in_app_notifications=True
+        ).exclude(user=instance.author):
+            send_team_notification_email(
+                membership.user,
+                instance.discussion.team,
+                'comment',
+                {'comment': instance}
+            )
+
+@receiver(post_save, sender=TeamMembership)
+def handle_membership_changes(sender, instance, created, **kwargs):
+    if not created and instance.tracker.has_changed('role'):
+        send_role_change_notification(
+            instance.user,
+            instance.team,
+            instance.get_role_display()
+        )
+
+@receiver(post_delete, sender=TeamMembership)
+def handle_member_removal(sender, instance, **kwargs):
+    # Update analytics
+    instance.team.analytics.update_stats()
+
+
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from .models import Project
+from .services import OpenAITaggingService
+
+@receiver(pre_save, sender=Project)
+def auto_generate_tags(sender, instance, **kwargs):
+    """
+    Signal handler to automatically generate tags before saving a Project
+    
+    Only generates tags if:
+    1. No tags are currently set
+    2. The project is being created for the first time
+    """
+    if not instance.pk and not instance.tags:  # New project without tags
+        tagging_service = OpenAITaggingService()
+        generated_tags = tagging_service.generate_tags(
+            title=instance.title,
+            description=instance.description
+        )
+        if generated_tags:
+            instance.tags = generated_tags
+
+# Contents from: .\templatetags\__init__.py
+
+
+# Contents from: .\templatetags\custom_filters.py
+# projects/templatetags/custom_filters.py
+
+from django import template
+
+register = template.Library()
+
+@register.filter
+def split(value, arg):
+    """Split a string by the given delimiter"""
+    return value.split(arg)
+
+# Contents from: .\templatetags\project_tags.py
+# projects/templatetags/project_tags.py
+
+from django import template
+from django.db.models import Q
+from ..models import Project
+
+register = template.Library()
+
+@register.simple_tag
+def get_similar_projects(project):
+    """Returns similar projects based on tags"""
+    if not project.tags:
+        return Project.objects.exclude(id=project.id)[:3]
+    
+    tags = [tag.strip() for tag in project.tags.split(',')]
+    similar_projects = Project.objects.filter(
+        tags__icontains=tags[0]
+    ).exclude(id=project.id)
+    
+    for tag in tags[1:]:
+        similar_projects = similar_projects | Project.objects.filter(
+            tags__icontains=tag
+        ).exclude(id=project.id)
+    
+    return similar_projects.distinct()[:3]
+
+# Contents from: .\templatetags\query_tags.py
+# templatetags/query_tags.py
+
+from django import template
+from django.utils.http import urlencode
+
+register = template.Library()
+
+@register.simple_tag
+def query_transform(request_get, param_name, value, action='add'):
+    """
+    Transform query parameters while preserving other parameters
+    """
+    updated = request_get.copy()
+    
+    if action == 'remove':
+        # Remove a specific value from a comma-separated list
+        current_values = updated.get(param_name, '').split(',')
+        current_values = [v for v in current_values if v and v != value]
+        if current_values:
+            updated[param_name] = ','.join(current_values)
+        else:
+            updated.pop(param_name, None)
+    else:
+        # Add or replace value
+        if value:
+            updated[param_name] = value
+        else:
+            updated.pop(param_name, None)
+    
+    return '?' + urlencode(updated)
+
 # Contents from: .\templatetags\search_tags.py
 # projects/templatetags/search_tags.py
 
@@ -2414,64 +6061,307 @@ def url_with_querystring(request, **kwargs):
         query_dict[key] = value
     return '?{}'.format(query_dict.urlencode())
 
+# Contents from: .\templatetags\team_tags.py
+from django import template
+
+register = template.Library()
+
+@register.filter
+def split(value, arg):
+    """
+    Splits a string into a list on the given delimiter
+    Usage: {{ value|split:"," }}
+    """
+    return [x.strip() for x in value.split(arg)]
+
 # Contents from: .\tests.py
 from django.test import TestCase
 
 # Create your tests here.
 
 
+# Contents from: .\tests\team_tests.py
+from django.test import TestCase, Client
+from django.urls import reverse
+from django.contrib.auth.models import User
+from projects.models import Team, TeamMembership, TeamDiscussion, TeamComment
+from datetime import timedelta
+from django.utils import timezone
+
+class TeamTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user('testuser', 'test@test.com', 'testpass')
+        self.client.login(username='testuser', password='testpass')
+        
+        self.team = Team.objects.create(
+            name='Test Team',
+            description='Test Description',
+            founder=self.user,
+            max_members=10
+        )
+        TeamMembership.objects.create(
+            team=self.team,
+            user=self.user,
+            role='founder',
+            is_approved=True
+        )
+
+    def test_team_creation(self):
+        response = self.client.post(reverse('create_team'), {
+            'name': 'New Team',
+            'description': 'New Description',
+            'max_members': 15
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Team.objects.filter(name='New Team').exists())
+
+    def test_team_join(self):
+        new_user = User.objects.create_user('newuser', 'new@test.com', 'newpass')
+        self.client.login(username='newuser', password='newpass')
+        
+        response = self.client.post(reverse('join_team', args=[self.team.slug]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(TeamMembership.objects.filter(
+            team=self.team,
+            user=new_user,
+            is_approved=False
+        ).exists())
+
+    def test_discussion_creation(self):
+        response = self.client.post(
+            reverse('create_discussion', args=[self.team.slug]),
+            {
+                'title': 'Test Discussion',
+                'content': 'Test Content'
+            }
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(TeamDiscussion.objects.filter(
+            team=self.team,
+            title='Test Discussion'
+        ).exists())
+
+    def test_analytics_updates(self):
+        discussion = TeamDiscussion.objects.create(
+            team=self.team,
+            author=self.user,
+            title='Test Discussion',
+            content='Test Content'
+        )
+        
+        analytics = self.team.analytics
+        self.assertEqual(analytics.total_discussions, 1)
+        self.assertEqual(analytics.discussions_this_week, 1)
+
+        TeamComment.objects.create(
+            discussion=discussion,
+            author=self.user,
+            content='Test Comment'
+        )
+        
+        analytics.refresh_from_db()
+        self.assertEqual(analytics.total_comments, 1)
+        self.assertEqual(analytics.comments_this_week, 1)
+
+    def test_notification_preferences(self):
+        membership = TeamMembership.objects.get(team=self.team, user=self.user)
+        membership.notification_preferences = {
+            'email_notifications': False,
+            'in_app_notifications': True
+        }
+        membership.save()
+        
+        membership.refresh_from_db()
+        self.assertFalse(membership.notification_preferences['email_notifications'])
+        self.assertTrue(membership.notification_preferences['in_app_notifications'])
+
+    def test_member_permissions(self):
+        regular_user = User.objects.create_user('regular', 'regular@test.com', 'pass')
+        membership = TeamMembership.objects.create(
+            team=self.team,
+            user=regular_user,
+            role='member',
+            is_approved=True
+        )
+        
+        self.client.login(username='regular', password='pass')
+        
+        # Try to access team settings (should be forbidden)
+        response = self.client.get(reverse('team_settings', args=[self.team.slug]))
+        self.assertEqual(response.status_code, 403)
+
+        # Can create discussions
+        response = self.client.post(
+            reverse('create_discussion', args=[self.team.slug]),
+            {'title': 'Member Discussion', 'content': 'Content'}
+        )
+        self.assertEqual(response.status_code, 302)
+
+# Contents from: .\tests\team_tests_api.py
+from rest_framework.test import APITestCase
+from rest_framework import status
+from django.urls import reverse
+from django.contrib.auth.models import User
+from projects.models import Team, TeamMembership
+
+class TeamAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('testuser', 'test@test.com', 'testpass')
+        self.client.login(username='testuser', password='testpass')
+        
+        self.team = Team.objects.create(
+            name='Test Team',
+            description='Test Description',
+            founder=self.user
+        )
+        TeamMembership.objects.create(
+            team=self.team,
+            user=self.user,
+            role='founder',
+            is_approved=True
+        )
+
+    def test_team_list_api(self):
+        response = self.client.get(reverse('api_team_list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_team_detail_api(self):
+        response = self.client.get(reverse('api_team_detail', args=[self.team.slug]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], 'Test Team')
+
+    def test_team_analytics_api(self):
+        response = self.client.get(reverse('api_team_analytics', args=[self.team.slug]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('total_discussions', response.data)
+
+    def test_unauthorized_access(self):
+        self.client.logout()
+        response = self.client.get(reverse('api_team_list'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
 # Contents from: .\urls.py
-# projects/urls.py
+# urls.py
 
 from django.urls import path
+from django.contrib.auth.decorators import login_required
 from . import views
 
 app_name = 'projects'
 
 urlpatterns = [
+    # Homepage and Project List
+    path('', views.homepage, name='homepage'),
+    path('projects/', views.project_list, name='project_list'),
+    
     # Project Management
-    path('', views.project_list, name='project_list'),  # Main page to list projects
-    path('submit/', views.submit_project, name='submit_project'),  # Page to submit a new project
-    path('search/', views.search_projects, name='search_projects'),  # Page to search for projects
-    path('leaderboard/', views.leaderboard_view, name='leaderboard'),  # Page to view project leaderboard
+    path('submit/', views.submit_project, name='submit_project'),
+    path('search/', views.search_projects, name='search_projects'),
+    path('leaderboard/', views.leaderboard_view, name='leaderboard'),
     
     # Project Detail & Actions
-    path('project/<int:pk>/', views.project_detail, name='project_detail'),  # View details of a specific project
-    path('project/<int:pk>/edit/', views.edit_project, name='edit_project'),  # Edit a specific project
-    path('project/<int:pk>/rate/', views.rate_project, name='rate_project'),  # Rate a specific project
-    path('project/<int:pk>/bookmark/', views.bookmark_project, name='bookmark_project'),  # Bookmark a specific project
-    path('project/<int:pk>/clap/', views.clap_project, name='clap_project'),  # Clap for a specific project
-    path('project/<int:pk>/delete/', views.delete_project, name='delete_project'),  # Delete a specific project
+    path('project/<int:pk>/', views.project_detail, name='project_detail'),
+    path('project/<int:pk>/edit/', views.edit_project, name='edit_project'),
+    path('project/<int:pk>/rate/', views.rate_project, name='rate_project'),
+    path('project/<int:pk>/bookmark/', views.bookmark_project, name='bookmark_project'),
+    path('project/<int:pk>/clap/', views.clap_project, name='clap_project'),
+    path('project/<int:pk>/delete/', views.delete_project, name='delete_project'),
     
     # Analytics
-    path('project/<int:pk>/analytics/', views.ProjectAnalyticsView.as_view(), name='project_analytics'),  # View project analytics
-    path('project/<int:pk>/analytics/data/', views.analytics_data, name='analytics_data'),  # Get analytics data for a project
-    path('project/<int:pk>/analytics/export/csv/', views.export_analytics_csv, name='export_analytics_csv'),  # Export analytics as CSV
-    path('project/<int:pk>/analytics/export/pdf/', views.export_analytics_pdf, name='export_analytics_pdf'),  # Export analytics as PDF
+    path('project/<int:pk>/analytics/', views.ProjectAnalyticsView.as_view(), name='project_analytics'),
+    path('project/<int:pk>/analytics/data/', views.analytics_data, name='analytics_data'),
+    path('project/<int:pk>/analytics/export/csv/', views.export_analytics_csv, name='export_analytics_csv'),
+    path('project/<int:pk>/analytics/export/pdf/', views.export_analytics_pdf, name='export_analytics_pdf'),
     
-    # User Profiles - Note the reordered URLs
-    path('profile/edit/', views.edit_profile, name='edit_profile'),  # Edit user profile
-    path('profile/settings/', views.profile_settings, name='profile_settings'),  # User profile settings
-    path('profile/<str:username>/', views.user_profile, name='user_profile'),  # View a user's profile
-    path('profile/<str:username>/projects/', views.user_projects, name='user_projects'),  # View projects by a user
-    path('profile/<str:username>/follow/', views.follow_user, name='follow_user'),  # Follow a user
-    path('profile/<str:username>/unfollow/', views.unfollow_user, name='unfollow_user'),  # Unfollow a user
+    # User Profiles
+    path('profile/edit/', views.edit_profile, name='edit_profile'),
+    path('profile/settings/', views.profile_settings, name='profile_settings'),
+    path('profile/<str:username>/', views.user_profile, name='user_profile'),
+    path('profile/<str:username>/projects/', views.user_projects, name='user_projects'),
+    path('profile/<str:username>/follow/', views.follow_user, name='follow_user'),
+    path('profile/<str:username>/unfollow/', views.unfollow_user, name='unfollow_user'),
     
-    # Notifications
-    path('notifications/', views.notifications, name='notifications'),  # View user notifications
+# Notifications
+    path('notifications/', views.notifications, name='notifications'),
     path('notifications/<int:notification_id>/mark-read/', 
-         views.mark_notification_read, name='mark_notification_read'),  # Mark a notification as read
+         views.mark_notification_read, name='mark_notification_read'),
     path('notifications/mark-all-read/', 
-         views.mark_all_notifications_read, name='mark_all_notifications_read'),  # Mark all notifications as read
+         views.mark_all_notifications_read, name='mark_all_notifications_read'),
     
     # Comments
-    path('comment/<int:pk>/delete/', views.delete_comment, name='delete_comment'),  # Delete a comment
-    path('comment/<int:pk>/edit/', views.edit_comment, name='edit_comment'),  # Edit a comment
+    path('comment/<int:pk>/delete/', views.delete_comment, name='delete_comment'),
+    path('comment/<int:pk>/edit/', views.edit_comment, name='edit_comment'),
+    path('comment/<int:pk>/clap/', views.clap_comment, name='clap_comment'),
     
-    # API Endpoints
-    path('api/projects/', views.ProjectListAPI.as_view(), name='api_project_list'),  # API to list projects
-    path('api/projects/<int:pk>/', views.ProjectDetailAPI.as_view(), name='api_project_detail'),  # API to get project details
-    path('api/projects/<int:pk>/analytics/', views.ProjectAnalyticsAPI.as_view(), name='api_project_analytics'),  # API for project analytics
+    # Startups
+    path('startups/', views.StartupListView.as_view(), name='startup_list'),
+    path('startups/create/', 
+         login_required(views.StartupCreateView.as_view()), 
+         name='create_startup'),
+    
+    # Tools
+    path('tools/', views.ToolListView.as_view(), name='tool_list'),
+    path('tools/create/', 
+         login_required(views.ToolCreateView.as_view()), 
+         name='create_tool'),
+    
+    # Datasets
+    path('datasets/', views.DatasetListView.as_view(), name='dataset_list'),
+    path('datasets/create/', 
+         login_required(views.DatasetCreateView.as_view()), 
+         name='create_dataset'),
+    
+    # Downloads
+    path('project/<int:pk>/download/', views.download_project, name='download_project'),
+    path('dataset/<int:pk>/download/', views.download_dataset, name='download_dataset'),
+    
+    # Sponsorships and Applications
+    path('sponsorships/', views.SponsorshipListView.as_view(), name='sponsorship_list'),
+    path('virtual-members/', views.VirtualMemberListView.as_view(), name='virtual_member_list'),
+    path('apply/', login_required(views.ApplicationCreateView.as_view()), name='apply'),
+    
+    # Other pages
+    path('faculty/', views.faculty_page, name='faculty_page'),
+    path('careers/', views.careers_page, name='careers'),
+    path('talents/', views.talents_page, name='talents'),
+    path('help/', views.help_view, name='help'),
+    
+    path('api/projects/<int:pk>/generate-tags/', 
+         views.generate_tags, 
+         name='api_generate_tags'),
+    
+    path('api/projects/<int:project_pk>/add-virtual-member/', 
+         views.add_virtual_member, 
+         name='api_add_virtual_member'),
+    
+    path('api/projects/<int:project_pk>/remove-virtual-member/<int:member_pk>/',
+         views.remove_virtual_member,
+         name='api_remove_virtual_member'),
+    
+    path('api/projects/<int:pk>/analytics/', 
+         views.project_analytics_api,  # Changed to match the view function name
+         name='api_project_analytics'),
+    
+    # Solutions
+    path('project/<int:pk>/submit-solution/', 
+         views.submit_solution, name='submit_solution'),
+    path('project/<int:project_pk>/solution/<int:solution_pk>/review/', 
+         views.review_solution, name='review_solution'),
+# Team Management
+     path('teams/', views.team_list, name='team_list'),
+     path('teams/create/', views.create_team, name='create_team'),
+     path('teams/<slug:team_slug>/', views.team_detail, name='team_detail'),
+     path('teams/<slug:team_slug>/edit/', views.edit_team, name='edit_team'),
+     path('teams/<slug:team_slug>/delete/', views.delete_team, name='delete_team'),
+     path('teams/<slug:team_slug>/join/', views.join_team, name='join_team'),
+     path('teams/<slug:team_slug>/leave/', views.leave_team, name='leave_team'),
+     path('teams/<slug:team_slug>/members/', views.team_members, name='team_members'),
+     path('teams/<slug:team_slug>/members/<int:user_id>/promote/', views.promote_member, name='promote_member'),
+     path('teams/<slug:team_slug>/members/<int:user_id>/remove/', views.remove_member, name='remove_member'),
+    path('help/', views.help_view, name='help'),
+    path('faq/', views.faq, name='faq'),
 ]
 
 # Contents from: .\utils\__init__.py
@@ -2486,25 +6376,40 @@ from django.utils.html import strip_tags
 from django.conf import settings
 
 def send_notification_email(notification):
-    """Send email for a new notification"""
-    subject = f'New notification from {settings.SITE_NAME}'
-    context = {
-        'notification': notification,
-        'site_url': settings.SITE_URL,
-        'unsubscribe_url': f"{settings.SITE_URL}/settings/notifications/"
-    }
+    """Send email for a new notification if user has enabled that notification type"""
+    recipient_profile = notification.recipient.profile
     
-    html_message = render_to_string('emails/notification.html', context)
-    plain_message = strip_tags(html_message)
+    # Check if user wants this type of email notification
+    should_send = False
     
-    send_mail(
-        subject,
-        plain_message,
-        settings.DEFAULT_FROM_EMAIL,
-        [notification.recipient.email],
-        html_message=html_message,
-        fail_silently=True
-    )
+    if notification.notification_type == 'comment' and recipient_profile.email_on_comment:
+        should_send = True
+    elif notification.notification_type == 'follow' and recipient_profile.email_on_follow:
+        should_send = True
+    elif notification.notification_type == 'clap' and recipient_profile.email_on_clap:
+        should_send = True
+    elif notification.notification_type == 'bookmark' and recipient_profile.email_on_bookmark:
+        should_send = True
+    
+    if should_send:
+        subject = f'New notification from {settings.SITE_NAME}'
+        context = {
+            'notification': notification,
+            'site_url': settings.SITE_URL,
+            'unsubscribe_url': f"{settings.SITE_URL}/settings/notifications/"
+        }
+        
+        html_message = render_to_string('emails/notification.html', context)
+        plain_message = strip_tags(html_message)
+        
+        send_mail(
+            subject,
+            plain_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [notification.recipient.email],
+            html_message=html_message,
+            fail_silently=True
+        )
 
 def send_welcome_email(user):
     """Send welcome email to new users"""
@@ -2665,44 +6570,449 @@ def generate_analytics_pdf(project, analytics_data):
     buffer.close()
     return pdf
 
-# Contents from: .\views.py
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
-from django.db.models import Count, Q, Avg, Sum
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+# Contents from: .\utils\team_emails.py
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.conf import settings
-from django.urls import reverse, reverse_lazy
-from django.utils import timezone
-from django.core.cache import cache
-from django.views.generic import DetailView
-from django.views.generic.edit import CreateView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.serializers import serialize
-from django.core.files.storage import default_storage
+
+def send_team_notification_email(user, team, notification_type, context=None):
+    """Send email notifications for team activities"""
+    if context is None:
+        context = {}
+    
+    context.update({
+        'user': user,
+        'team': team,
+        'site_url': settings.SITE_URL
+    })
+    
+    templates = {
+        'discussion': 'emails/team_discussion.html',
+        'comment': 'emails/team_comment.html',
+        'role_change': 'emails/team_role_change.html',
+        'invitation': 'emails/team_invitation.html'
+    }
+    
+    template = templates.get(notification_type)
+    if not template:
+        return
+        
+    html_message = render_to_string(template, context)
+    plain_message = strip_tags(html_message)
+    
+    subject = f"New activity in {team.name} - {notification_type.title()}"
+    
+    send_mail(
+        subject,
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=True
+    )
+
+def send_team_invitation_email(user, team, inviter):
+    """Send email for team invitation"""
+    context = {
+        'user': user,
+        'team': team,
+        'inviter': inviter,
+        'site_url': settings.SITE_URL
+    }
+    
+    html_message = render_to_string('emails/team_invitation.html', context)
+    plain_message = strip_tags(html_message)
+    
+    send_mail(
+        f"Invitation to join {team.name}",
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=True
+    )
+
+def send_role_change_notification(user, team, new_role):
+    """Send email for role changes"""
+    context = {
+        'user': user,
+        'team': team,
+        'new_role': new_role,
+        'site_url': settings.SITE_URL
+    }
+    
+    html_message = render_to_string('emails/team_role_change.html', context)
+    plain_message = strip_tags(html_message)
+    
+    send_mail(
+        f"Role update in {team.name}",
+        plain_message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        html_message=html_message,
+        fail_silently=True
+    )
+
+# Contents from: .\views.py
+from datetime import datetime, timedelta
+from io import StringIO, BytesIO
 import csv
 import json
 import os
 import pytz
-from datetime import datetime, timedelta
-from io import StringIO
+import zipfile
+
+from django.views import generic
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.urls import reverse, reverse_lazy
+from django.conf import settings
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core.files.storage import default_storage
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.serializers import serialize
+from django.db.models import Count, Q, Avg, Sum, Case, When
+from django.utils import timezone
+from django.views.generic import DetailView
+from django.views.generic.edit import CreateView
+
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectAnalyticsSummarySerializer
 
-from .models import (
-    Project, Comment, Clap, UserProfile, Rating, 
-    Bookmark, ProjectAnalytics, Notification, Follow
-)
+from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
+
+from .filters.project_filters import ProjectFilter
 from .forms import (
     ProjectForm, CommentForm, ProjectSearchForm, UserProfileForm,
-    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, NotificationSettingsForm
+    RatingForm, BookmarkForm, AdvancedSearchForm, ProfileForm, 
+    NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm, TeamForm, TeamDiscussionForm, TeamCommentForm, 
+    TeamNotificationSettingsForm, StartupForm, ProductForm, ToolForm,
+    DatasetForm, SponsorshipForm, VirtualMemberForm, ApplicationForm
 )
-from .filters.project_filters import ProjectFilter
-from django.contrib.auth.forms import UserCreationForm
+
+from .models import (
+    Project, Comment, Clap, UserProfile, Rating,
+    Bookmark, ProjectAnalytics, Notification, Follow,
+    CommentClap, Solution, Team, TeamMembership, 
+    TeamDiscussion, TeamComment, TeamAnalytics,
+    Sponsorship, Startup, Product, Tool, Dataset,
+    VirtualMember, Application
+)
+
+from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectAnalyticsSummarySerializer
 from .utils.pdf import generate_analytics_pdf
+
+from django.views import generic
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.urls import reverse
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
+import os
+import zipfile
+from io import BytesIO
+
+# DRF imports
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+# Import all models
+from .models import (
+    Project, Comment, UserProfile, Rating, Bookmark, 
+    ProjectAnalytics, Notification, Follow, CommentClap,
+    Solution, Startup, Product, Tool, Dataset,
+    VirtualMember, Application, Sponsorship
+)
+
+# Import all forms
+from .forms import (
+    ProjectForm, CommentForm, UserProfileForm, RatingForm,
+    BookmarkForm, AdvancedSearchForm, ProfileForm,
+    NotificationSettingsForm, ExtendedUserCreationForm,
+    SolutionForm, StartupForm, ProductForm, ToolForm,
+    DatasetForm, SponsorshipForm, VirtualMemberForm,
+    ApplicationForm
+)
+
+# Add these to your views.py file
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_virtual_member(request, project_pk):
+    """Add a virtual member to a project"""
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        member_id = request.data.get('member_id')
+        if not member_id:
+            return Response({
+                "status": "error",
+                "message": "member_id is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        virtual_member = get_object_or_404(VirtualMember, pk=member_id)
+        
+        # Check if member is already added
+        if virtual_member in project.virtual_members.all():
+            return Response({
+                "status": "error",
+                "message": "Virtual member already added to this project"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Add virtual member to project
+        project.virtual_members.add(virtual_member)
+        
+        return Response({
+            "status": "success",
+            "message": f"Added {virtual_member.name} to project",
+            "member": {
+                "id": virtual_member.id,
+                "name": virtual_member.name,
+                "specialty": virtual_member.specialty
+            }
+        })
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_virtual_member(request, project_pk, member_pk):
+    """Remove a virtual member from a project"""
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        virtual_member = get_object_or_404(VirtualMember, pk=member_pk)
+        
+        # Check if member is in project
+        if virtual_member not in project.virtual_members.all():
+            return Response({
+                "status": "error",
+                "message": "Virtual member not found in this project"
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Remove virtual member from project
+        project.virtual_members.remove(virtual_member)
+        
+        return Response({
+            "status": "success",
+            "message": f"Removed {virtual_member.name} from project"
+        })
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# views.py
+
+from django.conf import settings
+import openai
+from khcc_psut_ai_lab.constants import ALL_TAGS
+from difflib import get_close_matches
+
+def get_similar_tags(suggested_tag, valid_tags=ALL_TAGS, n=1, cutoff=0.6):
+    """Find the closest matching valid tag"""
+    matches = get_close_matches(suggested_tag.lower(), valid_tags, n=n, cutoff=cutoff)
+    return matches[0] if matches else suggested_tag
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_tags(request, pk):
+    """Generate tags for a project using OpenAI"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check permissions
+    if project.author != request.user:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Set up OpenAI client
+        openai.api_key = settings.OPENAI_API_KEY
+        
+        # Prepare the prompt
+        prompt = f"""
+        Please analyze the following project and suggest relevant tags from the predefined list.
+        The tags should be highly relevant to AI and healthcare domains.
+        
+        Project Title: {project.title}
+        Project Description: {project.description}
+        
+        Available Tags: {', '.join(ALL_TAGS)}
+        
+        Please suggest 3-5 most relevant tags from the available tags list above.
+        Return only the tags in a comma-separated format.
+        Prefer exact matches from the available tags, but suggest close alternatives if needed.
+        """
+        
+        # Make API call to OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a specialized AI trained to analyze healthcare and AI projects and assign relevant tags."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # Lower temperature for more focused responses
+            max_tokens=100
+        )
+        
+        # Extract suggested tags from response
+        suggested_tags = response.choices[0].message['content'].strip().split(',')
+        suggested_tags = [tag.strip().lower() for tag in suggested_tags]
+        
+        # Map suggested tags to valid tags
+        final_tags = []
+        for tag in suggested_tags:
+            if tag in ALL_TAGS:
+                final_tags.append(tag)
+            else:
+                # Find similar valid tag
+                similar_tag = get_similar_tags(tag)
+                if similar_tag:
+                    final_tags.append(similar_tag)
+        
+        # Remove duplicates and limit to 5 tags
+        final_tags = list(dict.fromkeys(final_tags))[:5]
+        
+        # Update project's generated tags
+        project.generated_tags = ",".join(final_tags)
+        project.save()
+        
+        return Response({
+            "status": "success",
+            "tags": final_tags,
+            "message": "Tags generated successfully using AI"
+        })
+        
+    except openai.error.OpenAIError as e:
+        return Response({
+            "status": "error",
+            "message": f"OpenAI API error: {str(e)}"
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def project_analytics_api(request, pk):
+    """Get project analytics data"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check permissions
+    if project.author != request.user and not request.user.is_staff:
+        return Response({
+            "status": "error",
+            "message": "Permission denied"
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        analytics = project.analytics
+        
+        # Get time period from query params
+        period = request.GET.get('period', 'all')  # all, week, month
+        
+        if period == 'week':
+            start_date = timezone.now() - timedelta(days=7)
+        elif period == 'month':
+            start_date = timezone.now() - timedelta(days=30)
+        else:
+            start_date = None
+            
+        data = {
+            "overview": {
+                "views": analytics.view_count,
+                "unique_visitors": analytics.unique_visitors,
+                "github_clicks": analytics.github_clicks,
+                "avg_time_spent": str(analytics.avg_time_spent),
+            },
+            "device_stats": {
+                "desktop": analytics.desktop_visits,
+                "mobile": analytics.mobile_visits,
+                "tablet": analytics.tablet_visits
+            },
+            "browser_stats": {
+                "chrome": analytics.chrome_visits,
+                "firefox": analytics.firefox_visits,
+                "safari": analytics.safari_visits,
+                "edge": analytics.edge_visits,
+                "other": analytics.other_browsers
+            },
+            "traffic_sources": {
+                "direct": analytics.direct_traffic,
+                "social": analytics.social_traffic,
+                "search": analytics.search_traffic,
+                "referral": analytics.referral_traffic
+            },
+            "engagement": {
+                "comments": project.comments.count(),
+                "claps": project.clap_count,
+                "bookmarks": project.bookmarks.count(),
+                "average_rating": project.average_rating
+            }
+        }
+        
+        # Add periodic stats if a period is specified
+        if start_date:
+            data["periodic_stats"] = {
+                "views": analytics.get_views_for_period(start_date),
+                "unique_visitors": analytics.get_unique_visitors_for_period(start_date),
+                "github_clicks": analytics.get_github_clicks_for_period(start_date),
+                "comments": project.comments.filter(created_at__gte=start_date).count(),
+                "claps": Clap.objects.filter(project=project, created_at__gte=start_date).count()
+            }
+        
+        return Response({
+            "status": "success",
+            "data": data
+        })
+        
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProjectAnalyticsView(LoginRequiredMixin, DetailView):
     model = Project
@@ -2922,7 +7232,7 @@ def export_analytics_csv(request, pk):
             entry['github_clicks'],
             round(entry['avg_time_spent'] / 60, 2),
             entry['comments'],
-            entry['claps']
+            entry['clap_count']
         ])
     
     # Create the HTTP response with CSV data
@@ -3068,8 +7378,18 @@ def project_list(request):
     else:
         projects = projects.order_by('-created_at')
     
-    # Pagination
-    paginator = Paginator(projects, 12)
+    # Get per_page parameter from request, default to 12
+    per_page = request.GET.get('per_page', 12)
+    try:
+        per_page = int(per_page)
+        # Limit per_page to valid options
+        if per_page not in [12, 24, 48]:
+            per_page = 12
+    except ValueError:
+        per_page = 12
+    
+    # Pagination with dynamic per_page
+    paginator = Paginator(projects, per_page)
     page = request.GET.get('page', 1)
     
     try:
@@ -3090,50 +7410,83 @@ def project_list(request):
         'page_obj': page_obj,
         'popular_tags': popular_tags,
         'search_form': search_form,
+        'per_page': per_page,
     }
     return render(request, 'projects/project_list.html', context)
 
 @login_required
 def submit_project(request):
     if request.method == 'POST':
-        form = ProjectForm(request.POST, request.FILES)
+        form = ProjectForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
             project = form.save(commit=False)
             project.author = request.user
             
-            # Handle featured image
-            if 'featured_image' in request.FILES:
-                project.featured_image = form.cleaned_data['featured_image']
+            # Handle gold seed fields for faculty
+            if request.user.groups.filter(name='Faculty').exists():
+                project.is_gold = form.cleaned_data.get('is_gold', False)
+                if project.is_gold:
+                    project.token_reward = form.cleaned_data.get('token_reward')
+                    project.gold_goal = form.cleaned_data.get('gold_goal')
+                    project.deadline = form.cleaned_data.get('deadline')
             
             project.save()
             
-            # Create project directory
-            project_dir = f'uploads/user_{request.user.id}/project_{project.id}'
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, project_dir), exist_ok=True)
+            # Handle tags
+            if form.cleaned_data['tags']:
+                project.tags = form.cleaned_data['tags']
             
             messages.success(request, 'Project submitted successfully!')
-            return redirect('project_detail', pk=project.pk)
+            return redirect('projects:project_detail', pk=project.pk)
     else:
-        form = ProjectForm()
+        form = ProjectForm(user=request.user)
     
-    return render(request, 'projects/submit_project.html', {'form': form})
-
+    return render(request, 'projects/submit_project.html', {
+        'form': form,
+        'title': 'Submit Seed'
+    })
 
 
 def project_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
-    comments = project.comments.filter(parent=None).select_related('user').prefetch_related('replies')
+    comments = project.comments.filter(parent=None).select_related('user').prefetch_related(
+        'replies', 
+        'claps',
+        'replies__claps',
+        'replies__user'
+    )
     
+    # Handle POST requests (new comments)
     if request.method == 'POST' and request.user.is_authenticated:
         form = CommentForm(request.POST, request.FILES)
         if form.is_valid():
             comment = form.save(commit=False)
             comment.project = project
             comment.user = request.user
+            
+            # Handle replies
+            parent_id = request.POST.get('parent_id')
+            if parent_id:
+                try:
+                    parent_comment = Comment.objects.get(id=parent_id)
+                    comment.parent = parent_comment
+                    # Create notification for parent comment author
+                    if parent_comment.user != request.user:
+                        Notification.objects.create(
+                            recipient=parent_comment.user,
+                            sender=request.user,
+                            project=project,
+                            notification_type='comment',
+                            message=f"{request.user.username} replied to your comment"
+                        )
+                except Comment.DoesNotExist:
+                    messages.error(request, 'Parent comment not found.')
+                    return redirect('projects:project_detail', pk=pk)
+            
             comment.save()
             
-            # Create notification for project author
-            if project.author != request.user:
+            # Create notification for project author (only for top-level comments)
+            if project.author != request.user and not parent_id:
                 Notification.objects.create(
                     recipient=project.author,
                     sender=request.user,
@@ -3143,47 +7496,101 @@ def project_detail(request, pk):
                 )
             
             messages.success(request, 'Comment added successfully!')
-            return redirect('project_detail', pk=pk)
+            return redirect('projects:project_detail', pk=pk)
+        else:
+            messages.error(request, 'Error posting comment. Please check your input.')
     else:
         form = CommentForm()
+    
+    # Check clap status for authenticated users
+    if request.user.is_authenticated:
+        # Check if user has clapped for the project
+        project.user_has_clapped = project.claps.filter(user=request.user).exists()
+        
+        # Check if user has clapped for comments
+        for comment in comments:
+            comment.has_user_clapped = comment.claps.filter(user=request.user).exists()
+            for reply in comment.replies.all():
+                reply.has_user_clapped = reply.claps.filter(user=request.user).exists()
+        
+        # Get user's bookmark if it exists
+        user_bookmark = project.bookmarks.filter(user=request.user).first()
+    else:
+        project.user_has_clapped = False
+        user_bookmark = None
+
+    # Get project statistics
+    stats = {
+        'view_count': project.analytics.view_count if hasattr(project, 'analytics') else 0,
+        'clap_count': project.clap_count,
+        'comment_count': project.comments.count(),
+        'rating_count': project.rating_count,
+        'avg_rating': project.average_rating,
+    }
     
     context = {
         'project': project,
         'comments': comments,
-        'form': form,
+        'comment_form': form,
+        'featured_image_url': project.get_featured_image_url(),
+        'pdf_url': project.get_pdf_url(),
+        'rating_form': RatingForm(),
+        'user_bookmark': user_bookmark,
+        'stats': stats,
+
     }
+    
+    # Update view count
+    if hasattr(project, 'analytics'):
+        project.analytics.view_count += 1
+        project.analytics.save()
+    
     return render(request, 'projects/project_detail.html', context)
-
-
 
 @login_required
 def rate_project(request, pk):
     if request.method == 'POST':
         project = get_object_or_404(Project, pk=pk)
-        form = RatingForm(request.POST)
+        score = request.POST.get('score')
+        review = request.POST.get('review', '')
         
-        if form.is_valid():
+        try:
+            score = int(score)
+            if not (1 <= score <= 5):
+                return JsonResponse({'status': 'error', 'message': 'Invalid rating'}, status=400)
+                
             rating, created = Rating.objects.update_or_create(
                 project=project,
                 user=request.user,
                 defaults={
-                    'score': form.cleaned_data['score'],
-                    'review': form.cleaned_data['review']
+                    'score': score,
+                    'review': review
                 }
             )
             
-            # Update project rating cache
-            avg_rating = project.ratings.aggregate(Avg('score'))['score__avg']
-            cache.set(f'project_rating_{project.id}', avg_rating, timeout=3600)
+            # Update project rating stats
+            project.update_rating_stats()
             
-            messages.success(request, 'Thank you for your rating!')
+            # Create notification for project author if it's a new rating
+            if created and project.author != request.user:
+                Notification.objects.create(
+                    recipient=project.author,
+                    sender=request.user,
+                    project=project,
+                    notification_type='rating',
+                    message=f"{request.user.username} rated your project"
+                )
+            
             return JsonResponse({
                 'status': 'success',
-                'rating': avg_rating,
-                'total_ratings': project.ratings.count()
+                'rating': project.average_rating,
+                'total_ratings': project.rating_count
             })
-    
-    return JsonResponse({'status': 'error'}, status=400)
+            
+        except (ValueError, TypeError) as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 @login_required
 def toggle_bookmark(request, pk):
@@ -3223,23 +7630,26 @@ def bookmarks(request):
 def edit_profile(request):
     try:
         profile = request.user.profile
-    except UserProfile.DoesNotExist:
-        profile = UserProfile(user=request.user)
-    
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=request.user)
+
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, request.FILES, instance=profile)
+        form = ProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
-            profile = form.save()
+            form.save()
             messages.success(request, 'Profile updated successfully!')
-            return redirect('user_profile', username=request.user.username)
+            return redirect('projects:user_profile', username=request.user.username)
     else:
-        form = UserProfileForm(instance=profile)
-    
-    return render(request, 'projects/edit_profile.html', {'form': form})
+        form = ProfileForm(instance=profile)
+
+    return render(request, 'projects/edit_profile.html', {
+        'form': form,
+        'active_tab': 'profile'
+    })
 
 @login_required
 def user_profile(request, username):
-    profile_user = get_object_or_404(User, username=username)
+    profile_user = get_object_or_404(User.objects.select_related('profile'), username=username)
     projects = Project.objects.filter(author=profile_user).order_by('-created_at')
     
     # Get follow status
@@ -3250,16 +7660,23 @@ def user_profile(request, username):
             following=profile_user
         ).exists()
     
-    # Get counts
-    followers_count = Follow.objects.filter(following=profile_user).count()
-    following_count = Follow.objects.filter(follower=profile_user).count()
+    # Get statistics and counts
+    stats = {
+        'followers_count': Follow.objects.filter(following=profile_user).count(),
+        'following_count': Follow.objects.filter(follower=profile_user).count(),
+        'projects_count': projects.count(),
+        'total_claps': Project.objects.filter(author=profile_user).aggregate(
+            total_claps=Sum('clap_count')
+        )['total_claps'] or 0,
+        'total_comments': Comment.objects.filter(user=profile_user).count(),
+    }
     
     context = {
         'profile_user': profile_user,
         'projects': projects,
         'is_following': is_following,
-        'followers_count': followers_count,
-        'following_count': following_count,
+        'stats': stats,
+        'is_faculty': profile_user.groups.filter(name='Faculty').exists(),
     }
     return render(request, 'projects/user_profile.html', context)
 
@@ -3420,28 +7837,44 @@ def bookmark_project(request, pk):
     })
 
 class RegisterView(CreateView):
-    form_class = UserCreationForm
+    form_class = ExtendedUserCreationForm
     success_url = reverse_lazy('login')
     template_name = 'registration/register.html'
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, 'Registration successful! Please log in.')
+        return response
+
 def get_monthly_contributions():
-    """Calculate monthly contributions for all users"""
-    now = timezone.now()
-    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    """Get users sorted by their contributions in the current month"""
+    start_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     return User.objects.annotate(
-        projects_count=Count(
+        monthly_projects=Count(
             'project',
-            filter=models.Q(project__created_at__gte=start_of_month)
+            filter=Q(project__created_at__gte=start_of_month)
         ),
-        claps_received=Sum(
-            'project__claps',
-            filter=models.Q(project__created_at__gte=start_of_month)
+        monthly_comments=Count(
+            'comment',
+            filter=Q(comment__created_at__gte=start_of_month)
         ),
-        total_contributions=models.F('projects_count') + models.F('claps_received')
-    ).filter(
-        models.Q(projects_count__gt=0) | models.Q(claps_received__gt=0)
-    ).order_by('-total_contributions')[:10]
+        monthly_claps=Count(
+            'user_claps',
+            filter=Q(user_claps__created_at__gte=start_of_month)
+        ),
+        # Calculate total directly in the same annotation
+        total_contributions=Count(
+            'project',
+            filter=Q(project__created_at__gte=start_of_month)
+        ) + Count(
+            'comment',
+            filter=Q(comment__created_at__gte=start_of_month)
+        ) + Count(
+            'user_claps',
+            filter=Q(user_claps__created_at__gte=start_of_month)
+        )
+    ).order_by('-total_contributions')
 
 def leaderboard_view(request):
     """View for the leaderboard page"""
@@ -3454,7 +7887,7 @@ def leaderboard_view(request):
             'user': user.username,
             'contributions': user.total_contributions,
             'projects': user.projects_count,
-            'claps': user.claps_received or 0,
+            'clap_count': user.claps_received or 0,
             'change': 0  # Calculate change from previous position
         } for idx, user in enumerate(contributions)]
         return JsonResponse({'leaderboard': data})
@@ -3471,27 +7904,84 @@ def leaderboard_view(request):
 
 @login_required
 def edit_project(request, pk):
-    project = get_object_or_404(Project, pk=pk, author=request.user)
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check if user is author
+    if project.author != request.user:
+        messages.error(request, "You don't have permission to edit this project.")
+        return redirect('projects:project_detail', pk=project.pk)
+    
     if request.method == 'POST':
-        form = ProjectForm(request.POST, request.FILES, instance=project)
+        form = ProjectForm(
+            request.POST,
+            request.FILES,
+            instance=project,
+            user=request.user
+        )
         if form.is_valid():
-            project = form.save()
+            project = form.save(commit=False)
+            
+            # Handle gold seed fields for faculty
+            if request.user.groups.filter(name='Faculty').exists():
+                project.is_gold = form.cleaned_data.get('is_gold', False)
+                if project.is_gold:
+                    project.token_reward = form.cleaned_data.get('token_reward')
+                    project.gold_goal = form.cleaned_data.get('gold_goal')
+                    project.deadline = form.cleaned_data.get('deadline')
+                else:
+                    # Clear gold seed fields if is_gold is False
+                    project.token_reward = None
+                    project.gold_goal = None
+                    project.deadline = None
+            
+            project.save()
             messages.success(request, 'Project updated successfully!')
             return redirect('projects:project_detail', pk=project.pk)
     else:
-        form = ProjectForm(instance=project)
-    return render(request, 'projects/edit_project.html', {'form': form, 'project': project})
+        # Initialize form with existing project data
+        initial_data = {
+            'is_gold': project.is_gold,
+            'token_reward': project.token_reward,
+            'gold_goal': project.gold_goal,
+        }
+        if project.deadline:
+            initial_data['deadline'] = project.deadline.strftime('%Y-%m-%dT%H:%M')
+            
+        form = ProjectForm(
+            instance=project,
+            user=request.user,
+            initial=initial_data
+        )
+    
+    return render(request, 'projects/edit_project.html', {
+        'form': form,
+        'project': project,
+        'title': 'Edit Project'
+    })
 
 @login_required
 def delete_project(request, pk):
-    project = get_object_or_404(Project, pk=pk, author=request.user)
-    if request.method == 'POST':
-        project.delete()
-        messages.success(request, 'Project deleted successfully!')
-        return redirect('projects:project_list')
-    return render(request, 'projects/delete_project.html', {'project': project})
-
-
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Delete associated files
+    if project.featured_image:
+        project.featured_image.delete()
+    if project.pdf_file:
+        project.pdf_file.delete()
+    if project.additional_files:
+        project.additional_files.delete()
+        
+    # Delete analytics data
+    ProjectAnalytics.objects.filter(project=project).delete()
+    
+    # Delete notifications related to this project
+    Notification.objects.filter(project=project).delete()
+    
+    # Delete the project
+    project.delete()
+    
+    messages.success(request, 'Project deleted successfully')
+    return redirect('projects:project_list')
 
 @login_required
 def clap_project(request, pk):
@@ -3499,9 +7989,9 @@ def clap_project(request, pk):
         project = get_object_or_404(Project, pk=pk)
         clap, created = Clap.objects.get_or_create(user=request.user, project=project)
         if created:
-            project.claps += 1
+            project.clap_count += 1  # Use clap_count instead of clap_count
             project.save()
-            return JsonResponse({'status': 'success', 'claps': project.claps})
+            return JsonResponse({'status': 'success', 'clap_count': project.clap_count})
     return JsonResponse({'status': 'error'}, status=400)
 
 @login_required
@@ -3522,14 +8012,29 @@ def edit_comment(request, pk):
 @login_required
 def delete_comment(request, pk):
     comment = get_object_or_404(Comment, pk=pk)
-    if comment.user != request.user and comment.project.author != request.user:
-        return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
     
-    project_pk = comment.project.pk
-    comment.delete()
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'status': 'success'})
-    return redirect('projects:project_detail', pk=project_pk)
+    # Check permissions
+    if comment.user != request.user and comment.project.author != request.user:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+        messages.error(request, 'You do not have permission to delete this comment.')
+        return redirect('projects:project_detail', pk=comment.project.pk)
+    
+    try:
+        project_pk = comment.project.pk
+        comment.delete()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'success'})
+        
+        messages.success(request, 'Comment deleted successfully.')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        messages.error(request, f'Error deleting comment: {str(e)}')
+        return redirect('projects:project_detail', pk=comment.project.pk)
 
 @login_required
 def mark_all_notifications_read(request):
@@ -3562,8 +8067,8 @@ class ProjectAnalyticsAPI(generics.RetrieveAPIView):
 def profile_settings(request):
     try:
         user_profile = request.user.profile
-    except Profile.DoesNotExist:
-        user_profile = Profile.objects.create(user=request.user)
+    except UserProfile.DoesNotExist:
+        user_profile = UserProfile.objects.create(user=request.user)
 
     if request.method == 'POST':
         form = NotificationSettingsForm(request.POST)
@@ -3575,7 +8080,7 @@ def profile_settings(request):
             user_profile.email_on_bookmark = form.cleaned_data['email_on_bookmark']
             user_profile.save()
             
-            messages.success(request, 'Settings updated successfully!')
+            messages.success(request, 'Notification settings updated successfully!')
             return redirect('projects:profile_settings')
     else:
         # Initialize form with current settings
@@ -3590,3 +8095,686 @@ def profile_settings(request):
         'form': form,
         'active_tab': 'settings'
     })
+
+
+
+# Add to projects/views.py
+def custom_404(request, exception):
+    return render(request, 'errors/404.html', status=404)
+
+def custom_500(request):
+    return render(request, 'errors/500.html', status=500)
+
+def homepage(request):
+    """Homepage view showing featured projects and recent activity"""
+    # Get recent projects
+    recent_projects = Project.objects.select_related('author').prefetch_related('comments').order_by('-created_at')[:6]
+    
+    # Get trending projects (most clap_count in last 7 days)
+    week_ago = timezone.now() - timedelta(days=7)
+    trending_projects = Project.objects.annotate(
+        recent_claps=Count('clap_count', filter=Q(claps__created_at__gte=week_ago))
+    ).order_by('-recent_claps', '-created_at')[:3]
+    
+    # Get top contributors
+    top_contributors = get_monthly_contributions()[:5]
+    
+    # Get latest comments
+    latest_comments = Comment.objects.select_related('user', 'project').order_by('-created_at')[:5]
+    
+    context = {
+        'recent_projects': recent_projects,
+        'trending_projects': trending_projects,
+        'top_contributors': top_contributors,
+        'latest_comments': latest_comments,
+        'total_projects': Project.objects.count(),
+        'total_users': User.objects.count(),
+    }
+    
+    return render(request, 'projects/homepage.html', context)
+
+def faculty_page(request):
+    """View for the faculty page"""
+    faculty_members = User.objects.filter(
+        groups__name='Faculty'
+    ).select_related('profile')
+    
+    context = {
+        'faculty_members': faculty_members,
+        'page_title': 'Faculty Members',
+        'active_tab': 'faculty'
+    }
+    return render(request, 'projects/faculty_page.html', context)
+
+def careers_page(request):
+    return render(request, 'projects/careers.html', {
+        'page_title': 'Careers',
+        'active_tab': 'careers'
+    })
+
+@login_required
+def clap_comment(request, pk):
+    if request.method == 'POST':
+        comment = get_object_or_404(Comment, pk=pk)
+        clap, created = CommentClap.objects.get_or_create(user=request.user, comment=comment)
+        if created:
+            comment.clap_count += 1
+            comment.save()
+            return JsonResponse({
+                'status': 'success', 
+                'claps': comment.clap_count,
+                'commentId': comment.id
+            })
+        else:
+            # Remove clap if already clapped
+            clap.delete()
+            comment.clap_count -= 1
+            comment.save()
+            return JsonResponse({
+                'status': 'removed',
+                'claps': comment.clap_count,
+                'commentId': comment.id
+            })
+    return JsonResponse({'status': 'error'}, status=400)
+
+def get_similar_projects(project, limit=3):
+    """Returns similar projects based on tags"""
+    if not project.tags:
+        return Project.objects.exclude(id=project.id)[:limit]
+    
+    tags = [tag.strip() for tag in project.tags.split(',')]
+    similar_projects = Project.objects.filter(
+        tags__icontains=tags[0]
+    ).exclude(id=project.id)
+    
+    for tag in tags[1:]:
+        similar_projects = similar_projects | Project.objects.filter(
+            tags__icontains=tag
+        ).exclude(id=project.id)
+    
+    return similar_projects.distinct()[:limit]
+
+def talents_page(request):
+    # Get selected talent type from query params
+    talent_type = request.GET.get('talent_type', '')
+    
+    # Base queryset
+    talents = User.objects.annotate(
+        project_count=Count('project'),
+        follower_count=Count('followers'),
+        following_count=Count('following')
+    ).filter(
+        ~Q(groups__name='Faculty'),
+        is_active=True
+    ).select_related('profile')
+    
+    # Apply talent type filter if selected
+    if talent_type:
+        talents = talents.filter(profile__talent_type=talent_type)
+    
+    talents = talents.order_by('-project_count')
+    
+    context = {
+        'talents': talents,
+        'title': 'Our Talents',
+        'talent_types': TALENT_TYPES,
+        'selected_talent': talent_type
+    }
+    return render(request, 'projects/talents.html', context)
+
+@login_required
+def submit_solution(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    
+    # Check if project is a gold seed and still accepting submissions
+    if not project.is_gold or not project.can_submit():
+        messages.error(request, 'This project is not accepting submissions')
+        return redirect('projects:project_detail', pk=pk)
+    
+    # Check if user already submitted
+    if Solution.objects.filter(project=project, user=request.user).exists():
+        messages.error(request, 'You have already submitted a solution')
+        return redirect('projects:project_detail', pk=pk)
+    
+    if request.method == 'POST':
+        form = SolutionForm(request.POST, request.FILES)
+        if form.is_valid():
+            solution = form.save(commit=False)
+            solution.project = project
+            solution.user = request.user
+            solution.save()
+            messages.success(request, 'Solution submitted successfully!')
+            return redirect('projects:project_detail', pk=pk)
+    else:
+        form = SolutionForm()
+    
+    return render(request, 'projects/submit_solution.html', {
+        'form': form,
+        'project': project
+    })
+
+@login_required
+def review_solution(request, project_pk, solution_pk):
+    solution = get_object_or_404(Solution, pk=solution_pk, project_id=project_pk)
+    project = solution.project
+    
+    # Check if user is faculty and project author
+    if not request.user.groups.filter(name='Faculty').exists() or request.user != project.author:
+        messages.error(request, 'You do not have permission to review solutions')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    if request.method == 'POST':
+        is_approved = request.POST.get('is_approved') == 'true'
+        feedback = request.POST.get('feedback', '')
+        tokens = request.POST.get('tokens')
+        
+        solution.is_approved = is_approved
+        solution.faculty_feedback = feedback
+        if tokens and is_approved:
+            solution.tokens_awarded = int(tokens)
+        solution.save()
+        
+        messages.success(request, 'Solution review submitted successfully')
+        return redirect('projects:project_detail', pk=project_pk)
+    
+    return render(request, 'projects/review_solution.html', {
+        'solution': solution,
+        'project': project
+    })
+
+@login_required
+def join_team(request, team_slug):
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if user is already a member
+    if TeamMembership.objects.filter(team=team, user=request.user).exists():
+        messages.warning(request, 'You are already a member of this team.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Create membership
+    TeamMembership.objects.create(
+        team=team,
+        user=request.user,
+        role='member',
+        is_approved=True  # Auto-approve for now, you can modify this for approval workflow
+    )
+    
+    messages.success(request, f'You have successfully joined {team.name}!')
+    return redirect('projects:team_detail', team_slug=team.slug)
+
+@login_required
+def leave_team(request, team_slug):
+    team = get_object_or_404(Team, slug=team_slug)
+    membership = get_object_or_404(TeamMembership, team=team, user=request.user)
+    
+    # Prevent founder from leaving
+    if membership.role == 'founder':
+        messages.error(request, 'Team founders cannot leave their team. Transfer ownership first or delete the team.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Delete membership
+    membership.delete()
+    
+    messages.success(request, f'You have left {team.name}.')
+    return redirect('projects:team_list')
+
+@login_required
+def promote_member(request, team_slug, user_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if current user is founder
+    if not TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        role='founder',
+        is_approved=True
+    ).exists():
+        messages.error(request, 'Only team founders can promote members.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Get target member
+    membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user_id=user_id,
+        is_approved=True
+    )
+    
+    # Prevent promoting founder
+    if membership.role == 'founder':
+        messages.error(request, 'Cannot promote team founder.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Promote to moderator
+    membership.role = 'moderator'
+    membership.save()
+    
+    messages.success(
+        request, 
+        f'{membership.user.get_full_name() or membership.user.username} has been promoted to moderator.'
+    )
+    return redirect('projects:team_members', team_slug=team.slug)
+
+@login_required
+def remove_member(request, team_slug, user_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if current user is founder or moderator
+    current_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        is_approved=True,
+        role__in=['founder', 'moderator']
+    )
+    
+    # Get target member
+    membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user_id=user_id
+    )
+    
+    # Prevent removing founder
+    if membership.role == 'founder':
+        messages.error(request, 'Cannot remove team founder.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Prevent moderators from removing other moderators
+    if current_membership.role == 'moderator' and membership.role == 'moderator':
+        messages.error(request, 'Moderators cannot remove other moderators.')
+        return redirect('projects:team_members', team_slug=team.slug)
+    
+    # Remove member
+    membership.delete()
+    
+    messages.success(
+        request, 
+        f'{membership.user.get_full_name() or membership.user.username} has been removed from the team.'
+    )
+    return redirect('projects:team_members', team_slug=team.slug)
+
+@login_required
+def team_list(request):
+    """
+    Display a list of all teams with search and filter capabilities
+    """
+    teams = Team.objects.all().select_related('founder')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        teams = teams.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(tags__icontains=search_query)
+        ).distinct()
+    
+    # Filter by tags
+    tag_filter = request.GET.get('tag', '')
+    if tag_filter:
+        teams = teams.filter(tags__icontains=tag_filter)
+    
+    # Get all unique tags for the filter dropdown
+    all_tags = set()
+    for team in Team.objects.values_list('tags', flat=True):
+        if team:  # Check if tags exist
+            all_tags.update(tag.strip() for tag in team.split(','))
+    
+    context = {
+        'teams': teams,
+        'search_query': search_query,
+        'tag_filter': tag_filter,
+        'all_tags': sorted(all_tags),
+        'title': 'Teams'
+    }
+    
+    return render(request, 'teams/team_list.html', context)
+
+@login_required
+def create_team(request):
+    """
+    Handle team creation
+    """
+    if request.method == 'POST':
+        form = TeamForm(request.POST, request.FILES)
+        if form.is_valid():
+            team = form.save(commit=False)
+            team.founder = request.user
+            team.save()
+            
+            # Create founder membership
+            TeamMembership.objects.create(
+                team=team,
+                user=request.user,
+                role='founder',
+                is_approved=True
+            )
+            
+            messages.success(request, f'Team "{team.name}" has been created successfully!')
+            return redirect('projects:team_detail', team_slug=team.slug)
+    else:
+        form = TeamForm()
+    
+    return render(request, 'teams/create_team.html', {
+        'form': form,
+        'title': 'Create Team'
+    })
+
+@login_required
+def team_detail(request, team_slug):
+    """
+    Display team details, members, and activities
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Get user's membership if exists
+    user_membership = TeamMembership.objects.filter(
+        team=team,
+        user=request.user
+    ).first()
+    
+    # Get team members with profiles
+    members = TeamMembership.objects.filter(
+        team=team,
+        is_approved=True
+    ).select_related('user', 'user__profile').order_by('-role', 'user__username')
+    
+    # Get recent activities (if you have an Activity model)
+    # activities = team.activities.all().select_related('user')[:5]
+    
+    context = {
+        'team': team,
+        'user_membership': user_membership,
+        'members': members,
+        # 'activities': activities,
+        'title': team.name,
+        'tags': [tag.strip() for tag in team.tags.split(',')] if team.tags else []
+    }
+    
+    return render(request, 'teams/team_detail.html', context)
+
+@login_required
+def edit_team(request, team_slug):
+    """
+    Handle team editing
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if user is founder or moderator
+    membership = get_object_or_404(
+        TeamMembership, 
+        team=team, 
+        user=request.user, 
+        is_approved=True,
+        role__in=['founder', 'moderator']
+    )
+    
+    if request.method == 'POST':
+        form = TeamForm(request.POST, request.FILES, instance=team)
+        if form.is_valid():
+            team = form.save()
+            messages.success(request, f'Team "{team.name}" has been updated successfully!')
+            return redirect('projects:team_detail', team_slug=team.slug)
+    else:
+        form = TeamForm(instance=team)
+    
+    context = {
+        'form': form,
+        'team': team,
+        'title': f'Edit Team: {team.name}',
+        'can_delete': membership.role == 'founder'  # Only founders can delete teams
+    }
+    
+    return render(request, 'teams/edit_team.html', context)
+
+@login_required
+def delete_team(request, team_slug):
+    """
+    Handle team deletion
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Check if user is founder
+    if not TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        role='founder',
+        is_approved=True
+    ).exists():
+        messages.error(request, 'Only team founders can delete teams.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    if request.method == 'POST':
+        # Store team name for success message
+        team_name = team.name
+        
+        # Delete team image if it exists
+        if team.team_image:
+            team.team_image.delete(save=False)
+        
+        # Delete the team and all related objects
+        team.delete()
+        
+        messages.success(request, f'Team "{team_name}" has been deleted successfully.')
+        return redirect('projects:team_list')
+    
+    return render(request, 'teams/delete_team.html', {
+        'team': team,
+        'title': f'Delete Team: {team.name}'
+    })
+
+@login_required
+def team_members(request, team_slug):
+    """
+    Display and manage team members
+    """
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Get user's membership if exists
+    user_membership = TeamMembership.objects.filter(
+        team=team,
+        user=request.user,
+        is_approved=True
+    ).first()
+    
+    # Check if user is a member
+    if not user_membership:
+        messages.error(request, 'You must be a team member to view this page.')
+        return redirect('projects:team_detail', team_slug=team.slug)
+    
+    # Get all team members with profiles
+    members = TeamMembership.objects.filter(
+        team=team,
+        is_approved=True
+    ).select_related(
+        'user',
+        'user__profile'
+    ).order_by(
+        # Order by role (founder first, then moderators, then members)
+        Case(
+            When(role='founder', then=0),
+            When(role='moderator', then=1),
+            default=2
+        ),
+        'user__username'
+    )
+    
+    # Get pending join requests if user is founder or moderator
+    pending_requests = []
+    if user_membership.role in ['founder', 'moderator']:
+        pending_requests = TeamMembership.objects.filter(
+            team=team,
+            is_approved=False
+        ).select_related('user', 'user__profile')
+    
+    context = {
+        'team': team,
+        'user_membership': user_membership,
+        'members': members,
+        'pending_requests': pending_requests,
+        'title': f'{team.name} - Members',
+        'can_manage': user_membership.role in ['founder', 'moderator']
+    }
+    
+    return render(request, 'teams/team_members.html', context)
+
+def help_view(request):
+    return render(request, 'help.html', {
+        'active_tab': 'Help'
+    })
+
+
+    ############################
+
+
+
+
+# Class-based views for new features
+class StartupListView(generic.ListView):
+    model = Startup
+    template_name = 'projects/startups/startup_list.html'
+    context_object_name = 'startups'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['products'] = Product.objects.all()
+        return context
+
+class StartupCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Startup
+    form_class = StartupForm
+    template_name = 'projects/startups/startup_form.html'
+    
+    def form_valid(self, form):
+        form.instance.founder = self.request.user
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('projects:startup_list')
+
+class ToolListView(generic.ListView):
+    model = Tool
+    template_name = 'projects/tools/tool_list.html'
+    context_object_name = 'tools'
+
+class ToolCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Tool
+    form_class = ToolForm
+    template_name = 'projects/tools/tool_form.html'
+    
+    def get_success_url(self):
+        return reverse('projects:tool_list')
+
+class DatasetListView(generic.ListView):
+    model = Dataset
+    template_name = 'projects/datasets/dataset_list.html'
+    context_object_name = 'datasets'
+
+class DatasetCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Dataset
+    form_class = DatasetForm
+    template_name = 'projects/datasets/dataset_form.html'
+    
+    def form_valid(self, form):
+        instance = form.save(commit=False)
+        instance.size = instance.file.size
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('projects:dataset_list')
+
+class SponsorshipListView(generic.ListView):
+    model = Sponsorship
+    template_name = 'projects/sponsorships/sponsorship_list.html'
+    context_object_name = 'sponsorships'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Group sponsorships by level
+        sponsorships = {}
+        for level, _ in Sponsorship.LEVELS:
+            sponsorships[level] = self.get_queryset().filter(level=level)
+        context['sponsorships'] = sponsorships
+        return context
+
+class VirtualMemberListView(generic.ListView):
+    model = VirtualMember
+    template_name = 'projects/virtual_members/virtual_member_list.html'
+    context_object_name = 'virtual_members'
+
+class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Application
+    form_class = ApplicationForm
+    template_name = 'projects/application_form.html'
+    success_url = reverse_lazy('projects:homepage')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['type'] = self.request.GET.get('type', 'team')
+        return initial
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        application_type = self.request.GET.get('type')
+        
+        # Remove sponsor-specific fields for team applications
+        if application_type != 'sponsor':
+            del form.fields['organization']
+            del form.fields['level']
+        
+        return form
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, 'Your application has been submitted successfully!')
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_sponsor'] = self.request.GET.get('type') == 'sponsor'
+        return context
+
+@login_required
+def download_project(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    zip_path = project.generate_zip()
+    
+    with open(zip_path, 'rb') as zip_file:
+        response = HttpResponse(zip_file.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{project.slug}_project.zip"'
+    
+    # Clean up the temporary zip file
+    os.remove(zip_path)
+    return response
+
+@login_required
+def download_dataset(request, pk):
+    dataset = get_object_or_404(Dataset, pk=pk)
+    
+    # Increment download counter
+    dataset.downloads += 1
+    dataset.save()
+    
+    response = HttpResponse(dataset.file, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{dataset.name}.zip"'
+    return response
+
+class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Application
+    fields = ['type', 'cover_letter', 'resume', 'additional_info']
+    template_name = 'projects/application_form.html'
+    
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)
+
+def faq(request):
+    return render(request, 'projects/faq.html')
+
