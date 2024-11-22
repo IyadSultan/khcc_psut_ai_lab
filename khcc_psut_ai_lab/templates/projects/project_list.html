@@ -92,7 +92,7 @@
 
                         <!-- Tags -->
                         <div class="mb-4">
-                            <label class="form-label fw-bold">Tags</label>
+                            <label class="form-label fw-bold">Popular Tags</label>
                             <div class="tag-cloud">
                                 {% for tag in popular_tags %}
                                 <div class="form-check">
@@ -253,10 +253,10 @@
                                 </div>
                                 <div class="project-stats" style="font-size: 0.75rem;">
                                     <span class="text-muted me-2" title="Claps">
-                                        <i class="bi bi-hand-thumbs-up"></i> {{ project.clap_count }}
+                                        <i class="bi bi-hand-thumbs-up"></i> {{ project.clap_count|default:0 }}
                                     </span>
                                     <span class="text-muted" title="Comments">
-                                        <i class="bi bi-chat"></i> {{ project.comment_count }}
+                                        <i class="bi bi-chat"></i> {{ project.total_comments|default:0 }}
                                     </span>
                                 </div>
                             </div>
@@ -336,6 +336,34 @@
         font-size: 0.95rem;
     }
 }
+
+.tag-cloud {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.tag-cloud::-webkit-scrollbar {
+    width: 5px;
+}
+
+.tag-cloud::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.tag-cloud::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 5px;
+}
+
+.form-check {
+    margin-bottom: 0.5rem;
+}
+
+.form-check-label {
+    font-size: 0.9rem;
+    color: #666;
+}
 </style>
 
 <script>
@@ -363,6 +391,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.addEventListener('beforeunload', () => {
         sessionStorage.setItem('scrollPosition', window.scrollY.toString());
+    });
+
+    // Handle tag checkbox changes
+    const tagCheckboxes = document.querySelectorAll('input[name="tags"]');
+    tagCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            document.getElementById('filterForm').submit();
+        });
     });
 });
 </script>

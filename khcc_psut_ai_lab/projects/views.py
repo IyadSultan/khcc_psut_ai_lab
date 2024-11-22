@@ -695,68 +695,75 @@ def update_analytics(request, project):
     analytics.save()
 
 def project_list(request):
-    """List and search projects"""
-    search_form = ProjectSearchForm(request.GET)
-    projects = Project.objects.all()
+    """View for listing projects with filters"""
+    projects = Project.objects.all().select_related('author', 'author__profile')
     
-    if search_form.is_valid():
-        query = search_form.cleaned_data.get('query')
-        tags = search_form.cleaned_data.get('tags')
-        sort = search_form.cleaned_data.get('sort')
-        
-        if query:
-            projects = projects.filter(
-                Q(title__icontains=query) |
-                Q(description__icontains=query) |
-                Q(author__username__icontains=query) |
-                Q(tags__icontains=query)
-            )
-        
-        if tags:
-            for tag in tags:
-                projects = projects.filter(tags__icontains=tag)
-        
-        if sort:
-            projects = projects.order_by(sort)
-        else:
+    # Get query parameters
+    query = request.GET.get('query', '')
+    category = request.GET.get('category', 'all')
+    sort = request.GET.get('sort', '-created_at')
+    selected_tags = request.GET.getlist('tags')
+
+    # Get top 10 most used tags
+    all_tags = Project.objects.values('tags') \
+        .annotate(tag_count=Count('tags')) \
+        .order_by('-tag_count')
+    popular_tags = [tag['tags'] for tag in all_tags[:10] if tag['tags']]
+
+    # Apply filters
+    if query:
+        projects = projects.filter(
+            Q(title__icontains=query) |
+            Q(description__icontains=query) |
+            Q(tags__icontains=query)
+        ).distinct()
+
+    if category != 'all':
+        if category == 'featured':
+            projects = projects.filter(is_featured=True)
+        elif category == 'gold':
+            projects = projects.filter(is_gold=True)
+        elif category == 'latest':
             projects = projects.order_by('-created_at')
-    else:
-        projects = projects.order_by('-created_at')
-    
-    # Get per_page parameter from request, default to 12
-    per_page = request.GET.get('per_page', 12)
-    try:
-        per_page = int(per_page)
-        # Limit per_page to valid options
-        if per_page not in [12, 24, 48]:
-            per_page = 12
-    except ValueError:
-        per_page = 12
-    
-    # Pagination with dynamic per_page
-    paginator = Paginator(projects, per_page)
-    page = request.GET.get('page', 1)
-    
-    try:
-        page_obj = paginator.page(page)
-    except PageNotAnInteger:
-        page_obj = paginator.page(1)
-    except EmptyPage:
-        page_obj = paginator.page(paginator.num_pages)
-    
-    # Get popular tags
-    popular_tags = (Project.objects
-        .values_list('tags', flat=True)
-        .exclude(tags='')
-        .annotate(count=Count('id'))
-        .order_by('-count')[:10])
-    
+        elif category == 'popular':
+            projects = projects.annotate(
+                popularity=Count('claps') + Count('comments')
+            ).order_by('-popularity')
+
+    # Apply tag filters
+    if selected_tags:
+        for tag in selected_tags:
+            projects = projects.filter(tags__icontains=tag)
+
+    # Apply sorting
+    if sort:
+        if sort == '-clap_count':
+            projects = projects.annotate(
+                total_claps=Count('claps')  # Changed from clap_count to total_claps
+            ).order_by('-total_claps')
+        elif sort == '-rating_avg':
+            projects = projects.annotate(
+                rating_avg=Avg('ratings__rating')
+            ).order_by('-rating_avg')
+        else:
+            projects = projects.order_by(sort)
+
+    # Annotate with counts for display
+    projects = projects.annotate(
+        total_comments=Count('comments')  # Changed from comment_count
+    )
+
+    # Pagination
+    paginator = Paginator(projects, 12)  # Show 12 projects per page
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+
     context = {
         'page_obj': page_obj,
         'popular_tags': popular_tags,
-        'search_form': search_form,
-        'per_page': per_page,
+        'selected_tags': selected_tags,
     }
+
     return render(request, 'projects/project_list.html', context)
 
 @login_required
