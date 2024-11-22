@@ -14,7 +14,7 @@ from django.db.models import Avg
 from django.conf import settings
 from khcc_psut_ai_lab.constants import TALENT_TYPES
 from django.utils import timezone
-
+import openai
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from .services import OpenAITaggingService
@@ -825,48 +825,21 @@ def auto_generate_tags(sender, instance, **kwargs):
         if generated_tags:
             instance.tags = generated_tags
 
+# In your models.py, add the imports at the top
+from django.conf import settings
+import openai
+
+# Add this class to your existing models.py, at the end of the file
 class KHCCBrain(models.Model):
     """AI Research Assistant Model"""
-    name = "KHCC Brain"
-    description = "AI Research Assistant & Team Mentor"
+    name = models.CharField(default="KHCC Brain", max_length=50)
+    description = models.CharField(default="AI Research Assistant & Team Mentor", max_length=100)
     last_active = models.DateTimeField(auto_now=True)
     total_comments = models.IntegerField(default=0)
     
     class Meta:
         verbose_name = "KHCC Brain"
         verbose_name_plural = "KHCC Brain Instances"
-
-    @classmethod
-    def get_user(cls):
-        """Get or create the KHCC Brain user account and profile"""
-        from django.contrib.auth.models import User
-        from projects.models import UserProfile
-        
-        try:
-            # First try to get existing user
-            return User.objects.get(username='kcc_brain')
-        except User.DoesNotExist:
-            # Create new user if doesn't exist
-            user = User.objects.create_user(
-                username='kcc_brain',
-                email='kcc_brain@khcc.jo',
-                first_name='KHCC',
-                last_name='Brain',
-                is_active=True
-            )
-            
-            # Create profile only if it doesn't exist
-            UserProfile.objects.get_or_create(
-                user=user,
-                defaults={
-                    'bio': "I am KHCC Brain, an AI research assistant specializing in healthcare AI. I help teams advance their medical AI projects through analysis and suggestions.",
-                    'title': "AI Research Assistant",
-                    'department': "AI Lab",
-                    'talent_type': 'ai'  # Make sure this matches one of your valid talent types
-                }
-            )
-            
-            return user
 
     def analyze_project(self, project):
         """Analyze a project and generate insights using OpenAI"""
@@ -911,23 +884,27 @@ class KHCCBrain(models.Model):
 
         except Exception as e:
             print(f"Error generating AI feedback: {str(e)}")
-            return None
+            return "I'm currently experiencing some technical difficulties, but I'll analyze this project as soon as possible!"
 
     def analyze_team_discussion(self, discussion):
         """Analyze team discussion and provide strategic advice"""
         try:
             openai.api_key = settings.OPENAI_API_KEY
             
-            # Get latest comments
-            latest_comments = discussion.comments.order_by('-created_at')[:5]
-            comments_text = "\n".join([f"- {comment.content}" for comment in latest_comments])
+            # Get all comments in the discussion
+            comments = discussion.comments.order_by('created_at')
+            comments_text = "\n".join([
+                f"- {comment.author.username}: {comment.content}" 
+                for comment in comments
+            ])
             
             prompt = f"""
             As KHCC Brain, analyze this team discussion and provide constructive input.
             
             Discussion Title: {discussion.title}
-            Content: {discussion.content}
-            Recent Comments:
+            Initial Post: {discussion.content}
+            
+            Discussion History:
             {comments_text}
             
             Provide concise feedback that:
@@ -937,6 +914,7 @@ class KHCCBrain(models.Model):
             4. Proposes concrete next steps
             
             Keep your response encouraging and under 150 words.
+            Your tone should be professional but friendly.
             """
 
             response = openai.chat.completions.create(
@@ -953,4 +931,30 @@ class KHCCBrain(models.Model):
 
         except Exception as e:
             print(f"Error generating team feedback: {str(e)}")
-            return None
+            return "I'm currently experiencing some technical difficulties, but I'll join the discussion as soon as possible!"
+
+    @classmethod
+    def get_user(cls):
+        """Get or create the KHCC Brain user account"""
+        try:
+            return User.objects.get(username='khcc_brain')
+        except User.DoesNotExist:
+            user = User.objects.create_user(
+                username='khcc_brain',
+                email='khcc_brain@khcc.jo',
+                first_name='KHCC',
+                last_name='Brain',
+                is_active=True
+            )
+            
+            # Create profile
+            UserProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'bio': "I am KHCC Brain, an AI research assistant specializing in healthcare AI. I help teams advance their medical AI projects through analysis and suggestions.",
+                    'title': "AI Research Assistant",
+                    'department': "AI Lab",
+                    'talent_type': 'ai'
+                }
+            )
+            return user

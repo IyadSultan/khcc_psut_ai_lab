@@ -21,9 +21,9 @@ class Command(BaseCommand):
         # 1. Check KHCC Brain user
         self.stdout.write("\n=== Checking KHCC Brain User ===")
         try:
-            kcc_brain_user = KHCCBrain.get_user()
+            KHCC_brain_user = KHCCBrain.get_user()
             self.stdout.write(self.style.SUCCESS(
-                f"✓ KHCC Brain user exists: {kcc_brain_user.username}"
+                f"✓ KHCC Brain user exists: {KHCC_brain_user.username}"
             ))
         except Exception as e:
             self.stdout.write(self.style.ERROR(
@@ -45,8 +45,8 @@ class Command(BaseCommand):
 
         # 3. Check memberships
         self.stdout.write("\n=== Checking Team Memberships ===")
-        if kcc_brain_user:
-            memberships = TeamMembership.objects.filter(user=kcc_brain_user)
+        if KHCC_brain_user:
+            memberships = TeamMembership.objects.filter(user=KHCC_brain_user)
             if memberships.exists():
                 self.stdout.write("KHCC Brain is member of:")
                 for membership in memberships:
@@ -56,14 +56,14 @@ class Command(BaseCommand):
 
         # 4. Try to join teams
         self.stdout.write("\n=== Attempting to Join Teams ===")
-        if kcc_brain_user:
-            new_teams = Team.objects.exclude(memberships__user=kcc_brain_user)
+        if KHCC_brain_user:
+            new_teams = Team.objects.exclude(memberships__user=KHCC_brain_user)
             if new_teams.exists():
                 for team in new_teams:
                     try:
                         membership, created = TeamMembership.objects.get_or_create(
                             team=team,
-                            user=kcc_brain_user,
+                            user=KHCC_brain_user,
                             defaults={
                                 'role': 'ai_assistant',
                                 'is_approved': True
@@ -106,8 +106,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Error checking roles: {str(e)}"))
         try:
             # Get KHCC Brain user
-            kcc_brain_user = KHCCBrain.get_user()
-            self.stdout.write(f"Found KHCC Brain user: {kcc_brain_user.username}")
+            KHCC_brain_user = KHCCBrain.get_user()
+            self.stdout.write(f"Found KHCC Brain user: {KHCC_brain_user.username}")
 
             # Get all teams
             all_teams = Team.objects.all()
@@ -115,7 +115,7 @@ class Command(BaseCommand):
 
             # Get teams KHCC Brain hasn't joined
             new_teams = Team.objects.exclude(
-                memberships__user=kcc_brain_user
+                memberships__user=KHCC_brain_user
             )
             self.stdout.write(f"Found {new_teams.count()} teams to join")
 
@@ -124,7 +124,7 @@ class Command(BaseCommand):
                 try:
                     membership = TeamMembership.objects.create(
                         team=team,
-                        user=kcc_brain_user,
+                        user=KHCC_brain_user,
                         role='ai_assistant',
                         is_approved=True
                     )

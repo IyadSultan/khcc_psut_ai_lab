@@ -18,10 +18,10 @@ class Command(BaseCommand):
         
         try:
             # Get KHCC Brain user
-            kcc_brain_user = User.objects.get(username='kcc_brain')
+            KHCC_brain_user = User.objects.get(username='KHCC_brain')
             
             # Get teams where KHCC Brain is a member
-            memberships = TeamMembership.objects.filter(user=kcc_brain_user)
+            memberships = TeamMembership.objects.filter(user=KHCC_brain_user)
             
             for membership in memberships:
                 team = membership.team
@@ -29,7 +29,7 @@ class Command(BaseCommand):
                 # Check if welcome message already exists
                 existing_welcome = TeamDiscussion.objects.filter(
                     team=team,
-                    author=kcc_brain_user,
+                    author=KHCC_brain_user,
                     title="KHCC Brain Introduction"
                 ).exists()
                 
@@ -55,7 +55,7 @@ KHCC Brain 🤖
                     
                     discussion = TeamDiscussion.objects.create(
                         team=team,
-                        author=kcc_brain_user,
+                        author=KHCC_brain_user,
                         title="KHCC Brain Introduction",
                         content=welcome_message
                     )

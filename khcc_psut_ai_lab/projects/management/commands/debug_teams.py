@@ -18,23 +18,23 @@ class Command(BaseCommand):
         
         # 1. Check KHCC Brain user
         self.stdout.write("\n=== Checking KHCC Brain User ===")
-        kcc_brain_user = None
+        KHCC_brain_user = None
         try:
-            kcc_brain = KHCCBrain.objects.first()
-            if not kcc_brain:
-                kcc_brain = KHCCBrain.objects.create()
+            KHCC_brain = KHCCBrain.objects.first()
+            if not KHCC_brain:
+                KHCC_brain = KHCCBrain.objects.create()
                 self.stdout.write("Created new KHCC Brain instance")
             
-            kcc_brain_user = User.objects.filter(username='kcc_brain').first()
-            if not kcc_brain_user:
-                kcc_brain_user = User.objects.create_user(
-                    username='kcc_brain',
-                    email='kcc_brain@khcc.jo',
+            KHCC_brain_user = User.objects.filter(username='KHCC_brain').first()
+            if not KHCC_brain_user:
+                KHCC_brain_user = User.objects.create_user(
+                    username='KHCC_brain',
+                    email='KHCC_brain@khcc.jo',
                     first_name='KHCC',
                     last_name='Brain'
                 )
                 UserProfile.objects.get_or_create(
-                    user=kcc_brain_user,
+                    user=KHCC_brain_user,
                     defaults={
                         'bio': "AI Research Assistant",
                         'title': "AI Assistant",
@@ -44,7 +44,7 @@ class Command(BaseCommand):
                 self.stdout.write("Created KHCC Brain user")
             
             self.stdout.write(self.style.SUCCESS(
-                f"✓ KHCC Brain user exists: {kcc_brain_user.username}"
+                f"✓ KHCC Brain user exists: {KHCC_brain_user.username}"
             ))
         except Exception as e:
             self.stdout.write(self.style.ERROR(
@@ -72,9 +72,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Available roles: {team_roles}")
 
         # 4. Check memberships and join teams
-        if kcc_brain_user:
+        if KHCC_brain_user:
             self.stdout.write("\n=== Current KHCC Brain Memberships ===")
-            current_memberships = TeamMembership.objects.filter(user=kcc_brain_user)
+            current_memberships = TeamMembership.objects.filter(user=KHCC_brain_user)
             if current_memberships.exists():
                 for membership in current_memberships:
                     self.stdout.write(f"Member of: {membership.team.name} (Role: {membership.role})")
@@ -82,13 +82,13 @@ class Command(BaseCommand):
                 self.stdout.write("No current memberships")
 
             self.stdout.write("\n=== Attempting to Join New Teams ===")
-            new_teams = Team.objects.exclude(memberships__user=kcc_brain_user)
+            new_teams = Team.objects.exclude(memberships__user=KHCC_brain_user)
             for team in new_teams:
                 try:
                     # Use 'member' role as it's likely to exist in your choices
                     membership = TeamMembership.objects.create(
                         team=team,
-                        user=kcc_brain_user,
+                        user=KHCC_brain_user,
                         role='member',  # Using 'member' as a safe default
                         is_approved=True
                     )
