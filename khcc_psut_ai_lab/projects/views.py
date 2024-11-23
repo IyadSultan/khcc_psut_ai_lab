@@ -1009,17 +1009,46 @@ def user_projects(request, username):
 
 @login_required
 def notifications(request):
-    notifications_list = request.user.notifications.all().order_by('-created_at')
+    """View to display user notifications"""
+    notifications_list = Notification.objects.filter(
+        recipient=request.user
+    ).select_related(
+        'sender', 'project'
+    ).order_by('-created_at')
+    
+    # Mark notifications as read when viewed
+    unread_notifications = notifications_list.filter(is_read=False)
+    unread_notifications.update(is_read=True)
+    
     return render(request, 'projects/notifications.html', {
-        'notifications': notifications_list
+        'notifications': notifications_list,
+        'page_title': 'Notifications',
+        'active_tab': 'notifications'
     })
 
 @login_required
 def mark_notification_read(request, notification_id):
+    """Mark a notification as read"""
     notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
-    notification.is_read = True
-    notification.save()
-    return JsonResponse({'status': 'success'})
+    
+    if request.method == 'POST':
+        notification.is_read = True
+        notification.save()
+        
+        # If AJAX request, return JSON response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'success'})
+        
+        # If regular POST request, redirect back to notifications
+        return redirect('projects:notifications')
+    
+    # If GET request, redirect to the relevant content
+    if notification.project:
+        return redirect('projects:project_detail', pk=notification.project.pk)
+    elif notification.team:
+        return redirect('projects:team_detail', team_slug=notification.team.slug)
+    else:
+        return redirect('projects:notifications')
 
 @login_required
 def follow_user(request, username):
@@ -1402,6 +1431,7 @@ def profile_settings(request):
         'form': form,
         'active_tab': 'settings'
     })
+
 
 
 
@@ -2338,7 +2368,7 @@ def delete_team_discussion(request, team_slug, discussion_id):
     """Delete a team discussion"""
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
-        
+    
     team = get_object_or_404(Team, slug=team_slug)
     discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
     
