@@ -14,7 +14,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}KHCC AI Lab{% endblock %}</title>
+    <title>{% block title %}KHCC.AI{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
     {% bootstrap_css %}
@@ -40,7 +40,7 @@
     <footer class="bg-light mt-5 py-4">
         <div class="container">
             <div class="text-center text-muted">
-                <p>&copy; 2024 KHCC AI Lab. All rights reserved.</p>
+                <p>&copy; 2024 KHCC.AI. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -62,7 +62,7 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
     <div class="container">
         <a class="navbar-brand" href="{% url 'projects:project_list' %}">
-            KHCC AI Lab
+            KHCC.AI
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
                 data-bs-target="#navbarNav" aria-controls="navbarNav" 
@@ -342,7 +342,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}About - KHCC AI Lab{% endblock %}
+{% block title %}About - KHCC.AI{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -350,7 +350,7 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8 mx-auto text-center">
-                <h1 class="display-4 fw-bold mb-4">About KHCC AI Lab</h1>
+                <h1 class="display-4 fw-bold mb-4">About KHCC.AI</h1>
                 <p class="lead mb-0">
                     A collaborative initiative between King Hussein Cancer Center and 
                     Princess Sumaya University for Technology to advance AI in healthcare.
@@ -704,7 +704,7 @@
 {% load crispy_forms_tags %}
 {% load static %}
 
-{% block title %}Edit {{ project.title }} - KHCC AI Lab{% endblock %}
+{% block title %}Edit {{ project.title }} - KHCC.AI{% endblock %}
 
 {% block content %}
 <div class="container py-5">
@@ -1010,14 +1010,14 @@ $(document).ready(function() {
 <body>
     <div class="container">
         <div class="header">
-            <h1>KHCC AI Lab</h1>
+            <h1>KHCC.AI</h1>
         </div>
         <div class="content">
             {% block content %}{% endblock %}
         </div>
         <div class="footer">
             <p>
-                You received this email because you're part of the KHCC AI Lab community.
+                You received this email because you're part of the KHCC.AI community.
                 If you don't want to receive these emails, you can 
                 <a href="{{ unsubscribe_url }}">unsubscribe</a>.
             </p>
@@ -1026,7 +1026,7 @@ $(document).ready(function() {
                 <a href="#">Twitter</a> |
                 <a href="#">GitHub</a>
             </div>
-            <p>&copy; {% now "Y" %} KHCC AI Lab. All rights reserved.</p>
+            <p>&copy; {% now "Y" %} KHCC.AI. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -1049,18 +1049,18 @@ $(document).ready(function() {
 </p>
 {% endif %}
 
-<p>Best regards,<br>KHCC AI Lab Team</p>
+<p>Best regards,<br>KHCC.AI Team</p>
 {% endblock %}
 
 <!-- templates/emails/welcome.html -->
 {% extends 'emails/base_email.html' %}
 
 {% block content %}
-<h2>Welcome to KHCC AI Lab!</h2>
+<h2>Welcome to KHCC.AI!</h2>
 <p>Hello {{ user.get_full_name|default:user.username }},</p>
 
 <p>
-    Welcome to the KHCC AI Lab community! We're excited to have you join us in our 
+    Welcome to the KHCC.AI community! We're excited to have you join us in our 
     mission to advance AI applications in healthcare.
 </p>
 
@@ -1078,7 +1078,7 @@ $(document).ready(function() {
     </a>
 </p>
 
-<p>Best regards,<br>KHCC AI Lab Team</p>
+<p>Best regards,<br>KHCC.AI Team</p>
 {% endblock %}
 
 <!-- templates/emails/project_comment.html -->
@@ -1100,7 +1100,7 @@ $(document).ready(function() {
     </a>
 </p>
 
-<p>Best regards,<br>KHCC AI Lab Team</p>
+<p>Best regards,<br>KHCC.AI Team</p>
 {% endblock %}
 
 <!-- templates/emails/project_clap.html -->
@@ -1120,7 +1120,7 @@ $(document).ready(function() {
     </a>
 </p>
 
-<p>Best regards,<br>KHCC AI Lab Team</p>
+<p>Best regards,<br>KHCC.AI Team</p>
 {% endblock %}
 
 <!-- templates/emails/password_reset.html -->
@@ -1155,7 +1155,7 @@ $(document).ready(function() {
     This link will expire in 24 hours for security reasons.
 </p>
 
-<p>Best regards,<br>KHCC AI Lab Team</p>
+<p>Best regards,<br>KHCC.AI Team</p>
 {% endblock %}
 
 <!-- templates/emails/email_verification.html -->
@@ -1166,7 +1166,7 @@ $(document).ready(function() {
 <p>Hello {{ user.get_full_name|default:user.username }},</p>
 
 <p>
-    Thank you for registering with KHCC AI Lab. Please verify your email address 
+    Thank you for registering with KHCC.AI. Please verify your email address 
     by clicking the button below:
 </p>
 
@@ -1186,14 +1186,14 @@ $(document).ready(function() {
     This link will expire in 24 hours for security reasons.
 </p>
 
-<p>Best regards,<br>KHCC AI Lab Team</p>
+<p>Best regards,<br>KHCC.AI Team</p>
 {% endblock %}
 
 # Contents from: .\templates\projects\faculty_page.html
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Faculty - KHCC AI Lab{% endblock %}
+{% block title %}Faculty - KHCC.AI{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -1503,7 +1503,7 @@ $(document).ready(function() {
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}FAQ - KHCC AI Lab{% endblock %}
+{% block title %}FAQ - KHCC.AI{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -1535,13 +1535,13 @@ $(document).ready(function() {
                                 <button class="accordion-button" type="button" 
                                         data-bs-toggle="collapse" 
                                         data-bs-target="#faq1">
-                                    What is KHCC AI Lab?
+                                    What is KHCC.AI?
                                 </button>
                             </h3>
                             <div id="faq1" class="accordion-collapse collapse show" 
                                  data-bs-parent="#faqAccordion">
                                 <div class="accordion-body">
-                                    KHCC AI Lab is a collaborative research initiative between 
+                                    KHCC.AI is a collaborative research initiative between 
                                     King Hussein Cancer Center and Princess Sumaya University for 
                                     Technology, focusing on developing AI solutions for healthcare, 
                                     particularly in cancer research and treatment.
@@ -1711,7 +1711,7 @@ $(document).ready(function() {
 {% load static %}
 {% load humanize %}
 
-{% block title %}KHCC AI Lab - Home{% endblock %}
+{% block title %}KHCC.AI - Home{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -1719,7 +1719,7 @@ $(document).ready(function() {
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-6">
-                <h1 class="display-4 fw-bold mb-4">Welcome to KHCC AI Lab</h1>
+                <h1 class="display-4 fw-bold mb-4">Welcome to KHCC.AI</h1>
                 <p class="lead mb-4">
                     A collaborative platform for sharing and discovering innovative AI projects 
                     incubated @ King Hussein Cancer Center.
@@ -2133,7 +2133,7 @@ export default LeaderboardComponent;
 {% load static %}
 {% load humanize %}
 
-{% block title %}Analytics for {{ project.title }} - KHCC AI Lab{% endblock %}
+{% block title %}Analytics for {{ project.title }} - KHCC.AI{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -3699,7 +3699,7 @@ $(document).ready(function() {
             <!-- Welcome Card -->
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                    <h5 class="card-title">Welcome to KHCC AI Lab</h5>
+                    <h5 class="card-title">Welcome to KHCC.AI</h5>
                     <p class="card-text">
                         Discover innovative AI projects, share your work, and connect with 
                         fellow developers.
@@ -5111,7 +5111,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 # Site specific settings
-SITE_NAME = 'KHCC AI Lab'
+SITE_NAME = 'KHCC.AI'
 SITE_URL = 'http://localhost:8000'  # Change this in production
 ADMIN_EMAIL = 'admin@khccpsutailab.com'
 
@@ -5743,8 +5743,8 @@ class ProjectAnalyticsAdmin(admin.ModelAdmin):
     project_link.short_description = 'Project'
 
 class CustomAdminSite(admin.AdminSite):
-    site_header = 'KHCC AI Lab Administration'
-    site_title = 'KHCC AI Lab Admin'
+    site_header = 'KHCC.AI Administration'
+    site_title = 'KHCC.AI Admin'
     index_title = 'Dashboard'
     
     def get_app_list(self, request):

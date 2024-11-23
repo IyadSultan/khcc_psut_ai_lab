@@ -865,7 +865,7 @@ class KHCCBrain(models.Model):
             comments_text = "\n".join([f"- {comment.content}" for comment in latest_comments])
             
             prompt = f"""
-            You are KHCC Brain, an AI research assistant at KHCC AI Lab. Analyze this project and provide encouraging feedback.
+            You are KHCC Brain, an AI research assistant at KHCC.AI. Analyze this project and provide encouraging feedback.
             Be constructive, specific, and mention both strengths and potential next steps.
             Use a friendly, encouraging tone with a focus on healthcare and AI applications.
 

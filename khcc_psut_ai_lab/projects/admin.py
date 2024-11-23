@@ -303,8 +303,8 @@ class FollowAdmin(admin.ModelAdmin):
     search_fields = ('follower__username', 'following__username')
 
 class CustomAdminSite(admin.AdminSite):
-    site_header = 'KHCC AI Lab Administration'
-    site_title = 'KHCC AI Lab Admin'
+    site_header = 'KHCC.AI Administration'
+    site_title = 'KHCC.AI Admin'
     index_title = 'Dashboard'
     
     def get_app_list(self, request):

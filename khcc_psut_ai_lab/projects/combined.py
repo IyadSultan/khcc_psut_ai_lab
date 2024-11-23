@@ -313,8 +313,8 @@ class FollowAdmin(admin.ModelAdmin):
     search_fields = ('follower__username', 'following__username')
 
 class CustomAdminSite(admin.AdminSite):
-    site_header = 'KHCC AI Lab Administration'
-    site_title = 'KHCC AI Lab Admin'
+    site_header = 'KHCC.AI Administration'
+    site_title = 'KHCC.AI Admin'
     index_title = 'Dashboard'
     
     def get_app_list(self, request):
@@ -6077,7 +6077,7 @@ class KHCCBrain(models.Model):
             comments_text = "\n".join([f"- {comment.content}" for comment in latest_comments])
             
             prompt = f"""
-            You are KHCC Brain, an AI research assistant at KHCC AI Lab. Analyze this project and provide encouraging feedback.
+            You are KHCC Brain, an AI research assistant at KHCC.AI. Analyze this project and provide encouraging feedback.
             Be constructive, specific, and mention both strengths and potential next steps.
             Use a friendly, encouraging tone with a focus on healthcare and AI applications.
 

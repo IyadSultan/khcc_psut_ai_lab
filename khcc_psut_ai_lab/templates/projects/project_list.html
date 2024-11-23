@@ -18,6 +18,13 @@
         <div class="col-md-3">
             <div class="card shadow-sm">
                 <div class="card-body">
+                    <!-- Add Post Seed button -->
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'projects:submit_project' %}" class="btn btn-primary w-100 mb-4">
+                        <i class="bi bi-plus-circle me-2"></i>Post Seed
+                    </a>
+                    {% endif %}
+
                     <h5 class="card-title mb-4">Filter Seeds</h5>
                     <form method="GET" id="filterForm">
                         <!-- Search Bar -->

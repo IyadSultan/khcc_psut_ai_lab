@@ -24,7 +24,7 @@ Description: Time Range Selector
 --------------------------------------------------------------------------------
 
 ### .\base.html ###
-Title: {% block title %}<a href="{% url 'projects:homepage' %}">KHCC AI Lab</a>{% endblock %}
+Title: {% block title %}<a href="{% url 'projects:homepage' %}">KHCC.AI</a>{% endblock %}
 Description: Bootstrap CSS
 --------------------------------------------------------------------------------
 
