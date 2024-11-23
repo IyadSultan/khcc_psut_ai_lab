@@ -1,5 +1,5 @@
 # Combined Python and HTML files
-# Generated from directory: C:\Users\USER\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\projects
+# Generated from directory: C:\Users\USER\Documents\khcc_ai\khcc_ai\projects
 # Total files found: 77
 
 
@@ -622,7 +622,7 @@ from .models import (
 
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from khcc_psut_ai_lab.constants import TALENT_TYPES
+from khcc_ai.constants import TALENT_TYPES
 
 
 
@@ -5230,7 +5230,7 @@ from django.dispatch import receiver
 import uuid
 from django.db.models import Avg
 from django.conf import settings
-from khcc_psut_ai_lab.constants import TALENT_TYPES
+from khcc_ai.constants import TALENT_TYPES
 from django.utils import timezone
 import openai
 from django.db.models.signals import pre_save
@@ -5842,7 +5842,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator
 from django.urls import reverse
 from django.utils.text import slugify
-from khcc_psut_ai_lab.constants import DEFAULT_TEAM_SIZE, MAX_TEAM_SIZE, TEAM_ROLES
+from khcc_ai.constants import DEFAULT_TEAM_SIZE, MAX_TEAM_SIZE, TEAM_ROLES
 import uuid
 
 def team_image_upload_path(instance, filename):
@@ -7364,7 +7364,7 @@ from django.views.generic.edit import CreateView
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
-from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
+from khcc_ai.constants import TALENT_TYPES, TALENT_DICT
 
 from .filters.project_filters import ProjectFilter
 from .forms import (
@@ -7522,7 +7522,7 @@ def remove_virtual_member(request, project_pk, member_pk):
 
 from django.conf import settings
 import openai
-from khcc_psut_ai_lab.constants import ALL_TAGS
+from khcc_ai.constants import ALL_TAGS
 from difflib import get_close_matches
 
 def get_similar_tags(suggested_tag, valid_tags=ALL_TAGS, n=1, cutoff=0.6):

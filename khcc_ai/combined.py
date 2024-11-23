@@ -1,5 +1,5 @@
 # Combined Python and HTML files
-# Generated from directory: C:\Users\isultan\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab
+# Generated from directory: C:\Users\isultan\Documents\khcc_ai\khcc_ai
 # Total files found: 65
 
 
@@ -5070,12 +5070,12 @@ def main():
 if __name__ == "__main__":
     main()
 
-# Contents from: .\khcc_psut_ai_lab\__init__.py
+# Contents from: .\khcc_ai\__init__.py
 
 
-# Contents from: .\khcc_psut_ai_lab\asgi.py
+# Contents from: .\khcc_ai\asgi.py
 """
-ASGI config for khcc_psut_ai_lab project.
+ASGI config for khcc_ai project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -5087,13 +5087,13 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "khcc_psut_ai_lab.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "khcc_ai.settings")
 
 application = get_asgi_application()
 
 
-# Contents from: .\khcc_psut_ai_lab\settings.py
-# khcc_psut_ai_lab/settings.py
+# Contents from: .\khcc_ai\settings.py
+# khcc_ai/settings.py
 
 from pathlib import Path
 import os
@@ -5213,7 +5213,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
-ROOT_URLCONF = "khcc_psut_ai_lab.urls"
+ROOT_URLCONF = "khcc_ai.urls"
 
 TEMPLATES = [
     {
@@ -5236,7 +5236,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "khcc_psut_ai_lab.wsgi.application"
+WSGI_APPLICATION = "khcc_ai.wsgi.application"
 
 # Database
 DATABASES = {
@@ -5392,7 +5392,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
-# Contents from: .\khcc_psut_ai_lab\urls.py
+# Contents from: .\khcc_ai\urls.py
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -5440,9 +5440,9 @@ handler404 = 'projects.views.custom_404'
 handler500 = 'projects.views.custom_500'
 
 
-# Contents from: .\khcc_psut_ai_lab\wsgi.py
+# Contents from: .\khcc_ai\wsgi.py
 """
-WSGI config for khcc_psut_ai_lab project.
+WSGI config for khcc_ai project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -5454,7 +5454,7 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "khcc_psut_ai_lab.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "khcc_ai.settings")
 
 application = get_wsgi_application()
 
@@ -5468,7 +5468,7 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "khcc_psut_ai_lab.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "khcc_ai.settings")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

@@ -6,7 +6,7 @@ import os
 import pytz
 import zipfile
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.http import HttpResponseNotAllowed, Http404, JsonResponse, HttpResponse
@@ -31,7 +31,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
+from khcc_ai.constants import TALENT_TYPES, TALENT_DICT
 
 from .filters.project_filters import ProjectFilter
 from .forms import (
@@ -143,7 +143,7 @@ def remove_virtual_member(request, project_pk, member_pk):
 
 from django.conf import settings
 import openai
-from khcc_psut_ai_lab.constants import ALL_TAGS
+from khcc_ai.constants import ALL_TAGS
 from difflib import get_close_matches
 
 def get_similar_tags(suggested_tag, valid_tags=ALL_TAGS, n=1, cutoff=0.6):
@@ -1084,12 +1084,21 @@ def mark_notification_read(request, notification_id):
         # If regular POST request, redirect back to notifications
         return redirect('projects:notifications')
     
-    # If GET request, redirect to the relevant content
+    # For GET requests, mark as read and redirect to appropriate content
+    notification.is_read = True
+    notification.save()
+    
+    # Determine where to redirect based on notification type
     if notification.project:
         return redirect('projects:project_detail', pk=notification.project.pk)
-    elif notification.team:
-        return redirect('projects:team_detail', team_slug=notification.team.slug)
+    elif hasattr(notification, 'team_discussion'):
+        return redirect('projects:team_discussion_detail', 
+                      team_slug=notification.team_discussion.team.slug,
+                      discussion_id=notification.team_discussion.id)
+    elif notification.notification_type == 'follow':
+        return redirect('projects:user_profile', username=notification.sender.username)
     else:
+        # Default fallback to notifications list
         return redirect('projects:notifications')
 
 @login_required
@@ -1693,6 +1702,7 @@ def join_team(request, team_slug):
 
 @login_required
 def leave_team(request, team_slug):
+    """Handle user leaving a team"""
     team = get_object_or_404(Team, slug=team_slug)
     membership = get_object_or_404(TeamMembership, team=team, user=request.user)
     

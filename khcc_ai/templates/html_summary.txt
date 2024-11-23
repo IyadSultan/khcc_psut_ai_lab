@@ -1,5 +1,5 @@
 # HTML Files Summary
-# Generated from directory: C:\Users\USER\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\templates
+# Generated from directory: C:\Users\USER\Documents\khcc_ai\khcc_ai\templates
 # Total HTML files found: 63
 
 

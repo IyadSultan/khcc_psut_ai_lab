@@ -1,4 +1,4 @@
-# khcc_psut_ai_lab/settings.py
+# khcc_ai/settings.py
 
 from pathlib import Path
 import os
@@ -120,7 +120,7 @@ MIDDLEWARE = [
     'gold_analytics.middleware.AnalyticsMiddleware',
 ]
 
-ROOT_URLCONF = "khcc_psut_ai_lab.urls"
+ROOT_URLCONF = "khcc_ai.urls"
 
 TEMPLATES = [
     {
@@ -143,7 +143,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "khcc_psut_ai_lab.wsgi.application"
+WSGI_APPLICATION = "khcc_ai.wsgi.application"
 
 # Database
 DATABASES = {

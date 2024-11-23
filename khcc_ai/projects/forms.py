@@ -30,7 +30,7 @@ from .models import (
 
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from khcc_psut_ai_lab.constants import TALENT_TYPES
+from khcc_ai.constants import TALENT_TYPES
 
 
 

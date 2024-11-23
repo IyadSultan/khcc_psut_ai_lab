@@ -12,7 +12,7 @@ from django.dispatch import receiver
 import uuid
 from django.db.models import Avg
 from django.conf import settings
-from khcc_psut_ai_lab.constants import TALENT_TYPES
+from khcc_ai.constants import TALENT_TYPES
 from django.utils import timezone
 import openai
 from django.db.models.signals import pre_save
@@ -646,7 +646,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator
 from django.urls import reverse
 from django.utils.text import slugify
-from khcc_psut_ai_lab.constants import DEFAULT_TEAM_SIZE, MAX_TEAM_SIZE, TEAM_ROLES
+from khcc_ai.constants import DEFAULT_TEAM_SIZE, MAX_TEAM_SIZE, TEAM_ROLES
 import uuid
 
 def team_image_upload_path(instance, filename):
