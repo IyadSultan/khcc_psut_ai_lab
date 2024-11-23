@@ -955,22 +955,44 @@ def bookmarks(request):
 
 @login_required
 def edit_profile(request):
-    try:
-        profile = request.user.profile
-    except Profile.DoesNotExist:
-        profile = Profile.objects.create(user=request.user)
+    # Get or create user profile
+    profile, created = UserProfile.objects.get_or_create(
+        user=request.user,
+        defaults={
+            'email_on_comment': True,
+            'email_on_follow': True,
+            'email_on_clap': True,
+            'email_on_bookmark': True,
+            'email_on_team_discussion': True,
+            'email_on_team_comment': True,
+            'email_on_featured_seed': True,
+            'email_on_gold_seed': True
+        }
+    )
 
     if request.method == 'POST':
-        form = ProfileForm(request.POST, request.FILES, instance=profile)
+        form = UserProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
+            # Update notification settings
+            profile.email_on_comment = request.POST.get('email_on_comment') == 'on'
+            profile.email_on_follow = request.POST.get('email_on_follow') == 'on'
+            profile.email_on_clap = request.POST.get('email_on_clap') == 'on'
+            profile.email_on_bookmark = request.POST.get('email_on_bookmark') == 'on'
+            profile.email_on_team_discussion = request.POST.get('email_on_team_discussion') == 'on'
+            profile.email_on_team_comment = request.POST.get('email_on_team_comment') == 'on'
+            profile.email_on_featured_seed = request.POST.get('email_on_featured_seed') == 'on'
+            profile.email_on_gold_seed = request.POST.get('email_on_gold_seed') == 'on'
+            
+            profile.save()
             form.save()
             messages.success(request, 'Profile updated successfully!')
             return redirect('projects:user_profile', username=request.user.username)
     else:
-        form = ProfileForm(instance=profile)
+        form = UserProfileForm(instance=profile)
 
     return render(request, 'projects/edit_profile.html', {
         'form': form,
+        'profile': profile,
         'active_tab': 'profile'
     })
 
@@ -1429,22 +1451,30 @@ def profile_settings(request):
     if request.method == 'POST':
         form = NotificationSettingsForm(request.POST)
         if form.is_valid():
-            # Update notification settings
+            # Update existing settings
             user_profile.email_on_comment = form.cleaned_data['email_on_comment']
             user_profile.email_on_follow = form.cleaned_data['email_on_follow']
             user_profile.email_on_clap = form.cleaned_data['email_on_clap']
             user_profile.email_on_bookmark = form.cleaned_data['email_on_bookmark']
+            # Update new settings
+            user_profile.email_on_team_discussion = form.cleaned_data['email_on_team_discussion']
+            user_profile.email_on_team_comment = form.cleaned_data['email_on_team_comment']
+            user_profile.email_on_featured_seed = form.cleaned_data['email_on_featured_seed']
+            user_profile.email_on_gold_seed = form.cleaned_data['email_on_gold_seed']
             user_profile.save()
             
             messages.success(request, 'Notification settings updated successfully!')
             return redirect('projects:profile_settings')
     else:
-        # Initialize form with current settings
         form = NotificationSettingsForm(initial={
             'email_on_comment': user_profile.email_on_comment,
             'email_on_follow': user_profile.email_on_follow,
             'email_on_clap': user_profile.email_on_clap,
             'email_on_bookmark': user_profile.email_on_bookmark,
+            'email_on_team_discussion': user_profile.email_on_team_discussion,
+            'email_on_team_comment': user_profile.email_on_team_comment,
+            'email_on_featured_seed': user_profile.email_on_featured_seed,
+            'email_on_gold_seed': user_profile.email_on_gold_seed,
         })
 
     return render(request, 'projects/profile_settings.html', {

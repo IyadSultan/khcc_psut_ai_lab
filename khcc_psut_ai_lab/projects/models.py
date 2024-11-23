@@ -386,8 +386,25 @@ class UserProfile(models.Model):
     # Notification settings
     email_on_comment = models.BooleanField(default=True)
     email_on_follow = models.BooleanField(default=True)
-    email_on_clap = models.BooleanField(default=False)
-    email_on_bookmark = models.BooleanField(default=False)
+    email_on_clap = models.BooleanField(default=True)
+    email_on_bookmark = models.BooleanField(default=True)
+    # Add new notification settings
+    email_on_team_discussion = models.BooleanField(
+        default=True,
+        help_text="Email me when someone posts a discussion in my teams"
+    )
+    email_on_team_comment = models.BooleanField(
+        default=True,
+        help_text="Email me when someone comments in my team discussions"
+    )
+    email_on_featured_seed = models.BooleanField(
+        default=True,
+        help_text="Email me when a new featured seed is posted"
+    )
+    email_on_gold_seed = models.BooleanField(
+        default=True,
+        help_text="Email me when a new gold seed is posted"
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

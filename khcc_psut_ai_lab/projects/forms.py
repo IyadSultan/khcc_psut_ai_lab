@@ -55,6 +55,10 @@ class NotificationSettingsForm(forms.Form):
         label='Email me when someone bookmarks my projects',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    email_on_team_discussion = forms.BooleanField(required=False)
+    email_on_team_comment = forms.BooleanField(required=False)
+    email_on_featured_seed = forms.BooleanField(required=False)
+    email_on_gold_seed = forms.BooleanField(required=False)
 
 class ProjectForm(forms.ModelForm):
     """
@@ -511,11 +515,18 @@ class UserProfileForm(forms.ModelForm, FileValidationMixin):
     class Meta:
         model = UserProfile
         fields = [
-            'bio', 'location', 'website', 'github_username',
-            'linkedin_url', 'avatar', 'email_on_comment',
-            'email_on_follow', 'email_on_clap', 'email_on_bookmark'
+            'avatar', 'bio', 'location', 'website', 'github_username',
+            'linkedin_url', 'title', 'department',
+            'email_on_comment', 'email_on_follow', 'email_on_clap',
+            'email_on_bookmark', 'email_on_team_discussion',
+            'email_on_team_comment', 'email_on_featured_seed',
+            'email_on_gold_seed'
         ]
         widgets = {
+            'avatar': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
             'bio': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
@@ -536,10 +547,6 @@ class UserProfileForm(forms.ModelForm, FileValidationMixin):
             'linkedin_url': forms.URLInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'https://linkedin.com/in/your-profile'
-            }),
-            'avatar': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
             })
         }
 

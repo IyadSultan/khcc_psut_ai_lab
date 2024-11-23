@@ -76,47 +76,86 @@
                                 <h5 class="card-title mb-4">Email Notification Preferences</h5>
                                 
                                 <div class="list-group mb-4">
-                                    <!-- Comments -->
+                                    <!-- Project Notifications -->
+                                    <h6 class="mb-3">Project Notifications</h6>
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
                                         <div>
                                             <h6 class="mb-1">Comments on Your Seeds</h6>
                                             <p class="text-muted small mb-0">Receive emails when someone comments on your projects</p>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="email_on_comment" id="email_on_comment" {% if form.email_on_comment.value or True %}checked{% endif %}>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" name="email_on_comment" 
+                                                   id="id_email_on_comment" {% if profile.email_on_comment %}checked{% endif %}>
                                         </div>
                                     </div>
 
-                                    <!-- Follows -->
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">New Followers</h6>
-                                            <p class="text-muted small mb-0">Receive emails when someone follows you</p>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="email_on_follow" id="email_on_follow" {% if form.email_on_follow.value or True %}checked{% endif %}>
-                                        </div>
-                                    </div>
-
-                                    <!-- Claps -->
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
                                         <div>
                                             <h6 class="mb-1">Project Claps</h6>
-                                            <p class="text-muted small mb-0">Receive emails when someone clap_count for your projects</p>
+                                            <p class="text-muted small mb-0">Receive emails when someone claps for your projects</p>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="email_on_clap" id="email_on_clap" {% if form.email_on_clap.value %}checked{% endif %}>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" name="email_on_clap" 
+                                                   id="id_email_on_clap" {% if profile.email_on_clap %}checked{% endif %}>
                                         </div>
                                     </div>
 
-                                    <!-- Bookmarks -->
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
                                         <div>
                                             <h6 class="mb-1">Project Bookmarks</h6>
                                             <p class="text-muted small mb-0">Receive emails when someone bookmarks your projects</p>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="email_on_bookmark" id="email_on_bookmark" {% if form.email_on_bookmark.value %}checked{% endif %}>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" name="email_on_bookmark" 
+                                                   id="id_email_on_bookmark" {% if profile.email_on_bookmark %}checked{% endif %}>
+                                        </div>
+                                    </div>
+
+                                    <!-- Team Notifications -->
+                                    <h6 class="mt-4 mb-3">Team Notifications</h6>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Team Discussions</h6>
+                                            <p class="text-muted small mb-0">Receive emails when someone posts a discussion in your teams</p>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" name="email_on_team_discussion" 
+                                                   id="id_email_on_team_discussion" {% if profile.email_on_team_discussion %}checked{% endif %}>
+                                        </div>
+                                    </div>
+
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Team Comments</h6>
+                                            <p class="text-muted small mb-0">Receive emails when someone comments in your team discussions</p>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" name="email_on_team_comment" 
+                                                   id="id_email_on_team_comment" {% if profile.email_on_team_comment %}checked{% endif %}>
+                                        </div>
+                                    </div>
+
+                                    <!-- Special Seeds Notifications -->
+                                    <h6 class="mt-4 mb-3">Special Seeds Notifications</h6>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Featured Seeds</h6>
+                                            <p class="text-muted small mb-0">Receive emails when a new featured seed is posted</p>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" name="email_on_featured_seed" 
+                                                   id="id_email_on_featured_seed" {% if profile.email_on_featured_seed %}checked{% endif %}>
+                                        </div>
+                                    </div>
+
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Gold Seeds</h6>
+                                            <p class="text-muted small mb-0">Receive emails when a new gold seed is posted</p>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" name="email_on_gold_seed" 
+                                                   id="id_email_on_gold_seed" {% if profile.email_on_gold_seed %}checked{% endif %}>
                                         </div>
                                     </div>
                                 </div>

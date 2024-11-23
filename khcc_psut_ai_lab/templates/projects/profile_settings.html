@@ -1,82 +1,85 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block title %}Notification Settings - KHCC AI Lab{% endblock %}
+
 {% block content %}
-<!-- Banner -->
-<div class="bg-primary py-4 mb-4">
+<div class="bg-primary text-white py-5 mb-5">
     <div class="container">
-        <h1 class="text-white">Notification Settings</h1>
-        <p class="text-white-50 mb-0">Manage your email notification preferences</p>
+        <h1 class="display-4">Notification Settings</h1>
+        <p class="lead">Customize how you want to be notified</p>
     </div>
 </div>
 
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-lg-8">
             <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Email Notification Preferences</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title mb-4">Email Notification Preferences</h5>
-                    
                     <form method="post">
                         {% csrf_token %}
                         
-                        {% if messages %}
-                            {% for message in messages %}
-                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-
-                        <div class="list-group mb-4">
-                            <!-- Comments -->
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">Comments on Your Seeds</h6>
-                                    <p class="text-muted small mb-0">Receive emails when someone comments on your projects</p>
-                                </div>
-                                <div class="form-check form-switch">
-                                    {{ form.email_on_comment }}
-                                </div>
+                        <h6 class="mb-3">Project Notifications</h6>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.email_on_comment }}
+                                <label class="form-check-label" for="{{ form.email_on_comment.id_for_label }}">
+                                    When someone comments on my projects
+                                </label>
                             </div>
-
-                            <!-- Follows -->
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">New Followers</h6>
-                                    <p class="text-muted small mb-0">Receive emails when someone follows you</p>
-                                </div>
-                                <div class="form-check form-switch">
-                                    {{ form.email_on_follow }}
-                                </div>
+                            <div class="form-check">
+                                {{ form.email_on_clap }}
+                                <label class="form-check-label" for="{{ form.email_on_clap.id_for_label }}">
+                                    When someone claps for my projects
+                                </label>
                             </div>
-
-                            <!-- Claps -->
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">Project Claps</h6>
-                                    <p class="text-muted small mb-0">Receive emails when someone clap_count for your projects</p>
-                                </div>
-                                <div class="form-check form-switch">
-                                    {{ form.email_on_clap }}
-                                </div>
-                            </div>
-
-                            <!-- Bookmarks -->
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">Project Bookmarks</h6>
-                                    <p class="text-muted small mb-0">Receive emails when someone bookmarks your projects</p>
-                                </div>
-                                <div class="form-check form-switch">
-                                    {{ form.email_on_bookmark }}
-                                </div>
+                            <div class="form-check">
+                                {{ form.email_on_bookmark }}
+                                <label class="form-check-label" for="{{ form.email_on_bookmark.id_for_label }}">
+                                    When someone bookmarks my projects
+                                </label>
                             </div>
                         </div>
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Save Preferences</button>
+                        <h6 class="mb-3">Team Notifications</h6>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.email_on_team_discussion }}
+                                <label class="form-check-label" for="{{ form.email_on_team_discussion.id_for_label }}">
+                                    When someone posts a discussion in my teams
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                {{ form.email_on_team_comment }}
+                                <label class="form-check-label" for="{{ form.email_on_team_comment.id_for_label }}">
+                                    When someone comments in my team discussions
+                                </label>
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">Special Seeds Notifications</h6>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.email_on_featured_seed }}
+                                <label class="form-check-label" for="{{ form.email_on_featured_seed.id_for_label }}">
+                                    When a new featured seed is posted
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                {{ form.email_on_gold_seed }}
+                                <label class="form-check-label" for="{{ form.email_on_gold_seed.id_for_label }}">
+                                    When a new gold seed is posted
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                Save Settings
+                            </button>
                         </div>
                     </form>
                 </div>
