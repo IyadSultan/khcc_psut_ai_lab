@@ -185,7 +185,7 @@ def generate_tags(request, pk):
         
         # Make API call to OpenAI
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a specialized AI trained to analyze healthcare and AI projects and assign relevant tags."},
                 {"role": "user", "content": prompt}

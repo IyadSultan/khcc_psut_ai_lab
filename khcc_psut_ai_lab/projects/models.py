@@ -210,7 +210,12 @@ class Project(models.Model):
     
     @property
     def tag_list(self):
-        return [tag.strip() for tag in self.tags.split(',') if tag.strip()]
+        tags = []
+        if self.tags:
+            tags.extend(tag.strip() for tag in self.tags.split(',') if tag.strip())
+        if hasattr(self, 'generated_tags') and self.generated_tags:
+            tags.extend(tag.strip() for tag in self.generated_tags.split(',') if tag.strip())
+        return list(dict.fromkeys(tags))  # Remove duplicates while preserving order
 
     def user_has_clapped(self, user):
         return self.claps.filter(user=user).exists()
@@ -831,23 +836,7 @@ class Dataset(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     downloads = models.IntegerField(default=0)
 
-@receiver(pre_save, sender=Project)
-def auto_generate_tags(sender, instance, **kwargs):
-    """
-    Signal handler to automatically generate tags before saving a Project
-    
-    Only generates tags if:
-    1. No tags are currently set
-    2. The project is being created for the first time
-    """
-    if not instance.pk and not instance.tags:  # New project without tags
-        tagging_service = OpenAITaggingService()
-        generated_tags = tagging_service.generate_tags(
-            title=instance.title,
-            description=instance.description
-        )
-        if generated_tags:
-            instance.tags = generated_tags
+
 
 # In your models.py, add the imports at the top
 from django.conf import settings

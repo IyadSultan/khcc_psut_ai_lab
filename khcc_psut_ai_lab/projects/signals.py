@@ -1,15 +1,15 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.db.models import F
-from .models import TeamMembership, TeamDiscussion, TeamComment, TeamAnalytics
+from .models import (
+    TeamMembership,
+    TeamDiscussion,
+    TeamComment,
+    TeamAnalytics,
+    Project
+)
 from .utils.team_emails import send_team_notification_email, send_role_change_notification
-
-# projects/signals.py
-
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from .models import TeamDiscussion, TeamComment
-from .utils.team_emails import send_team_notification_email
+from .services import OpenAITaggingService
 
 @receiver(post_save, sender=TeamDiscussion)
 def handle_new_discussion(sender, instance, created, **kwargs):
@@ -75,10 +75,6 @@ def handle_member_removal(sender, instance, **kwargs):
     instance.team.analytics.update_stats()
 
 
-from django.db.models.signals import pre_save
-from django.dispatch import receiver
-from .models import Project
-from .services import OpenAITaggingService
 
 @receiver(pre_save, sender=Project)
 def auto_generate_tags(sender, instance, **kwargs):
@@ -89,11 +85,15 @@ def auto_generate_tags(sender, instance, **kwargs):
     1. No tags are currently set
     2. The project is being created for the first time
     """
-    if not instance.pk and not instance.tags:  # New project without tags
+    if not instance.pk:  # New project without tags
         tagging_service = OpenAITaggingService()
         generated_tags = tagging_service.generate_tags(
             title=instance.title,
             description=instance.description
         )
         if generated_tags:
-            instance.tags = generated_tags
+            # Combine existing and generated tags
+            existing_tags = instance.tags.split(',') if instance.tags else []
+            new_tags = generated_tags.split(',')
+            combined_tags = list(set(existing_tags + new_tags))  # Remove duplicates
+            instance.tags = ','.join(tag.strip() for tag in combined_tags if tag.strip())

@@ -157,7 +157,7 @@
 <div class="bg-primary text-white py-5 mb-5">
     <div class="container">
         <h1 class="display-4">{{ project.title }}</h1>
-        <p class="lead">{{ project.description|truncatechars:200 }}</p>
+        <p class="lead">{{ project.author.get_full_name|default:project.author.username|truncatechars:200 }}</p>
     </div>
 </div>
 
@@ -350,6 +350,16 @@
                             {% endfor %}
                         </div>
                     {% endif %}
+                    {% if project.generated_tags %}
+                    <div class="mb-4">
+                        {% for tag in project.generated_tags %}
+                            <a href="{% url 'projects:project_list' %}?tags={{ tag }}" 
+                               class="tag-badge">
+                                <i class="bi bi-tag-fill me-1 small"></i>{{ tag }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
 
                     <!-- Project Files Section -->
                     {% if project.pdf_file or project.additional_files %}
