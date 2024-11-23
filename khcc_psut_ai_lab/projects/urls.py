@@ -147,4 +147,8 @@ urlpatterns = [
     # Team Analytics
     path('teams/<slug:team_slug>/analytics/', 
          views.team_analytics, name='team_analytics'),
+    
+    # Following and Followers
+    path('following/', views.following_list, name='following_list'),
+    path('followers/', views.followers_list, name='followers_list'),
 ]

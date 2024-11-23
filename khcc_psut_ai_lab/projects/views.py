@@ -2613,3 +2613,35 @@ def send_role_change_notification(user, team, new_role):
         )
     except Exception as e:
         print(f"Error sending role change email: {str(e)}")
+
+@login_required
+def following_list(request):
+    """View to display users that the current user is following"""
+    following = Follow.objects.filter(
+        follower=request.user
+    ).select_related(
+        'following',
+        'following__profile'
+    ).order_by('-created_at')
+    
+    return render(request, 'projects/following_list.html', {
+        'following': following,
+        'page_title': 'Following',
+        'active_tab': 'following'
+    })
+
+@login_required
+def followers_list(request):
+    """View to display users that follow the current user"""
+    followers = Follow.objects.filter(
+        following=request.user
+    ).select_related(
+        'follower',
+        'follower__profile'
+    ).order_by('-created_at')
+    
+    return render(request, 'projects/followers_list.html', {
+        'followers': followers,
+        'page_title': 'Followers',
+        'active_tab': 'followers'
+    })

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Following - KHCC AI Lab{% endblock %}
+
+{% block content %}
+<!-- Following Header -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Following</h1>
+        <p class="lead">People you are following</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Following</h5>
+                    {% if following %}
+                    <span class="text-muted">{{ following|length }} people</span>
+                    {% endif %}
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for follow in following %}
+                    <div class="list-group-item">
+                        <div class="d-flex align-items-center">
+                            <img src="{% if follow.following.profile.avatar %}{{ follow.following.profile.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                 class="rounded-circle me-3" 
+                                 style="width: 48px; height: 48px; object-fit: cover;"
+                                 alt="{{ follow.following.username }}">
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            <a href="{% url 'projects:user_profile' follow.following.username %}" 
+                                               class="text-decoration-none">
+                                                {{ follow.following.get_full_name|default:follow.following.username }}
+                                            </a>
+                                        </h6>
+                                        <p class="text-muted small mb-0">
+                                            {{ follow.following.profile.title|default:"" }}
+                                        </p>
+                                    </div>
+                                    <div class="ms-3">
+                                        <form action="{% url 'projects:unfollow_user' follow.following.username %}" method="POST" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                    data-bs-toggle="tooltip" 
+                                                    title="Unfollow">
+                                                <i class="bi bi-person-x"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-center py-5">
+                        <i class="bi bi-person-plus text-muted display-4"></i>
+                        <p class="text-muted mt-3 mb-0">You're not following anyone yet</p>
+                        <p class="text-muted small">
+                            Follow other users to see their updates in your feed
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Quick Links Section -->
+            <div class="mt-4 text-center">
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{% url 'projects:project_list' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-grid me-2"></i>Browse Projects
+                    </a>
+                    <a href="{% url 'projects:user_profile' user.username %}" class="btn btn-outline-primary">
+                        <i class="bi bi-person me-2"></i>View Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 from django import template
 from django.contrib.auth.models import User
+from projects.models import Follow
 
 register = template.Library()
 
@@ -9,3 +10,10 @@ def is_faculty(user):
     if not user or not user.is_authenticated:
         return False
     return user.groups.filter(name='Faculty').exists()
+
+@register.filter
+def is_following(user, target_user):
+    """Check if user is following target_user"""
+    if not user.is_authenticated:
+        return False
+    return Follow.objects.filter(follower=user, following=target_user).exists()
