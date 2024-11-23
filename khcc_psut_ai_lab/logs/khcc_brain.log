@@ -51,3 +51,125 @@
 2024-11-22 14:01:32,788 - projects.management.commands.run_khcc_brain - ERROR - Error analyzing discussion 23: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
 2024-11-22 14:01:32,789 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: KHCC Brain Introduction
 2024-11-22 14:01:35,349 - projects.management.commands.run_khcc_brain - ERROR - Error analyzing discussion 1: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+2024-11-23 03:18:47,339 - projects.management.commands.run_khcc_brain - ERROR - Error joining team test with no KHCC brain: Reverse for 'discussion_detail' not found. 'discussion_detail' is not a valid view function or pattern name.
+2024-11-23 03:18:47,351 - projects.management.commands.run_khcc_brain - INFO - Processing project: hospital early warning
+2024-11-23 03:18:56,204 - projects.management.commands.run_khcc_brain - INFO - Processing project: detecting anemia
+2024-11-23 03:19:07,065 - projects.management.commands.run_khcc_brain - INFO - Processing project: make a good design for this website
+2024-11-23 03:19:14,281 - projects.management.commands.run_khcc_brain - INFO - Processing project: sadfasdf
+2024-11-23 03:19:20,740 - projects.management.commands.run_khcc_brain - INFO - Processing project: sd gfsdfg,,
+2024-11-23 03:19:26,078 - projects.management.commands.run_khcc_brain - INFO - Processing project: asdfrsd
+2024-11-23 03:19:33,448 - projects.management.commands.run_khcc_brain - INFO - Processing project: dfsg sdg ssdfhbgsd ghe
+2024-11-23 03:19:43,294 - projects.management.commands.run_khcc_brain - INFO - Processing project: zdvsgvf
+2024-11-23 03:19:49,840 - projects.management.commands.run_khcc_brain - INFO - Processing project: asdfasfd a asdf
+2024-11-23 03:19:56,235 - projects.management.commands.run_khcc_brain - INFO - Processing project: sdfsfd
+2024-11-23 03:20:03,718 - projects.management.commands.run_khcc_brain - INFO - Processing project: sdfsdf
+2024-11-23 03:20:12,029 - projects.management.commands.run_khcc_brain - INFO - Processing project: awer
+2024-11-23 03:20:17,093 - projects.management.commands.run_khcc_brain - INFO - Processing project: sadfsafd
+2024-11-23 03:20:23,096 - projects.management.commands.run_khcc_brain - INFO - Processing project: sadfsafd
+2024-11-23 03:20:28,489 - projects.management.commands.run_khcc_brain - INFO - Processing project: asdf
+2024-11-23 03:20:34,767 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: KHCC Brain Introduction
+2024-11-23 03:20:38,340 - projects.management.commands.run_khcc_brain - ERROR - Error processing discussions: Reverse for 'discussion_detail' not found. 'discussion_detail' is not a valid view function or pattern name.
+2024-11-23 03:26:28,016 - projects.management.commands.run_khcc_brain - INFO - Processing project: make a good design for this website
+2024-11-23 03:26:37,521 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: KHCC Brain Introduction
+2024-11-23 03:26:40,598 - projects.management.commands.run_khcc_brain - ERROR - Error processing discussion 31: Reverse for 'discussion_detail' not found. 'discussion_detail' is not a valid view function or pattern name.
+2024-11-23 03:26:40,602 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: dsafsadf
+2024-11-23 03:26:42,416 - projects.management.commands.run_khcc_brain - ERROR - Error processing discussion 30: Reverse for 'discussion_detail' not found. 'discussion_detail' is not a valid view function or pattern name.
+2024-11-23 03:26:42,420 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: ewrwerwe
+2024-11-23 03:26:42,423 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: test
+2024-11-23 03:26:42,428 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: test
+2024-11-23 03:26:42,432 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: test discussion
+2024-11-23 03:26:42,436 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: not sure
+2024-11-23 03:26:42,441 - projects.management.commands.run_khcc_brain - INFO - Processing discussion: KHCC Brain Introduction
+2024-11-23 03:29:25,565 - projects.management.commands.run_khcc_brain - INFO - Processing project: make a good design for this website
+2024-11-23 03:29:33,811 - projects.management.commands.run_khcc_brain - INFO - Processed 0 discussions, skipped 2
+2024-11-23 03:38:31,960 - projects.management.commands.run_khcc_brain - INFO - Processed 0 discussions, skipped 2
+2024-11-23 03:40:29,705 - projects.management.commands.run_khcc_brain - INFO - Processed 0 discussions, skipped 2
+2024-11-23 03:44:48,733 - projects.management.commands.run_khcc_brain - INFO - Starting KHCC Brain process...
+2024-11-23 03:44:48,746 - projects.management.commands.run_khcc_brain - INFO - Found 15 active projects and 2 active discussions
+2024-11-23 03:44:48,747 - projects.management.commands.run_khcc_brain - INFO - Starting project comment processing...
+2024-11-23 03:44:48,751 - projects.management.commands.run_khcc_brain - INFO - Found 15 active projects
+2024-11-23 03:44:48,754 - projects.management.commands.run_khcc_brain - INFO - Checking project: hospital early warning
+2024-11-23 03:44:48,763 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project hospital early warning
+2024-11-23 03:44:48,764 - projects.management.commands.run_khcc_brain - INFO - Checking project: detecting anemia
+2024-11-23 03:44:48,770 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project detecting anemia
+2024-11-23 03:44:48,771 - projects.management.commands.run_khcc_brain - INFO - Checking project: make a good design for this website
+2024-11-23 03:44:48,780 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project make a good design for this website
+2024-11-23 03:44:48,781 - projects.management.commands.run_khcc_brain - INFO - Checking project: sadfasdf
+2024-11-23 03:44:48,786 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project sadfasdf
+2024-11-23 03:44:48,786 - projects.management.commands.run_khcc_brain - INFO - Checking project: sd gfsdfg,,
+2024-11-23 03:44:48,796 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project sd gfsdfg,,
+2024-11-23 03:44:48,797 - projects.management.commands.run_khcc_brain - INFO - Checking project: asdfrsd
+2024-11-23 03:44:48,802 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project asdfrsd
+2024-11-23 03:44:48,803 - projects.management.commands.run_khcc_brain - INFO - Checking project: dfsg sdg ssdfhbgsd ghe
+2024-11-23 03:44:48,812 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project dfsg sdg ssdfhbgsd ghe
+2024-11-23 03:44:48,813 - projects.management.commands.run_khcc_brain - INFO - Checking project: zdvsgvf
+2024-11-23 03:44:48,818 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project zdvsgvf
+2024-11-23 03:44:48,819 - projects.management.commands.run_khcc_brain - INFO - Checking project: asdfasfd a asdf
+2024-11-23 03:44:48,827 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project asdfasfd a asdf
+2024-11-23 03:44:48,828 - projects.management.commands.run_khcc_brain - INFO - Checking project: sdfsfd
+2024-11-23 03:44:48,832 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project sdfsfd
+2024-11-23 03:44:48,832 - projects.management.commands.run_khcc_brain - INFO - Checking project: sdfsdf
+2024-11-23 03:44:48,837 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project sdfsdf
+2024-11-23 03:44:48,837 - projects.management.commands.run_khcc_brain - INFO - Checking project: awer
+2024-11-23 03:44:48,846 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project awer
+2024-11-23 03:44:48,846 - projects.management.commands.run_khcc_brain - INFO - Checking project: sadfsafd
+2024-11-23 03:44:48,851 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project sadfsafd
+2024-11-23 03:44:48,852 - projects.management.commands.run_khcc_brain - INFO - Checking project: sadfsafd
+2024-11-23 03:44:48,860 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project sadfsafd
+2024-11-23 03:44:48,861 - projects.management.commands.run_khcc_brain - INFO - Checking project: asdf
+2024-11-23 03:44:48,864 - projects.management.commands.run_khcc_brain - INFO - Found 0 comments to process in project asdf
+2024-11-23 03:44:48,865 - projects.management.commands.run_khcc_brain - INFO - Processed 0 project comments
+2024-11-23 03:44:48,883 - projects.management.commands.run_khcc_brain - INFO - Processed 0 discussions, skipped 2
+2024-11-23 03:49:04,376 - projects.management.commands.run_khcc_brain - INFO - Starting KHCC Brain process...
+2024-11-23 03:49:04,386 - projects.management.commands.run_khcc_brain - INFO - Found 15 active projects and 2 active discussions
+2024-11-23 03:49:04,387 - projects.management.commands.run_khcc_brain - INFO - Starting project comment processing...
+2024-11-23 03:49:04,391 - projects.management.commands.run_khcc_brain - INFO - Found 15 active projects
+2024-11-23 03:49:04,400 - projects.management.commands.run_khcc_brain - INFO - Checking project: hospital early warning
+2024-11-23 03:49:04,410 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project hospital early warning
+2024-11-23 03:49:04,411 - projects.management.commands.run_khcc_brain - INFO - Checking project: detecting anemia
+2024-11-23 03:49:04,417 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project detecting anemia
+2024-11-23 03:49:04,418 - projects.management.commands.run_khcc_brain - INFO - Checking project: make a good design for this website
+2024-11-23 03:49:04,435 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project make a good design for this website
+2024-11-23 03:49:04,435 - projects.management.commands.run_khcc_brain - INFO - Checking project: sadfasdf
+2024-11-23 03:49:04,446 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project sadfasdf
+2024-11-23 03:49:04,447 - projects.management.commands.run_khcc_brain - INFO - Checking project: sd gfsdfg,,
+2024-11-23 03:49:04,452 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project sd gfsdfg,,
+2024-11-23 03:49:04,452 - projects.management.commands.run_khcc_brain - INFO - Checking project: asdfrsd
+2024-11-23 03:49:04,465 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project asdfrsd
+2024-11-23 03:49:04,465 - projects.management.commands.run_khcc_brain - INFO - Checking project: dfsg sdg ssdfhbgsd ghe
+2024-11-23 03:49:04,477 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project dfsg sdg ssdfhbgsd ghe
+2024-11-23 03:49:04,477 - projects.management.commands.run_khcc_brain - INFO - Checking project: zdvsgvf
+2024-11-23 03:49:04,482 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project zdvsgvf
+2024-11-23 03:49:04,483 - projects.management.commands.run_khcc_brain - INFO - Checking project: asdfasfd a asdf
+2024-11-23 03:49:04,496 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project asdfasfd a asdf
+2024-11-23 03:49:04,497 - projects.management.commands.run_khcc_brain - INFO - Checking project: sdfsfd
+2024-11-23 03:49:04,518 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project sdfsfd
+2024-11-23 03:49:04,519 - projects.management.commands.run_khcc_brain - INFO - Checking project: sdfsdf
+2024-11-23 03:49:04,531 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project sdfsdf
+2024-11-23 03:49:04,532 - projects.management.commands.run_khcc_brain - INFO - Checking project: awer
+2024-11-23 03:49:04,541 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project awer
+2024-11-23 03:49:04,542 - projects.management.commands.run_khcc_brain - INFO - Checking project: sadfsafd
+2024-11-23 03:49:04,550 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project sadfsafd
+2024-11-23 03:49:04,551 - projects.management.commands.run_khcc_brain - INFO - Checking project: sadfsafd
+2024-11-23 03:49:04,565 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project sadfsafd
+2024-11-23 03:49:04,567 - projects.management.commands.run_khcc_brain - INFO - Checking project: asdf
+2024-11-23 03:49:04,586 - projects.management.commands.run_khcc_brain - INFO - Processed 0 comment chains in project asdf
+2024-11-23 03:49:04,619 - projects.management.commands.run_khcc_brain - INFO - Processed 0 discussions, skipped 2
+2024-11-23 03:52:16,617 - projects.management.commands.run_khcc_brain - INFO - Starting KHCC Brain process...
+2024-11-23 03:52:16,630 - projects.management.commands.run_khcc_brain - INFO - Found 15 active projects and 2 active discussions
+2024-11-23 03:52:16,630 - projects.management.commands.run_khcc_brain - INFO - Starting project comment processing...
+2024-11-23 03:52:16,633 - projects.management.commands.run_khcc_brain - INFO - Found 1 recent comments
+2024-11-23 03:52:16,646 - projects.management.commands.run_khcc_brain - INFO - Processing comment by isultan in project 'make a good design for this website'
+2024-11-23 03:52:22,608 - projects.management.commands.run_khcc_brain - INFO - Added response to comment
+2024-11-23 03:52:24,633 - projects.management.commands.run_khcc_brain - INFO - Processed 0 discussions, skipped 2
+2024-11-23 03:53:51,723 - projects.management.commands.run_khcc_brain - INFO - Starting KHCC Brain process...
+2024-11-23 03:53:51,733 - projects.management.commands.run_khcc_brain - INFO - Found 15 active projects and 2 active discussions
+2024-11-23 03:53:51,734 - projects.management.commands.run_khcc_brain - INFO - Starting project comment processing...
+2024-11-23 03:53:51,745 - projects.management.commands.run_khcc_brain - INFO - Found 3 comments to check
+2024-11-23 03:53:51,752 - projects.management.commands.run_khcc_brain - INFO - Processing comment by isultan in project 'AI in pulmonary medicine'
+2024-11-23 03:53:51,753 - projects.management.commands.run_khcc_brain - INFO - Comment content: any suggestions how to proceed?...
+2024-11-23 03:53:58,394 - projects.management.commands.run_khcc_brain - INFO - Added response to comment
+2024-11-23 03:54:00,399 - projects.management.commands.run_khcc_brain - INFO - Processing comment by isultan in project 'AI in pulmonary medicine'
+2024-11-23 03:54:00,400 - projects.management.commands.run_khcc_brain - INFO - Comment content: I am not sure how to proceed...
+2024-11-23 03:54:09,934 - projects.management.commands.run_khcc_brain - INFO - Added response to comment
+2024-11-23 03:54:11,982 - projects.management.commands.run_khcc_brain - INFO - Processed 0 discussions, skipped 2

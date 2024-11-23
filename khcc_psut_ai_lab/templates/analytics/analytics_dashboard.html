@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link href="{% static 'css/analytics.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Time Range Selector -->
+    <div class="mb-4">
+        <form method="get" class="d-flex align-items-center">
+            <label class="me-2">Time Range:</label>
+            <select name="days" class="form-select w-auto" onchange="this.form.submit()">
+                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- Overview Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Visits</h5>
+                    <h2 class="card-text">{{ total_visits }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Unique Visitors</h5>
+                    <h2 class="card-text">{{ unique_visitors }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Avg. Time on Site</h5>
+                    <h2 class="card-text">{{ avg_time_on_site|default:"--" }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Bounce Rate</h5>
+                    <h2 class="card-text">{{ bounce_rate|default:"--" }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Daily Visits</h5>
+                    <canvas id="visitsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Device Distribution</h5>
+                    <canvas id="devicesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Pages Table -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Popular Pages</h5>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Page</th>
+                            <th>Views</th>
+                            <th>Avg. Time</th>
+                            <th>Bounce Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for page in popular_pages %}
+                        <tr>
+                            <td>{{ page.path }}</td>
+                            <td>{{ page.visits }}</td>
+                            <td>{{ page.avg_time|default:"--" }}</td>
+                            <td>{{ page.bounce_rate|default:"--" }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Table -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Recent Events</h5>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>User</th>
+                            <th>Page</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in recent_events %}
+                        <tr>
+                            <td>{{ event.timestamp|date:"Y-m-d H:i:s" }}</td>
+                            <td>{{ event.get_event_type_display }}</td>
+                            <td>{{ event.user|default:"Anonymous" }}</td>
+                            <td>{{ event.path }}</td>
+                            <td>{{ event.metadata|default:"" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Daily Visits Chart
+const visitsCtx = document.getElementById('visitsChart').getContext('2d');
+new Chart(visitsCtx, {
+    type: 'line',
+    data: {
+        labels: {{ daily_visits_labels|safe }},
+        datasets: [{
+            label: 'Daily Visits',
+            data: {{ daily_visits_data }},
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Devices Chart
+const devicesCtx = document.getElementById('devicesChart').getContext('2d');
+new Chart(devicesCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ devices_labels|safe }},
+        datasets: [{
+            data: {{ devices_data }},
+            backgroundColor: [
+                'rgb(255, 99, 132)',
+                'rgb(54, 162, 235)',
+                'rgb(255, 205, 86)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+</script>
+{% endblock %}

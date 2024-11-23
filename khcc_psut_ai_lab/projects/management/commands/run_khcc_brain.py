@@ -215,116 +215,178 @@ KHCC Brain 🤖
             logger.error(f"Error analyzing project {project.id}: {str(e)}")
             return self.get_fallback_response('project')
 
-    def analyze_discussion(self, discussion: TeamDiscussion, khcc_brain_user: Any) -> Optional[str]:
-        """Generate AI-powered analysis of team discussion"""
-        cache_key = f"khcc_brain_discussion_{discussion.id}_{discussion.updated_at.isoformat()}"
-        cached_response = self.get_cached_response(cache_key)
-        if cached_response:
-            return cached_response
+    
 
-        if not self.check_rate_limit('discussion_analysis'):
-            return None
+    
+    def should_respond_to_comment(self, comment, khcc_brain_user: Any, last_hour: timezone.datetime) -> bool:
+        """Determine if KHCC Brain should respond to a specific comment"""
+        # Get next comment in chain (if any)
+        next_comment = Comment.objects.filter(
+            project=comment.project,
+            created_at__gt=comment.created_at
+        ).order_by('created_at').first() if hasattr(comment, 'project') else TeamComment.objects.filter(
+            discussion=comment.discussion,
+            created_at__gt=comment.created_at
+        ).order_by('created_at').first()
 
-        try:
-            # Get discussion context
-            comments = TeamComment.objects.filter(discussion=discussion).order_by('created_at')
-            comments_text = "\n".join([
-                f"{comment.author.username}: {comment.content}"
-                for comment in comments
+        # Don't respond if the next comment is from KHCC Brain
+        if next_comment and next_comment.user == khcc_brain_user:
+            return False
+
+        # Check if this is a question or needs response
+        needs_response = (
+            '?' in comment.content or
+            any(phrase in comment.content.lower() for phrase in [
+                'how to', 'what about', 'can you', 'please', 'suggest',
+                'help', 'advice', 'thoughts', 'opinion', 'next steps'
             ])
+        )
 
-            # Get team context
-            team_members = discussion.team.memberships.filter(is_approved=True).count()
+        return needs_response
 
-            prompt = f"""
-            As KHCC Brain, analyze this healthcare team discussion and provide constructive input.
+    def get_full_comment_chain(self, comment):
+        """Get all comments in a chain including parent and replies"""
+        comments = []
+        
+        # Get parent chain
+        current = comment
+        while current.parent:
+            comments.append(current.parent)
+            current = current.parent
+        
+        # Reverse parent chain to get chronological order
+        comments.reverse()
+        
+        # Add the current comment
+        comments.append(comment)
+        
+        # Get replies
+        if hasattr(comment, 'replies'):
+            replies = comment.replies.all().order_by('created_at')
+            comments.extend(replies)
+        
+        return comments
 
-            Team: {discussion.team.name} ({team_members} members)
-            Discussion Title: {discussion.title}
-            Initial Post: {discussion.content}
-            Discussion History: {comments_text}
+    def check_needs_response(self, comment_chain, khcc_brain_user):
+        """Check if a comment chain needs a response"""
+        if not comment_chain:
+            return False
+            
+        # Get last comment in chain
+        last_comment = comment_chain[-1]
+        
+        # If last comment is from KHCC Brain, no response needed
+        if (hasattr(last_comment, 'user') and last_comment.user == khcc_brain_user) or \
+        (hasattr(last_comment, 'author') and last_comment.author == khcc_brain_user):
+            return False
+            
+        # Check if it's a question or seems to need response
+        needs_response = (
+            '?' in last_comment.content or
+            any(phrase in last_comment.content.lower() for phrase in [
+                'how to', 'what about', 'can you', 'please', 'suggest',
+                'help', 'advice', 'thoughts', 'opinion', 'next steps'
+            ])
+        )
+        
+        return needs_response
 
-            Provide feedback that:
-            1. Synthesizes the key points discussed
-            2. Relates topics to healthcare applications
-            3. Suggests potential collaboration points
-            4. Proposes specific next steps
-            5. Encourages team participation
+    def should_respond_to_project_comment(self, comment, khcc_brain_user: Any, last_hour: timezone.datetime) -> bool:
+        """Check if KHCC Brain should respond to a project comment"""
+        # For root comments
+        if not comment.parent:
+            # Check if any reply from brain exists
+            brain_replied = Comment.objects.filter(
+                project=comment.project,
+                user=khcc_brain_user,
+                parent=comment
+            ).exists()
+            return not brain_replied
 
-            Format your response using Markdown with:
-            - Clear headings using ##
-            - Bullet points for key insights
-            - Healthcare-specific recommendations
-            - Technical suggestions when relevant
+        # For reply comments
+        # Get the root comment
+        root_comment = comment
+        while root_comment.parent:
+            root_comment = root_comment.parent
 
-            Keep response under 200 words and healthcare-focused.
-            End with "Best regards, KHCC Brain 🤖"
-            """
+        # Get all replies after this comment
+        later_replies = Comment.objects.filter(
+            project=comment.project,
+            created_at__gt=comment.created_at,
+            parent=root_comment
+        )
 
-            response = openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are KHCC Brain, an AI healthcare research mentor focused on fostering team collaboration in medical research."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=400,
-                temperature=0.7
-            )
+        # Check if brain has replied after this comment
+        brain_replied = any(reply.user == khcc_brain_user for reply in later_replies)
+        
+        return not brain_replied
 
-            content = response.choices[0].message.content
-            self.set_cached_response(cache_key, content)
-            return content
+    def should_respond_to_team_comment(self, comment, khcc_brain_user: Any, last_hour: timezone.datetime) -> bool:
+        """Check if KHCC Brain should respond to a team comment"""
+        # Get all later comments in the same discussion
+        later_comments = TeamComment.objects.filter(
+            discussion=comment.discussion,
+            created_at__gt=comment.created_at
+        )
 
-        except Exception as e:
-            logger.error(f"Error analyzing discussion {discussion.id}: {str(e)}")
-            return self.get_fallback_response('discussion')
+        # Check if brain has commented after this comment
+        brain_commented = later_comments.filter(author=khcc_brain_user).exists()
+        
+        return not brain_commented
 
     def handle_projects(self, khcc_brain_user: Any, last_hour: timezone.datetime) -> int:
-        """Process projects and comments"""
+        """Process projects and their comments"""
         try:
-            # Get active projects
-            active_projects = Project.objects.filter(
-                Q(created_at__gte=last_hour) |
-                Q(comments__created_at__gte=last_hour) |
-                ~Q(comments__user=khcc_brain_user)
-            ).distinct()
-
+            logger.info("Starting project comment processing...")
+            
+            # Get both recent comments and older unanswered comments
+            comments_to_check = Comment.objects.filter(
+                Q(created_at__gte=last_hour) |  # Recent comments
+                ~Q(project__comments__user=khcc_brain_user) |  # Projects with no brain comments
+                Q(project__comments__user=khcc_brain_user, 
+                project__comments__created_at__lt=F('created_at'))  # Comments after brain's last response
+            ).exclude(
+                user=khcc_brain_user
+            ).select_related('project', 'user', 'parent').distinct().order_by('created_at')
+            
+            logger.info(f"Found {comments_to_check.count()} comments to check")
+            
             processed_count = 0
-            for project in active_projects:
-                # Check if KHCC Brain should comment
-                should_comment = (
-                    project.created_at >= last_hour or  # New project
-                    project.comments.filter(  # Recent activity
-                        created_at__gte=last_hour
-                    ).exclude(user=khcc_brain_user).exists() or
-                    not project.comments.filter(user=khcc_brain_user).exists()  # Never commented
-                )
-
-                if should_comment:
-                    logger.info(f"Processing project: {project.title}")
+            for comment in comments_to_check:
+                # Check if brain has already responded to this comment
+                brain_response = Comment.objects.filter(
+                    project=comment.project,
+                    user=khcc_brain_user,
+                    created_at__gt=comment.created_at,
+                    parent=comment if not comment.parent else comment.parent
+                ).exists()
+                
+                if not brain_response:
+                    logger.info(f"Processing comment by {comment.user.username} in project '{comment.project.title}'")
+                    logger.info(f"Comment content: {comment.content[:100]}...")
                     
-                    feedback = self.analyze_project(project, khcc_brain_user)
+                    feedback = self.analyze_comment_chain(comment, khcc_brain_user)
+                    
                     if feedback and not self.dry_run:
-                        Comment.objects.create(
-                            project=project,
+                        # Create response as a reply to the appropriate comment
+                        new_comment = Comment.objects.create(
+                            project=comment.project,
                             user=khcc_brain_user,
-                            content=feedback
+                            content=feedback,
+                            parent=comment if not comment.parent else comment.parent
                         )
                         
-                        # Notify project author
-                        if project.author != khcc_brain_user:
-                            Notification.objects.create(
-                                recipient=project.author,
-                                sender=khcc_brain_user,
-                                notification_type='comment',
-                                project=project,
-                                message="KHCC Brain analyzed your project"
-                            )
+                        # Notify the comment author
+                        Notification.objects.create(
+                            recipient=comment.user,
+                            sender=khcc_brain_user,
+                            notification_type='comment',
+                            project=comment.project,
+                            message=f"KHCC Brain responded to your comment"
+                        )
                         
                         processed_count += 1
+                        logger.info(f"Added response to comment")
                         time.sleep(self.rate_limit_delay)
 
             return processed_count
@@ -334,50 +396,63 @@ KHCC Brain 🤖
             return 0
 
     def handle_discussions(self, khcc_brain_user: Any, last_hour: timezone.datetime) -> int:
-        """Process team discussions"""
+        """Process team discussions and comments"""
         try:
-            # Get active discussions
-            active_discussions = TeamDiscussion.objects.filter(
-                Q(created_at__gte=last_hour) |
-                Q(comments__created_at__gte=last_hour) |
-                ~Q(comments__author=khcc_brain_user)
-            ).distinct()
-
+            logger.info("Starting discussion comment processing...")
+            
+            # Get both recent comments and older unanswered comments
+            comments_to_check = TeamComment.objects.filter(
+                Q(created_at__gte=last_hour) |  # Recent comments
+                ~Q(discussion__comments__author=khcc_brain_user) |  # Discussions with no brain comments
+                Q(discussion__comments__author=khcc_brain_user,
+                discussion__comments__created_at__lt=F('created_at'))  # Comments after brain's last response
+            ).exclude(
+                author=khcc_brain_user
+            ).select_related('discussion', 'author', 'discussion__team').distinct().order_by('created_at')
+            
+            logger.info(f"Found {comments_to_check.count()} discussion comments to check")
+            
             processed_count = 0
-            for discussion in active_discussions:
-                # Check if KHCC Brain should comment
-                should_comment = (
-                    discussion.created_at >= last_hour or  # New discussion
-                    discussion.comments.filter(  # Recent activity
-                        created_at__gte=last_hour
-                    ).exclude(author=khcc_brain_user).exists() or
-                    not discussion.comments.filter(author=khcc_brain_user).exists()  # Never commented
-                )
-
-                if should_comment:
-                    logger.info(f"Processing discussion: {discussion.title}")
+            for comment in comments_to_check:
+                # Check if brain has already responded to this comment thread
+                brain_response = TeamComment.objects.filter(
+                    discussion=comment.discussion,
+                    author=khcc_brain_user,
+                    created_at__gt=comment.created_at
+                ).exists()
+                
+                if not brain_response:
+                    logger.info(f"Processing comment by {comment.author.username} in discussion '{comment.discussion.title}'")
+                    logger.info(f"Comment content: {comment.content[:100]}...")
                     
-                    feedback = self.analyze_discussion(discussion, khcc_brain_user)
+                    feedback = self.analyze_comment_chain(comment, khcc_brain_user)
+                    
                     if feedback and not self.dry_run:
-                        TeamComment.objects.create(
-                            discussion=discussion,
+                        # Create response
+                        new_comment = TeamComment.objects.create(
+                            discussion=comment.discussion,
                             author=khcc_brain_user,
                             content=feedback
                         )
                         
                         # Notify team members
-                        for member in discussion.team.memberships.filter(
+                        team_members = comment.discussion.team.memberships.filter(
                             is_approved=True,
                             receive_notifications=True
-                        ).exclude(user=khcc_brain_user):
-                            Notification.objects.create(
-                                recipient=member.user,
-                                sender=khcc_brain_user,
-                                notification_type='comment',
-                                message=f"KHCC Brain commented on discussion: {discussion.title}"
-                            )
+                        ).exclude(user=khcc_brain_user)
+
+                        if team_members.exists():
+                            Notification.objects.bulk_create([
+                                Notification(
+                                    recipient=member.user,
+                                    sender=khcc_brain_user,
+                                    notification_type='comment',
+                                    message=f"KHCC Brain responded to a comment in discussion: {comment.discussion.title}"
+                                ) for member in team_members
+                            ])
                         
                         processed_count += 1
+                        logger.info(f"Added response to discussion comment")
                         time.sleep(self.rate_limit_delay)
 
             return processed_count
@@ -385,6 +460,80 @@ KHCC Brain 🤖
         except Exception as e:
             logger.error(f"Error processing discussions: {str(e)}")
             return 0
+
+    def analyze_comment_chain(self, comment, khcc_brain_user: Any) -> Optional[str]:
+        """Generate response to a comment chain"""
+        try:
+            # Get full comment chain context
+            if hasattr(comment, 'project'):
+                chain = self.get_full_comment_chain(comment)
+                context_obj = comment.project
+                context_type = "project"
+                author_field = 'user'
+            else:
+                chain = self.get_full_comment_chain(comment)  # For consistency
+                context_obj = comment.discussion
+                context_type = "discussion"
+                author_field = 'author'
+
+            # Build conversation history with clear structure
+            conversation_text = ""
+            for idx, c in enumerate(chain, 1):
+                author = getattr(c, author_field).username
+                indent = "    " * (c.parent.id if hasattr(c, 'parent') and c.parent else 0)
+                conversation_text += f"{indent}{idx}. {author}: {c.content}\n"
+
+            prompt = f"""
+            As KHCC Brain, respond to this comment chain in a healthcare {context_type}.
+
+            {context_type.title()}: {context_obj.title}
+            
+            Full Conversation:
+            {conversation_text}
+
+            Latest Comment by {getattr(comment, author_field).username}:
+            {comment.content}
+
+            Provide a response that:
+            1. Addresses the latest comment directly
+            2. References relevant points from the conversation history
+            3. Maintains context of the full discussion
+            4. Offers healthcare-specific insights
+            5. Encourages further productive discussion
+
+            If this is a question or request:
+            - Provide clear, actionable answers
+            - Reference previous context where relevant
+            - Suggest related considerations
+            - Offer specific examples or steps
+
+            Format using Markdown with:
+            - Clear section headings
+            - Bullet points for key ideas
+            - Healthcare-focused recommendations
+            
+            Keep response under 200 words and maintain healthcare focus.
+            End with "Best regards, KHCC Brain 🤖"
+            """
+
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are KHCC Brain, an AI healthcare research assistant. Provide helpful, specific responses focused on healthcare and medical applications."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Error analyzing comment chain: {str(e)}")
+            return self.get_fallback_response('comment')
 
     def ensure_team_memberships(self, khcc_brain_user: Any) -> int:
         """Ensure KHCC Brain is a member of all teams"""
@@ -409,22 +558,22 @@ KHCC Brain 🤖
                         # Create welcome message
                         welcome_message = f"""## Hello {team.name} Team! 👋
 
-I'm KHCC Brain, your AI research assistant specializing in healthcare and medical AI. I'm excited to join this team and help with:
+    I'm KHCC Brain, your AI research assistant specializing in healthcare and medical AI. I'm excited to join this team and help with:
 
-* Analyzing discussions and providing healthcare AI insights
-* Suggesting potential research directions in cancer care
-* Identifying collaboration opportunities within KHCC
-* Providing technical insights for medical AI applications
+    * Analyzing discussions and providing healthcare AI insights
+    * Suggesting potential research directions in cancer care
+    * Identifying collaboration opportunities within KHCC
+    * Providing technical insights for medical AI applications
 
-Feel free to tag me in any discussions where you'd like my input. I'll be actively monitoring our conversations and contributing where I can add value to KHCC's mission.
+    Feel free to tag me in any discussions where you'd like my input. I'll be actively monitoring our conversations and contributing where I can add value to KHCC's mission.
 
-Looking forward to collaborating with everyone!
+    Looking forward to collaborating with everyone!
 
-Best regards,
-KHCC Brain 🤖"""
+    Best regards,
+    KHCC Brain 🤖"""
 
-                        # Create welcome discussion
-                        TeamDiscussion.objects.create(
+                        # Create welcome discussion - no need for URL reversing
+                        discussion = TeamDiscussion.objects.create(
                             team=team,
                             author=khcc_brain_user,
                             title="KHCC Brain Introduction",
@@ -444,13 +593,183 @@ KHCC Brain 🤖"""
                         logger.info(f"Successfully joined team: {team.name}")
                     except Exception as e:
                         logger.error(f"Error joining team {team.name}: {str(e)}")
+                        continue
 
             return joined_count
 
         except Exception as e:
             logger.error(f"Error ensuring team memberships: {str(e)}")
             return 0
+    
+    def handle_discussions(self, khcc_brain_user: Any, last_hour: timezone.datetime) -> int:
+        """Process team discussions"""
+        try:
+            # Get active discussions excluding those where KHCC Brain already commented recently
+            active_discussions = TeamDiscussion.objects.filter(
+                Q(created_at__gte=last_hour) |  # New discussions
+                Q(comments__created_at__gte=last_hour)  # Discussions with recent comments
+            ).exclude(
+                # Exclude discussions where KHCC Brain commented after the last activity
+                comments__author=khcc_brain_user,
+                comments__created_at__gt=F('comments__created_at')
+            ).distinct()
 
+            processed_count = 0
+            skipped_count = 0
+
+            for discussion in active_discussions:
+                try:
+                    # Get all comments for this discussion
+                    discussion_comments = TeamComment.objects.filter(
+                        discussion=discussion
+                    ).order_by('created_at')
+                    
+                    # Get KHCC Brain's last comment if any
+                    last_brain_comment = discussion_comments.filter(
+                        author=khcc_brain_user
+                    ).order_by('-created_at').first()
+
+                    # Get latest non-brain comment
+                    last_other_comment = discussion_comments.exclude(
+                        author=khcc_brain_user
+                    ).order_by('-created_at').first()
+
+                    should_comment = (
+                        not last_brain_comment or  # Never commented before
+                        (last_other_comment and  # There's a new comment from someone else
+                        (not last_brain_comment or last_other_comment.created_at > last_brain_comment.created_at))
+                    )
+
+                    if should_comment:
+                        logger.info(f"Processing discussion: {discussion.title} (ID: {discussion.id})")
+                        
+                        feedback = self.analyze_discussion(discussion, khcc_brain_user)
+                        if feedback and not self.dry_run:
+                            try:
+                                # Create the comment
+                                comment = TeamComment.objects.create(
+                                    discussion=discussion,
+                                    author=khcc_brain_user,
+                                    content=feedback
+                                )
+
+                                # Only notify team members who have notifications enabled
+                                team_members = TeamMembership.objects.filter(
+                                    team=discussion.team,
+                                    is_approved=True,
+                                    receive_notifications=True
+                                ).exclude(user=khcc_brain_user)
+
+                                # Create notifications
+                                notifications = [
+                                    Notification(
+                                        recipient=member.user,
+                                        sender=khcc_brain_user,
+                                        notification_type='comment',
+                                        message=f"KHCC Brain commented on discussion: {discussion.title}"
+                                    )
+                                    for member in team_members
+                                ]
+
+                                # Bulk create notifications
+                                if notifications:
+                                    Notification.objects.bulk_create(notifications)
+
+                                processed_count += 1
+                                time.sleep(self.rate_limit_delay)
+                                
+                                logger.info(f"Successfully commented on discussion: {discussion.title}")
+                            except Exception as comment_error:
+                                logger.error(f"Error creating comment for discussion {discussion.id}: {str(comment_error)}")
+                    else:
+                        skipped_count += 1
+                        logger.debug(f"Skipped discussion: {discussion.title} (already processed)")
+
+                except Exception as disc_error:
+                    logger.error(f"Error processing discussion {discussion.id}: {str(disc_error)}")
+                    continue
+
+            logger.info(f"Processed {processed_count} discussions, skipped {skipped_count}")
+            return processed_count
+
+        except Exception as e:
+            logger.error(f"Error in handle_discussions: {str(e)}")
+            return 0
+
+    def analyze_discussion(self, discussion: TeamDiscussion, khcc_brain_user: Any) -> Optional[str]:
+        """Generate AI-powered analysis of team discussion"""
+        try:
+            cache_key = f"khcc_brain_discussion_{discussion.id}_{discussion.updated_at.isoformat()}"
+            cached_response = self.get_cached_response(cache_key)
+            if cached_response:
+                return cached_response
+
+            if not self.check_rate_limit('discussion_analysis'):
+                return None
+
+            # Get all comments for context
+            comments = TeamComment.objects.filter(
+                discussion=discussion
+            ).order_by('created_at').select_related('author')
+
+            # Create discussion history text
+            comments_text = "\n".join([
+                f"{comment.author.username} ({comment.created_at.strftime('%Y-%m-%d %H:%M')}): {comment.content}"
+                for comment in comments
+            ])
+
+            # Get team context
+            team_members = discussion.team.memberships.filter(is_approved=True).count()
+            team_discussions = discussion.team.discussions.count()
+
+            prompt = f"""
+            As KHCC Brain, analyze this healthcare team discussion and provide constructive input.
+
+            Team: {discussion.team.name} ({team_members} members, {team_discussions} total discussions)
+            Discussion Title: {discussion.title}
+            Initial Post: {discussion.content}
+            Discussion History:
+            {comments_text}
+
+            Provide feedback that:
+            1. Synthesizes key points from all comments
+            2. Relates topics to healthcare applications
+            3. Suggests potential collaboration points
+            4. Proposes specific next steps
+            5. Encourages team participation
+
+            Format using Markdown:
+            - Use ## for main sections
+            - Bullet points for key insights
+            - Healthcare-specific recommendations
+            - Technical suggestions if relevant
+            - References to team members' inputs where appropriate
+
+            Keep response under 200 words and healthcare-focused.
+            End with "Best regards, KHCC Brain 🤖"
+            """
+
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are KHCC Brain, an AI healthcare research mentor focused on fostering team collaboration in medical research. Your responses should be constructive, specific to healthcare, and focused on advancing the team's goals."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+
+            content = response.choices[0].message.content
+            self.set_cached_response(cache_key, content)
+            return content
+
+        except Exception as e:
+            logger.error(f"Error analyzing discussion {discussion.id}: {str(e)}")
+            return self.get_fallback_response('discussion')
+        
     def update_brain_stats(self, khcc_brain: KHCCBrain, khcc_brain_user: Any):
         """Update KHCC Brain statistics"""
         try:
@@ -526,25 +845,28 @@ KHCC Brain 🤖"""
                     )
                     return
 
-                self.stdout.write("Starting KHCC Brain process...")
+                logger.info("Starting KHCC Brain process...")
 
                 # Join new teams
                 teams_joined = self.ensure_team_memberships(khcc_brain_user)
                 self.stdout.write(f"Joined {teams_joined} new teams")
+
+                # Get active items count before processing
+                active_projects = Project.objects.filter(
+                    Q(comments__created_at__gte=last_hour) |
+                    Q(created_at__gte=last_hour)
+                ).distinct().count()
                 
-                # Process projects
-                projects_processed = self.handle_projects(
-                    khcc_brain_user, 
-                    last_hour
-                )
-                self.stdout.write(f"Processed {projects_processed} projects")
+                active_discussions = TeamDiscussion.objects.filter(
+                    Q(comments__created_at__gte=last_hour) |
+                    Q(created_at__gte=last_hour)
+                ).distinct().count()
                 
-                # Process discussions
-                discussions_processed = self.handle_discussions(
-                    khcc_brain_user,
-                    last_hour
-                )
-                self.stdout.write(f"Processed {discussions_processed} discussions")
+                logger.info(f"Found {active_projects} active projects and {active_discussions} active discussions")
+                
+                # Process items
+                projects_processed = self.handle_projects(khcc_brain_user, last_hour)
+                discussions_processed = self.handle_discussions(khcc_brain_user, last_hour)
                 
                 # Update brain statistics
                 if not self.dry_run:
