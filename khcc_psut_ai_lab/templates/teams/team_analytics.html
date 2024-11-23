@@ -1,72 +1,218 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="bg-white rounded-lg shadow-md p-6">
+        <!-- Header -->
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold">{{ team.name }} Analytics</h1>
-            <a href="{% url 'projects:team_detail' team_slug=team.slug %}" class="btn btn-secondary">
+            <div>
+                <h1 class="text-2xl font-bold">{{ team.name }} Analytics</h1>
+                <p class="text-gray-600">Track team activity and engagement</p>
+            </div>
+            <a href="{% url 'projects:team_detail' team_slug=team.slug %}" 
+               class="btn btn-secondary">
                 <i class="bi bi-arrow-left me-2"></i>Back to Team
             </a>
         </div>
 
+        <!-- Overview Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <!-- Overview Cards -->
+            <!-- Members Card -->
             <div class="bg-blue-50 p-4 rounded-lg">
-                <h3 class="text-lg font-semibold text-blue-700">Total Members</h3>
-                <p class="text-3xl font-bold">{{ team.member_count }}</p>
-                <p class="text-sm text-blue-600">{{ analytics.active_members }} active this month</p>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-blue-700">Members</h3>
+                    <i class="bi bi-people text-blue-400 text-xl"></i>
+                </div>
+                <p class="text-3xl font-bold text-blue-800">{{ team.memberships.count }}</p>
+                <p class="text-sm text-blue-600">
+                    {{ analytics.active_members }} active this month
+                </p>
             </div>
 
+            <!-- Discussions Card -->
             <div class="bg-green-50 p-4 rounded-lg">
-                <h3 class="text-lg font-semibold text-green-700">Total Discussions</h3>
-                <p class="text-3xl font-bold">{{ analytics.total_discussions }}</p>
-                <p class="text-sm text-green-600">{{ analytics.discussions_this_month }} this month</p>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-green-700">Discussions</h3>
+                    <i class="bi bi-chat-dots text-green-400 text-xl"></i>
+                </div>
+                <p class="text-3xl font-bold text-green-800">{{ analytics.total_discussions }}</p>
+                <div class="flex items-center justify-between text-sm text-green-600">
+                    <span>{{ analytics.discussions_this_month }} this month</span>
+                    <span>{{ analytics.discussions_this_week }} this week</span>
+                </div>
             </div>
 
+            <!-- Comments Card -->
             <div class="bg-purple-50 p-4 rounded-lg">
-                <h3 class="text-lg font-semibold text-purple-700">Total Comments</h3>
-                <p class="text-3xl font-bold">{{ analytics.total_comments }}</p>
-                <p class="text-sm text-purple-600">{{ analytics.comments_this_month }} this month</p>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-purple-700">Comments</h3>
+                    <i class="bi bi-chat-square-text text-purple-400 text-xl"></i>
+                </div>
+                <p class="text-3xl font-bold text-purple-800">{{ analytics.total_comments }}</p>
+                <div class="flex items-center justify-between text-sm text-purple-600">
+                    <span>{{ analytics.comments_this_month }} this month</span>
+                    <span>{{ analytics.comments_this_week }} this week</span>
+                </div>
             </div>
 
+            <!-- Activity Score Card -->
             <div class="bg-yellow-50 p-4 rounded-lg">
-                <h3 class="text-lg font-semibold text-yellow-700">Activity Score</h3>
-                <p class="text-3xl font-bold">{{ activity_score }}</p>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-yellow-700">Activity Score</h3>
+                    <i class="bi bi-lightning-charge text-yellow-400 text-xl"></i>
+                </div>
+                <p class="text-3xl font-bold text-yellow-800">{{ activity_score }}</p>
                 <p class="text-sm text-yellow-600">Based on recent activity</p>
             </div>
         </div>
 
-        <!-- Member Activity -->
-        <div>
+        <!-- Member Activity Table -->
+        <div class="mb-8">
             <h2 class="text-xl font-semibold mb-4">Member Activity</h2>
-            <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="bg-white rounded-lg shadow overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discussions</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Member
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Role
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Discussions
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Comments
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Last Active
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for member in member_activity %}
                         <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ member.user.username }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ member.discussions_count }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ member.comments_count }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ member.last_activity|timesince }} ago</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <img class="h-8 w-8 rounded-full mr-3" 
+                                         src="{{ member.user.profile.avatar.url|default:'/static/images/default-avatar.png' }}" 
+                                         alt="{{ member.user.username }}">
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ member.user.username }}
+                                        </div>
+                                        {% if member.user.profile.title %}
+                                        <div class="text-sm text-gray-500">
+                                            {{ member.user.profile.title }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                           {% if member.role == 'founder' %}bg-purple-100 text-purple-800
+                                           {% elif member.role == 'moderator' %}bg-blue-100 text-blue-800
+                                           {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ member.role|title }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ member.discussions_count }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ member.comments_count }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if member.last_activity %}
+                                    {{ member.last_activity|timesince }} ago
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">No member activity yet</td>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                No member activity yet
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <!-- Activity Chart -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4">Activity Timeline</h2>
+            <div class="bg-white rounded-lg shadow p-4">
+                <canvas id="activityChart" height="200"></canvas>
+            </div>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('activityChart').getContext('2d');
+    const data = {{ monthly_data|safe }};
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.date),
+            datasets: [{
+                label: 'Discussions',
+                data: data.map(d => d.discussions),
+                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Comments',
+                data: data.map(d => d.comments),
+                borderColor: 'rgb(168, 85, 247)',
+                backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

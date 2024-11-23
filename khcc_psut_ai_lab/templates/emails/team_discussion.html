@@ -1,11 +1,21 @@
+{# templates/emails/team_discussion.html #}
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <title>New Team Discussion - {{ team.name }}</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; color: #333; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .button { background: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
-        .footer { margin-top: 30px; font-size: 12px; color: #666; }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button:hover { background-color: #0056b3; }
     </style>
 </head>
 <body>
@@ -13,16 +23,18 @@
         <h2>New Discussion in {{ team.name }}</h2>
         <p>Hi {{ user.username }},</p>
         <p>{{ discussion.author.username }} has started a new discussion in {{ team.name }}:</p>
-        
+
         <h3>{{ discussion.title }}</h3>
         <p>{{ discussion.content|truncatewords:50 }}</p>
-        
-        <p><a href="{{ site_url }}{% url 'discussion_detail' team.slug discussion.id %}" class="button">View Discussion</a></p>
-        
-        <div class="footer">
-            <p>You received this email because you're a member of {{ team.name }}.</p>
-            <p>To update your notification settings, visit your <a href="{{ site_url }}{% url 'team_settings' team.slug %}">team settings</a>.</p>
-        </div>
+
+        <p><a href="{{ site_url }}{% url 'projects:team_discussion_detail' team_slug=team.slug discussion_id=discussion.id %}" 
+              class="button">View Discussion</a></p>
+
+        <hr>
+        <p style="color: #666; font-size: 12px;">
+            You're receiving this email because you're a member of {{ team.name }}.
+            To manage your notification settings, visit your <a href="{{ site_url }}{% url 'projects:team_detail' team_slug=team.slug %}">team settings</a>.
+        </p>
     </div>
 </body>
 </html>

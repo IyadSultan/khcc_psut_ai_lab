@@ -5,14 +5,13 @@ import json
 import os
 import pytz
 import zipfile
-
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib import messages
+from django.http import HttpResponseNotAllowed, Http404, JsonResponse, HttpResponse
 from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
-from django.core.exceptions import PermissionDenied
-from django.contrib import messages
 from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm
@@ -21,14 +20,16 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.serializers import serialize
-from django.db.models import Count, Q, Avg, Sum, Case, When, F
-from django.db import models
+from django.db.models import Count, Q, Avg, Sum, Case, When, F, Max
+from django.db.models.functions import Greatest
 from django.utils import timezone
 from django.views.generic import DetailView
 from django.views.generic.edit import CreateView
 
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
 
 from khcc_psut_ai_lab.constants import TALENT_TYPES, TALENT_DICT
 
@@ -53,52 +54,6 @@ from .models import (
 
 from .serializers import ProjectSerializer, ProjectAnalyticsSerializer, ProjectAnalyticsSummarySerializer
 from .utils.pdf import generate_analytics_pdf
-
-from django.views import generic
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
-from django.core.exceptions import PermissionDenied
-from django.contrib import messages
-from django.urls import reverse
-from django.conf import settings
-from django.utils import timezone
-from datetime import timedelta
-import os
-import zipfile
-from io import BytesIO
-
-# DRF imports
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-
-# Import all models
-from .models import (
-    Project, Comment, UserProfile, Rating, Bookmark, 
-    ProjectAnalytics, Notification, Follow, CommentClap,
-    Solution, Startup, Product, Tool, Dataset,
-    VirtualMember, Application, Sponsorship
-)
-
-# Import all forms
-from .forms import (
-    ProjectForm, CommentForm, UserProfileForm, RatingForm,
-    BookmarkForm, AdvancedSearchForm, ProfileForm,
-    NotificationSettingsForm, ExtendedUserCreationForm,
-    SolutionForm, StartupForm, ProductForm, ToolForm,
-    DatasetForm, SponsorshipForm, VirtualMemberForm,
-    ApplicationForm
-)
-
-# Add these to your views.py file
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -2122,126 +2077,6 @@ class ApplicationCreateView(LoginRequiredMixin, generic.CreateView):
 def faq(request):
     return render(request, 'projects/faq.html')
 
-@login_required
-def team_discussions(request, team_slug):
-    """View for showing team discussions"""
-    team = get_object_or_404(Team, slug=team_slug)
-    
-    # Get user's membership status
-    user_membership = TeamMembership.objects.filter(
-        team=team,
-        user=request.user,
-        is_approved=True
-    ).first()
-    
-    if not user_membership:
-        messages.error(request, "You must be an approved team member to view discussions.")
-        return redirect('projects:team_detail', team_slug=team.slug)
-    
-    # Get discussions
-    discussions = team.discussions.select_related('author').order_by('-pinned', '-created_at')
-    
-    # Handle new discussion creation
-    if request.method == 'POST':
-        form = TeamDiscussionForm(request.POST)
-        if form.is_valid():
-            discussion = form.save(commit=False)
-            discussion.team = team
-            discussion.author = request.user
-            discussion.save()
-            
-            # Update analytics if they exist
-            if hasattr(team, 'analytics'):
-                team.analytics.update_stats()
-            
-            messages.success(request, 'Discussion created successfully!')
-            return redirect('projects:discussion_detail', 
-                          team_slug=team.slug, 
-                          discussion_id=discussion.id)
-    else:
-        form = TeamDiscussionForm()
-    
-    context = {
-        'team': team,
-        'discussions': discussions,
-        'form': form,
-        'user_membership': user_membership
-    }
-    
-    return render(request, 'teams/team_discussions.html', context)
-
-@login_required
-def discussion_detail(request, team_slug, discussion_id):
-    """View for showing discussion details and handling comments"""
-    team = get_object_or_404(Team, slug=team_slug)
-    discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
-    
-    # Get user's membership status without notification preferences
-    user_membership = TeamMembership.objects.filter(
-        team=team,
-        user=request.user,
-        is_approved=True
-    ).first()
-    
-    if not user_membership:
-        messages.error(request, "You must be an approved team member to view discussions.")
-        return redirect('projects:team_detail', team_slug=team.slug)
-    
-    # Handle new comment submission
-    if request.method == 'POST':
-        form = TeamCommentForm(request.POST)
-        if form.is_valid():
-            comment = form.save(commit=False)
-            comment.discussion = discussion
-            comment.author = request.user
-            comment.save()
-            
-            # Update analytics if they exist
-            if hasattr(team, 'analytics'):
-                team.analytics.update_stats()
-            
-            messages.success(request, 'Comment added successfully!')
-            return redirect('projects:discussion_detail', 
-                          team_slug=team.slug, 
-                          discussion_id=discussion.id)
-    else:
-        form = TeamCommentForm()
-    
-    # Get comments
-    comments = discussion.comments.select_related('author').order_by('created_at')
-    
-    context = {
-        'team': team,
-        'discussion': discussion,
-        'comments': comments,
-        'form': form,
-        'user_membership': user_membership
-    }
-    
-    return render(request, 'teams/discussion_detail.html', context)
-
-@login_required
-def pin_discussion(request, team_slug, discussion_id):
-    """Toggle pin status of a discussion"""
-    team = get_object_or_404(Team, slug=team_slug)
-    discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
-    
-    # Check if user is team moderator or founder
-    membership = get_object_or_404(
-        TeamMembership,
-        team=team,
-        user=request.user,
-        role__in=['founder', 'moderator'],
-        is_approved=True
-    )
-    
-    discussion.pinned = not discussion.pinned
-    discussion.save()
-    
-    return JsonResponse({
-        'status': 'success',
-        'pinned': discussion.pinned
-    })
 
 @login_required
 def team_analytics(request, team_slug):
@@ -2249,12 +2084,12 @@ def team_analytics(request, team_slug):
     team = get_object_or_404(Team, slug=team_slug)
     
     # Check if user is team moderator or founder
-    membership = get_object_or_404(
+    user_membership = get_object_or_404(
         TeamMembership,
         team=team,
         user=request.user,
-        role__in=['founder', 'moderator'],
-        is_approved=True
+        is_approved=True,
+        role__in=['founder', 'moderator']
     )
     
     # Get time ranges
@@ -2287,29 +2122,166 @@ def team_analytics(request, team_slug):
         team=team,
         is_approved=True
     ).annotate(
-        discussions_count=Count('user__teamdiscussion', filter=Q(user__teamdiscussion__team=team)),
-        comments_count=Count('user__teamcomment', filter=Q(user__teamcomment__discussion__team=team)),
-        last_activity=models.Max(
-            Case(
-                When(user__teamdiscussion__team=team, then='user__teamdiscussion__created_at'),
-                When(user__teamcomment__discussion__team=team, then='user__teamcomment__created_at'),
-                default=models.F('created_at')
-            )
+        discussions_count=Count(
+            'user__teamdiscussion',
+            filter=Q(user__teamdiscussion__team=team)
+        ),
+        comments_count=Count(
+            'user__teamcomment',
+            filter=Q(user__teamcomment__discussion__team=team)
+        ),
+        last_activity=Greatest(
+            Max('user__teamdiscussion__created_at'),
+            Max('user__teamcomment__created_at'),
+            'created_at'
         )
     ).order_by('-last_activity')
     
-    # Calculate activity score
-    activity_score = (
-        (analytics['discussions_this_month'] * 5) +  # Weight discussions more
-        analytics['comments_this_month']
-    ) / max(analytics['active_members'], 1)  # Avoid division by zero
+    # Monthly activity chart data
+    monthly_data = []
+    for i in range(30):
+        date = now - timedelta(days=i)
+        monthly_data.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'discussions': team.discussions.filter(created_at__date=date).count(),
+            'comments': TeamComment.objects.filter(
+                discussion__team=team,
+                created_at__date=date
+            ).count()
+        })
     
-    return render(request, 'teams/team_analytics.html', {
+    context = {
         'team': team,
         'analytics': analytics,
         'member_activity': member_activity,
-        'activity_score': round(activity_score, 1)
-    })
+        'monthly_data': monthly_data,
+        'user_membership': user_membership
+    }
+    
+    return render(request, 'teams/team_analytics.html', context)
+
+@login_required
+def team_discussions(request, team_slug):
+    """View for showing team discussions and handling new discussion creation"""
+    team = get_object_or_404(Team, slug=team_slug)
+    
+    # Get user's membership status
+    user_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        is_approved=True
+    )
+    
+    # Get discussions with prefetch related data
+    discussions = (team.discussions
+                  .select_related('author', 'author__profile')
+                  .prefetch_related('comments')
+                  .annotate(comment_count=Count('comments'))
+                  .order_by('-pinned', '-created_at'))
+    
+    # Handle new discussion creation
+    if request.method == 'POST':
+        form = TeamDiscussionForm(request.POST)
+        if form.is_valid():
+            discussion = form.save(commit=False)
+            discussion.team = team
+            discussion.author = request.user
+            discussion.save()
+            
+            # Update analytics
+            if hasattr(team, 'analytics'):
+                team.analytics.update_stats()
+            
+            messages.success(request, 'Discussion created successfully!')
+            return redirect('projects:team_discussion_detail', 
+                          team_slug=team.slug, 
+                          discussion_id=discussion.id)
+    else:
+        form = TeamDiscussionForm()
+    
+    context = {
+        'team': team,
+        'discussions': discussions,
+        'form': form,
+        'user_membership': user_membership,
+        'can_create_discussion': True,  # Add permission check if needed
+    }
+    
+    return render(request, 'teams/team_discussions.html', context)
+
+@login_required
+def discussion_detail(request, team_slug, discussion_id):
+    """View for showing discussion details and handling comments"""
+    team = get_object_or_404(Team, slug=team_slug)
+    discussion = get_object_or_404(
+        TeamDiscussion.objects.select_related('author', 'team'),
+        id=discussion_id, 
+        team=team
+    )
+    
+    # Get user's membership status
+    user_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        is_approved=True
+    )
+    
+    # Handle new comment submission
+    if request.method == 'POST':
+        form = TeamCommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.discussion = discussion
+            comment.author = request.user
+            comment.save()
+            
+            # Update analytics
+            if hasattr(team, 'analytics'):
+                team.analytics.update_stats()
+            
+            # Notify other team members
+            for membership in team.memberships.filter(
+                is_approved=True,
+                receive_notifications=True
+            ).exclude(user=request.user):
+                Notification.objects.create(
+                    recipient=membership.user,
+                    sender=request.user,
+                    notification_type='comment',
+                    message=f'New comment in discussion: {discussion.title}'
+                )
+            
+            messages.success(request, 'Comment added successfully!')
+            return redirect('projects:team_discussion_detail', 
+                          team_slug=team.slug, 
+                          discussion_id=discussion.id)
+    else:
+        form = TeamCommentForm()
+    
+    # Get comments with related data
+    comments = (discussion.comments
+               .select_related('author', 'author__profile')
+               .order_by('created_at'))
+    
+    context = {
+        'team': team,
+        'discussion': discussion,
+        'comments': comments,
+        'form': form,
+        'user_membership': user_membership,
+        'can_edit': (discussion.author == request.user or 
+                    user_membership.role in ['moderator', 'founder']),
+        'can_delete': (discussion.author == request.user or 
+                      user_membership.role in ['moderator', 'founder']),
+    }
+    
+    # Increment view counter
+    discussion.views += 1
+    discussion.save(update_fields=['views'])
+    
+    return render(request, 'teams/discussion_detail.html', context)
 
 @login_required
 def delete_discussion(request, team_slug, discussion_id):
@@ -2340,12 +2312,242 @@ def delete_discussion(request, team_slug, discussion_id):
         if hasattr(team, 'analytics'):
             team.analytics.update_stats()
         
-        return JsonResponse({
-            'status': 'success',
-            'message': 'Discussion deleted successfully'
-        })
+        messages.success(request, 'Discussion deleted successfully!')
+        return redirect('projects:team_discussions', team_slug=team.slug)
+        
     except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)
+        messages.error(request, f'Error deleting discussion: {str(e)}')
+        return redirect('projects:team_discussion_detail', 
+                       team_slug=team.slug, 
+                       discussion_id=discussion.id)
+
+# In views.py
+
+@login_required
+def delete_team_discussion(request, team_slug, discussion_id):
+    """Delete a team discussion"""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+        
+    team = get_object_or_404(Team, slug=team_slug)
+    discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
+    
+    # Check if user is author, moderator, or founder
+    user_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        is_approved=True
+    )
+    
+    if not (discussion.author == request.user or 
+            user_membership.role in ['moderator', 'founder']):
+        raise PermissionDenied("You don't have permission to delete this discussion.")
+    
+    try:
+        # Delete the discussion
+        discussion.delete()
+        
+        # Update analytics if they exist
+        if hasattr(team, 'analytics'):
+            team.analytics.update_stats()
+        
+        messages.success(request, 'Discussion deleted successfully!')
+        return redirect('projects:team_discussions', team_slug=team.slug)
+        
+    except Exception as e:
+        messages.error(request, f'Error deleting discussion: {str(e)}')
+        return redirect('projects:team_discussion_detail', 
+                       team_slug=team.slug, 
+                       discussion_id=discussion.id)
+
+
+# In views.py
+
+@login_required
+def delete_team_comment(request, team_slug, comment_id):
+    """Delete a team comment"""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+        
+    team = get_object_or_404(Team, slug=team_slug)
+    comment = get_object_or_404(TeamComment, id=comment_id)
+    
+    # Verify comment belongs to the team
+    if comment.discussion.team != team:
+        raise Http404("Comment not found")
+    
+    # Check if user is author, moderator, or founder
+    user_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        is_approved=True
+    )
+    
+    if not (comment.author == request.user or 
+            user_membership.role in ['moderator', 'founder']):
+        raise PermissionDenied("You don't have permission to delete this comment.")
+    
+    try:
+        # Store discussion for redirect
+        discussion = comment.discussion
+        
+        # Delete the comment
+        comment.delete()
+        
+        # Update analytics if they exist
+        if hasattr(team, 'analytics'):
+            team.analytics.update_stats()
+        
+        messages.success(request, 'Comment deleted successfully!')
+        return redirect('projects:team_discussion_detail', 
+                       team_slug=team.slug, 
+                       discussion_id=discussion.id)
+        
+    except Exception as e:
+        messages.error(request, f'Error deleting comment: {str(e)}')
+        return redirect('projects:team_discussion_detail', 
+                       team_slug=team.slug, 
+                       discussion_id=comment.discussion.id)
+    
+
+@login_required
+def pin_discussion(request, team_slug, discussion_id):
+    """Toggle pin status of a discussion"""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+        
+    team = get_object_or_404(Team, slug=team_slug)
+    discussion = get_object_or_404(TeamDiscussion, id=discussion_id, team=team)
+    
+    # Check if user is team moderator or founder
+    user_membership = get_object_or_404(
+        TeamMembership,
+        team=team,
+        user=request.user,
+        role__in=['founder', 'moderator'],
+        is_approved=True
+    )
+    
+    # Toggle pin status
+    discussion.pinned = not discussion.pinned
+    discussion.save()
+    
+    messages.success(
+        request, 
+        f'Discussion {"pinned" if discussion.pinned else "unpinned"} successfully!'
+    )
+    return redirect('projects:team_discussion_detail', 
+                   team_slug=team.slug, 
+                   discussion_id=discussion.id)# projects/utils/team_emails.py
+
+# projects/utils/team_emails.py
+
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.conf import settings
+
+def send_team_notification_email(user, team, notification_type, context=None):
+    """Send email notifications for team activities"""
+    if context is None:
+        context = {}
+    
+    context.update({
+        'user': user,
+        'team': team,
+        'site_url': settings.SITE_URL
+    })
+    
+    templates = {
+        'discussion': 'emails/team_discussion.html',
+        'comment': 'emails/team_comment.html',
+        'role_change': 'emails/team_role_change.html',
+        'invitation': 'emails/team_invitation.html'
+    }
+    
+    template = templates.get(notification_type)
+    if not template:
+        return
+        
+    html_message = render_to_string(template, context)
+    # Instead of using strip_tags, create a plain text template
+    plain_message = f"""
+    New activity in {team.name}
+    
+    {notification_type.title()} by {context.get('discussion', {}).get('author', 'a team member')}
+    
+    Visit {settings.SITE_URL} to view the details.
+    """
+    
+    subject = f"New activity in {team.name} - {notification_type.title()}"
+    
+    try:
+        send_mail(
+            subject,
+            plain_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=html_message,
+            fail_silently=True
+        )
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
+
+def send_team_invitation_email(user, team, inviter):
+    """Send email for team invitation"""
+    context = {
+        'user': user,
+        'team': team,
+        'inviter': inviter,
+        'site_url': settings.SITE_URL
+    }
+    
+    html_message = render_to_string('emails/team_invitation.html', context)
+    plain_message = f"""
+    You've been invited to join {team.name}
+    
+    {inviter.username} has invited you to join their team.
+    Visit {settings.SITE_URL} to accept or decline this invitation.
+    """
+    
+    try:
+        send_mail(
+            f"Invitation to join {team.name}",
+            plain_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=html_message,
+            fail_silently=True
+        )
+    except Exception as e:
+        print(f"Error sending invitation email: {str(e)}")
+
+def send_role_change_notification(user, team, new_role):
+    """Send email for role changes"""
+    context = {
+        'user': user,
+        'team': team,
+        'new_role': new_role,
+        'site_url': settings.SITE_URL
+    }
+    
+    html_message = render_to_string('emails/team_role_change.html', context)
+    plain_message = f"""
+    Your role in {team.name} has been updated
+    
+    Your new role is: {new_role}
+    Visit {settings.SITE_URL} to see your updated permissions.
+    """
+    
+    try:
+        send_mail(
+            f"Role update in {team.name}",
+            plain_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=html_message,
+            fail_silently=True
+        )
+    except Exception as e:
+        print(f"Error sending role change email: {str(e)}")

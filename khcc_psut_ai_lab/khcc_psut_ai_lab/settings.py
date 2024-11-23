@@ -317,7 +317,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # EMAIL_HOST_USER = 'your-email@gmail.com'
 # EMAIL_HOST_PASSWORD = 'your-app-specific-password'
 
-
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
+DEFAULT_FROM_EMAIL = 'Your Site <noreply@yoursite.com>'
+SITE_URL = 'http://localhost:8000'  # Update this for production
 
 # settings.py
 from dotenv import load_dotenv

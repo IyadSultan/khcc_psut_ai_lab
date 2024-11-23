@@ -104,31 +104,46 @@ urlpatterns = [
          views.submit_solution, name='submit_solution'),
     path('project/<int:project_pk>/solution/<int:solution_pk>/review/', 
          views.review_solution, name='review_solution'),
-# Team Management
-     path('teams/', views.team_list, name='team_list'),
-     path('teams/create/', views.create_team, name='create_team'),
-     path('teams/<slug:team_slug>/', views.team_detail, name='team_detail'),
-     path('teams/<slug:team_slug>/edit/', views.edit_team, name='edit_team'),
-     path('teams/<slug:team_slug>/delete/', views.delete_team, name='delete_team'),
-     path('teams/<slug:team_slug>/join/', views.join_team, name='join_team'),
-     path('teams/<slug:team_slug>/leave/', views.leave_team, name='leave_team'),
-     path('teams/<slug:team_slug>/members/', views.team_members, name='team_members'),
-     path('teams/<slug:team_slug>/members/<int:user_id>/promote/', views.promote_member, name='promote_member'),
-     path('teams/<slug:team_slug>/members/<int:user_id>/remove/', views.remove_member, name='remove_member'),
-    path('help/', views.help_view, name='help'),
-    path('faq/', views.faq, name='faq'),
+     # In urls.py
+
+
+    # Team Management
+    path('teams/', views.team_list, name='team_list'),
+    path('teams/create/', views.create_team, name='create_team'),
+    path('teams/<slug:team_slug>/', views.team_detail, name='team_detail'),
+    path('teams/<slug:team_slug>/edit/', views.edit_team, name='edit_team'),
+    path('teams/<slug:team_slug>/delete/', views.delete_team, name='delete_team'),
+    path('teams/<slug:team_slug>/join/', views.join_team, name='join_team'),
+    path('teams/<slug:team_slug>/leave/', views.leave_team, name='leave_team'),
     
-    # Team URLs
-    path('team/<slug:team_slug>/discussions/', 
+    # Team Members
+    path('teams/<slug:team_slug>/members/', 
+         views.team_members, name='team_members'),
+    path('teams/<slug:team_slug>/members/<int:user_id>/promote/', 
+         views.promote_member, name='promote_member'),
+    path('teams/<slug:team_slug>/members/<int:user_id>/remove/', 
+         views.remove_member, name='remove_member'),
+    
+
+
+ # Team Discussions
+    path('teams/<slug:team_slug>/discussions/', 
          views.team_discussions, 
          name='team_discussions'),
-    path('team/<slug:team_slug>/discussions/<int:discussion_id>/', 
+    path('teams/<slug:team_slug>/discussions/<int:discussion_id>/', 
          views.discussion_detail, 
-         name='discussion_detail'),
-    path('team/<slug:team_slug>/discussions/<int:discussion_id>/delete/', 
-         views.delete_discussion, 
-         name='delete_discussion'),
-    path('team/<slug:team_slug>/analytics/', 
-         views.team_analytics, 
-         name='team_analytics'),
+         name='team_discussion_detail'),
+    path('teams/<slug:team_slug>/discussions/<int:discussion_id>/delete/', 
+         views.delete_discussion,  
+         name='delete_team_discussion'),
+    path('teams/<slug:team_slug>/discussions/<int:discussion_id>/pin/', 
+         views.pin_discussion, 
+         name='pin_team_discussion'),
+    # Add this new URL pattern for deleting comments
+    path('teams/<slug:team_slug>/comments/<int:comment_id>/delete/',
+         views.delete_team_comment,
+         name='delete_team_comment'),
+    # Team Analytics
+    path('teams/<slug:team_slug>/analytics/', 
+         views.team_analytics, name='team_analytics'),
 ]

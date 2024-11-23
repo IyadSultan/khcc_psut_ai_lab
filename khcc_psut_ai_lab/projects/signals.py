@@ -4,49 +4,61 @@ from django.db.models import F
 from .models import TeamMembership, TeamDiscussion, TeamComment, TeamAnalytics
 from .utils.team_emails import send_team_notification_email, send_role_change_notification
 
+# projects/signals.py
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import TeamDiscussion, TeamComment
+from .utils.team_emails import send_team_notification_email
+
 @receiver(post_save, sender=TeamDiscussion)
 def handle_new_discussion(sender, instance, created, **kwargs):
+    """Handle notifications for new team discussions"""
     if created:
-        # Update analytics
-        analytics = instance.team.analytics
-        analytics.total_discussions = F('total_discussions') + 1
-        analytics.discussions_this_week = F('discussions_this_week') + 1
-        analytics.discussions_this_month = F('discussions_this_month') + 1
-        analytics.save()
-        
-        # Notify team members
-        for membership in instance.team.memberships.filter(
+        # Get team members to notify
+        members = instance.team.memberships.filter(
             is_approved=True,
-            # notification_preferences__in_app_notifications=True
-        ).exclude(user=instance.author):
-            send_team_notification_email(
-                membership.user,
-                instance.team,
-                'discussion',
-                {'discussion': instance}
-            )
+            receive_notifications=True
+        ).exclude(user=instance.author)
+        
+        # Send notifications to each member
+        for membership in members:
+            try:
+                send_team_notification_email(
+                    user=membership.user,
+                    team=instance.team,
+                    notification_type='discussion',
+                    context={
+                        'discussion': instance
+                    }
+                )
+            except Exception as e:
+                print(f"Error sending notification to {membership.user}: {str(e)}")
 
 @receiver(post_save, sender=TeamComment)
 def handle_new_comment(sender, instance, created, **kwargs):
+    """Handle notifications for new team comments"""
     if created:
-        # Update analytics
-        analytics = instance.discussion.team.analytics
-        analytics.total_comments = F('total_comments') + 1
-        analytics.comments_this_week = F('comments_this_week') + 1
-        analytics.comments_this_month = F('comments_this_month') + 1
-        analytics.save()
-        
-        # Notify team members
-        for membership in instance.discussion.team.memberships.filter(
+        # Get team members to notify
+        members = instance.discussion.team.memberships.filter(
             is_approved=True,
-            # notification_preferences__in_app_notifications=True
-        ).exclude(user=instance.author):
-            send_team_notification_email(
-                membership.user,
-                instance.discussion.team,
-                'comment',
-                {'comment': instance}
-            )
+            receive_notifications=True
+        ).exclude(user=instance.author)
+        
+        # Send notifications to each member
+        for membership in members:
+            try:
+                send_team_notification_email(
+                    user=membership.user,
+                    team=instance.discussion.team,
+                    notification_type='comment',
+                    context={
+                        'comment': instance,
+                        'discussion': instance.discussion
+                    }
+                )
+            except Exception as e:
+                print(f"Error sending notification to {membership.user}: {str(e)}")
 
 @receiver(post_save, sender=TeamMembership)
 def handle_membership_changes(sender, instance, created, **kwargs):

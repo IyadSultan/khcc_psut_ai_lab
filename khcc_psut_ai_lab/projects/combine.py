@@ -35,7 +35,7 @@ def main():
     # Define the base directory (current directory in this case)
     base_directory = "."
     output_file = 'combined.py'
-    extensions = ('.py', '.html', '.css', '.js')
+    extensions = ('.py')
 
     # Remove output file if it exists
     if os.path.exists(output_file):

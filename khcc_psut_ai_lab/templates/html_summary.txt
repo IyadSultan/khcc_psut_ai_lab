@@ -1,6 +1,6 @@
 # HTML Files Summary
-# Generated from directory: C:\Users\isult\OneDrive\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\templates
-# Total HTML files found: 60
+# Generated from directory: C:\Users\USER\Documents\khcc_psut_ai_lab\khcc_psut_ai_lab\templates
+# Total HTML files found: 63
 
 
 ### .\account\email_confirm.html ###
@@ -17,6 +17,10 @@ Description: Logout Header
 --------------------------------------------------------------------------------
 
 ### .\account\verification_sent.html ###
+--------------------------------------------------------------------------------
+
+### .\analytics\analytics_dashboard.html ###
+Description: Time Range Selector
 --------------------------------------------------------------------------------
 
 ### .\base.html ###
@@ -37,6 +41,10 @@ Description: Bootstrap CSS
 --------------------------------------------------------------------------------
 
 ### .\errors.html ###
+--------------------------------------------------------------------------------
+
+### .\gold_analytics\dashboard.html ###
+Description: Overview Cards
 --------------------------------------------------------------------------------
 
 ### .\help.html ###
@@ -115,7 +123,7 @@ Description: templates/projects/project_analytics.html
 --------------------------------------------------------------------------------
 
 ### .\projects\project_detail.html ###
-Description: Toast Messages
+Description: Project Header
 --------------------------------------------------------------------------------
 
 ### .\projects\project_list.html ###
@@ -203,7 +211,7 @@ Description: Delete Team Header
 --------------------------------------------------------------------------------
 
 ### .\teams\discussion_detail.html ###
-Description: Comments
+Description: Discussion Content
 --------------------------------------------------------------------------------
 
 ### .\teams\edit_team.html ###
@@ -219,6 +227,10 @@ Description: Overview Cards
 
 ### .\teams\team_detail.html ###
 Description: Team Detail Header
+--------------------------------------------------------------------------------
+
+### .\teams\team_discussions.html ###
+Description: New Discussion Form
 --------------------------------------------------------------------------------
 
 ### .\teams\team_list.html ###
