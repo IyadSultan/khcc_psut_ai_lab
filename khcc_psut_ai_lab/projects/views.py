@@ -658,13 +658,22 @@ def project_list(request):
     category = request.GET.get('category', 'all')
     sort = request.GET.get('sort', '-created_at')
     selected_tags = request.GET.getlist('tags')
-
+    per_page = request.GET.get('per_page', '12')  # Default to 12 if not specified
+    
+    # Convert per_page to integer and validate
+    try:
+        per_page = int(per_page)
+        if per_page not in [12, 24, 48]:  # Only allow valid options
+            per_page = 12
+    except (ValueError, TypeError):
+        per_page = 12
+    
     # Get top 10 most used tags
     all_tags = Project.objects.values('tags') \
         .annotate(tag_count=Count('tags')) \
         .order_by('-tag_count')
     popular_tags = [tag['tags'] for tag in all_tags[:10] if tag['tags']]
-
+    
     # Apply filters
     if query:
         projects = projects.filter(
@@ -672,7 +681,7 @@ def project_list(request):
             Q(description__icontains=query) |
             Q(tags__icontains=query)
         ).distinct()
-
+    
     if category != 'all':
         if category == 'featured':
             projects = projects.filter(is_featured=True)
@@ -684,17 +693,17 @@ def project_list(request):
             projects = projects.annotate(
                 popularity=Count('claps') + Count('comments')
             ).order_by('-popularity')
-
+    
     # Apply tag filters
     if selected_tags:
         for tag in selected_tags:
             projects = projects.filter(tags__icontains=tag)
-
+    
     # Apply sorting
     if sort:
         if sort == '-clap_count':
             projects = projects.annotate(
-                total_claps=Count('claps')  # Changed from clap_count to total_claps
+                total_claps=Count('claps')
             ).order_by('-total_claps')
         elif sort == '-rating_avg':
             projects = projects.annotate(
@@ -702,23 +711,24 @@ def project_list(request):
             ).order_by('-rating_avg')
         else:
             projects = projects.order_by(sort)
-
+    
     # Annotate with counts for display
     projects = projects.annotate(
-        total_comments=Count('comments')  # Changed from comment_count
+        total_comments=Count('comments')
     )
-
+    
     # Pagination
-    paginator = Paginator(projects, 12)  # Show 12 projects per page
+    paginator = Paginator(projects, per_page)  # Use dynamic per_page value
     page = request.GET.get('page')
     page_obj = paginator.get_page(page)
-
+    
     context = {
         'page_obj': page_obj,
         'popular_tags': popular_tags,
         'selected_tags': selected_tags,
+        'per_page': per_page,  # Add to context to maintain selected value
     }
-
+    
     return render(request, 'projects/project_list.html', context)
 
 @login_required
@@ -928,9 +938,19 @@ def update_bookmark_notes(request, pk):
 
 @login_required
 def bookmarks(request):
-    bookmarks = Bookmark.objects.filter(user=request.user).select_related('project')
-    return render(request, 'projects/bookmarks.html', {'bookmarks': bookmarks})
-
+    """View to display user bookmarks"""
+    bookmarks = Bookmark.objects.filter(
+        user=request.user
+    ).select_related(
+        'project',
+        'project__author'
+    ).order_by('-created_at')
+    
+    return render(request, 'projects/bookmarks.html', {
+        'bookmarks': bookmarks,
+        'page_title': 'Bookmarks',
+        'active_tab': 'bookmarks'
+    })
 
 
 @login_required
@@ -1431,6 +1451,8 @@ def profile_settings(request):
         'form': form,
         'active_tab': 'settings'
     })
+
+
 
 
 
