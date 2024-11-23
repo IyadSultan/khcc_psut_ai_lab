@@ -1,0 +1,12 @@
+<!-- templates/includes/_page_header.html -->
+<div class="bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">{{ title }}</h1>
+        {% if subtitle %}
+            <p class="lead">{{ subtitle }}</p>
+        {% endif %}
+    </div>
+</div>
+<!-- 
+how to include
+{% include 'includes/_page_header.html' with title="Contact Us" subtitle="Exploring" %} -->
