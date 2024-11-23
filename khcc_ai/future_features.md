@@ -1,17 +1,60 @@
 # Future Features
 
-- [ ] Add a feature to allow users to follow other users.
+- [+] Add a feature to allow users to follow other users.
 - [ ] Add a feature to make some seeds featured.
-- [ ] Add different levels of sponsorships.
-- [ ] Add startups to navbar where users can post products and services.
-- [ ] Add tools to navbar where users can check tools made by KHCC AI lab.
-- [ ] Add toys to navbar where users can check toys made by KHCC AI lab.
-- [ ] Add datasets to navbar where users can check datasets made by KHCC AI lab.
-- [ ] Make the website more responsive.
+- [+] Add different levels of sponsorships.
+- [+] Add startups to navbar where users can post products and services.
+- [+] Add tools to navbar where users can check tools made by KHCC AI lab.
+- [X] Add toys to navbar where users can check toys made by KHCC AI lab.
+- [+] Add datasets to navbar where users can check datasets made by KHCC AI lab.
+- [+] Make the website more responsive.
 - [ ] Make the website more mobile friendly.
-- [ ] Add a feature to allow users to download projects as a zip file.
+- [X] Add a feature to allow users to download projects as a zip file.
 - [ ] Add a feature to allow users to download datasets as a zip file.
-- [ ] Make the filter more intuitive: users should select to see featured seeds, latest seeds, gold seeds, popular seeds, etc.
-- [ ] Add application for faculty, sponsors, startups, and students.
-- [ ] Add AI for automatic tag generation.
-- [ ] Add virtual members who can be added to projects.
+- [+] Make the filter more intuitive: users should select to see featured seeds, latest seeds, gold seeds, popular seeds, etc.
+- [X] Add application for faculty, sponsors, startups, and students.
+- [+] Add AI for automatic tag generation.
+- [+] Add virtual members who can be added to projects.
+
+- [ ] Add AI for automatic tag generation for teams.
+- [ ] Add AI for automatic team description generation and posting on seeds about the team.
+- [ ] Featured seed generation by faculty.
+- [ ] in post link processing (hyperlinks) add mention other users and teams with notifications.
+- [ ] workflow for followers: what I get if follow someone.
+- [ ] process submissions: show all submissions for a seed and their rankings once deadline is over.
+- [ ] show number of submissions before deadline.
+- [ ] Explain why a submission was rejected or accepted.
+- [ ] save preferences in what to see on your timeline.
+- [ ] add excaldraw and iCG to tools.
+- [ ] make submissions in the name of teams with at least 3 members.
+- [ ] show gold and featured seeds on front page.
+- [ ] show teams on front page.
+- [ ] work more on policy for sponsors.
+- [ ] work more on policy for startups.
+- [ ] work more on policy for faculty.
+- [ ] work more on policy for submissions.
+- [ ] show time of submission on seeds list.
+- [ ] refine khcc brain prompts.
+- [ ] add block list for certain users.
+- [ ] add confirmation email and phone number verification.
+- [ ] make some teams private
+- [ ] allow team founders to invite members.
+- [ ] allow members to request to join teams and wait for approval.
+- [ ] allow teams to request to adopt a seed and the seed will appear on their page.
+- [ ] make a drop down on top that shows which team you are presenting when making submissions or adopting a seed.
+- [ ] save the default (last selected) team in the drop down.
+- [ ] change the layout of seeds to be similar to facebook.
+- [ ] fix tags on sidebar or project list.
+- [ ] define popular seeds.
+- [ ] options to organize talents and faculty according to date of joininng (recent first default) and alphabetical order.
+- [ ] fix clapping animation.
+- [ ] when sharing anything to twitter or linked in add "join khcc.ai for healthcare ai innovation updates" to the end of the post.
+- [ ] add photo to the end of the post when sharing to twitter or linked in.
+- [ ] add khcc.ai logo to the end of the post when sharing to twitter or linked in.
+- [ ] add moderators who can delete inappropriate posts.
+- [ ] add moderators who can post featured or gold posts.
+- [ ] add a 1 minute video when submitting profile.
+- [ ] add steroids to the website.
+- [ ] add a feature to allow users to delete their account.
+
+
