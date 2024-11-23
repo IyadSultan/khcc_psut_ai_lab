@@ -3,7 +3,6 @@
 {% load team_tags %}
 
 {% block content %}
-
 <!-- Team Detail Header -->
 <div class="bg-primary text-white py-5 mb-5">
     <div class="container">
@@ -97,7 +96,7 @@
                 </div>
             </div>
 
-            <!-- Team Members Preview -->
+            <!-- Team Members -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-transparent">
                     <div class="d-flex justify-content-between align-items-center">
@@ -182,26 +181,7 @@
 
         <!-- Sidebar -->
         <div class="col-lg-4">
-            <!-- Team Members Preview -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-transparent">
-                    <h5 class="mb-0">Team Members</h5>
-                </div>
-                <div class="card-body">
-                    {% for member in members %}
-                    <div class="d-flex align-items-center {% if not forloop.last %}mb-3{% endif %}">
-                        <img src="{% if member.user.profile.avatar %}{{ member.user.profile.avatar.url }}{% else %}https://via.placeholder.com/40{% endif %}" 
-                             class="rounded-circle me-2" 
-                             alt="{{ member.user.username }}"
-                             style="width: 40px; height: 40px; object-fit: cover;">
-                        <div>
-                            <h6 class="mb-0">{{ member.user.get_full_name|default:member.user.username }}</h6>
-                            <small class="text-muted">{{ member.role|title }}</small>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+            <!-- Add any additional sidebar content here -->
         </div>
     </div>
 </div>

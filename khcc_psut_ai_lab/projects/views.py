@@ -1776,7 +1776,6 @@ def create_team(request):
 
 @login_required
 def team_detail(request, team_slug):
-    """View for showing team details"""
     team = get_object_or_404(Team, slug=team_slug)
     
     # Get user's membership status
@@ -1785,18 +1784,29 @@ def team_detail(request, team_slug):
     # Get team members
     members = team.memberships.select_related('user').filter(is_approved=True)
     
-    # Get team discussions
-    discussions = team.discussions.select_related('author').order_by('-created_at')[:5]
+    # Split tags if it's a string
+    tags = team.tags.split(',') if team.tags else []
+    
+    # Get pinned discussions with optimized queries
+    pinned_discussions = TeamDiscussion.objects.filter(
+        team=team,
+        pinned=True
+    ).select_related(
+        'author',
+        'author__profile'
+    ).prefetch_related(
+        'comments'
+    ).order_by('-created_at')[:3]
     
     context = {
         'team': team,
         'user_membership': user_membership,
         'members': members,
-        'discussions': discussions,
+        'tags': tags,
+        'pinned_discussions': pinned_discussions,
     }
     
-    return render(request, 'teams/team_detail.html', context)
-    
+    return render(request, 'teams/team_detail.html', context)  # Changed from projects to teams
 
 
 @login_required
